@@ -1,0 +1,233 @@
+/* Good CSS with Animations for a Modern Look */
+
+:root {
+  --primary-color: #5a7d7d;
+  --secondary-color: #8b6b6c;
+  --text-color: #333;
+  --border-color: #ccc;
+  --bg-light: #f5f5f5;
+  --bg-dark: #343a40;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --transition-speed: 0.3s;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  background-color: var(--bg-light);
+  color: var(--text-color);
+  margin: 0;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.form-toggle {
+  display: flex;
+  background-color: #e9ecef;
+  border-radius: 50px;
+  margin-bottom: 30px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.form-toggle button {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  background-color: transparent;
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  position: relative;
+  z-index: 1;
+}
+
+.form-toggle button.active {
+  color: #fff;
+}
+
+.form-toggle button.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 50px;
+  z-index: -1;
+  animation: slideIn 0.5s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.login-form {
+  background: #fff;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 450px;
+  text-align: left;
+  transform: translateY(-20px);
+  opacity: 0;
+  animation: slideInUp 0.6s forwards 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.login-form h2 {
+  margin-top: 0;
+  margin-bottom: 24px;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 2rem;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.input-with-dropdown {
+  display: flex;
+}
+
+.country-code-dropdown, .form-group input, .form-control { /* .form-control now styled */
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 1rem;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+  background-color: #fff; /* Ensure dropdown has a white background */
+  appearance: none; /* Remove default browser styling for select */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235a7d7d%22%20d%3D%22M287%2C114.7L159.2%2C26.9c-4.6-4.6-12-4.6-16.6,0L5.4,114.7c-4.6,4.6-4.6,12,0,16.6l15.8,15.8c4.6,4.6,12,4.6,16.6,0l99.3-99.3l99.3,99.3c4.6,4.6,12,4.6,16.6,0l15.8-15.8C291.5,126.7,291.5,119.3,287,114.7z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding-right: 30px; /* Make space for the custom arrow */
+}
+
+
+.country-code-dropdown {
+  width: auto;
+  min-width: 100px;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235a7d7d%22%20d%3D%22M287%2C114.7L159.2%2C26.9c-4.6-4.6-12-4.6-16.6,0L5.4,114.7c-4.6,4.6-4.6,12,0,16.6l15.8,15.8c4.6,4.6,12,4.6,16.6,0l99.3-99.3l99.3,99.3c4.6,4.6,12,4.6,16.6,0l15.8-15.8C291.5,126.7,291.5,119.3,287,114.7z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding-right: 30px; /* Make space for the custom arrow */
+}
+
+.form-group input {
+  border-radius: 8px;
+  flex: 1;
+}
+
+.input-with-dropdown input {
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.form-group input:focus, .country-code-dropdown:focus, .form-control:focus { /* .form-control focus style added */
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(90, 125, 125, 0.2);
+}
+
+.login-button {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color var(--transition-speed) ease, transform 0.2s ease;
+  margin-top: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.login-button:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.login-button:active {
+  transform: translateY(0);
+}
+
+.message {
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.message.success {
+  color: #155724;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
+
+/* Keyframes for animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

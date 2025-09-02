@@ -1,0 +1,62 @@
+/* src/pages/SubcollectionsPage.css */
+
+.subcollections-page-container {
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  min-height: 60vh; /* Ensure some height for loading states */
+}
+
+.page-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 2.2em;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 15px;
+}
+
+.no-subcollections-message,
+.error-message {
+  text-align: center;
+  font-size: 1.1em;
+  color: #666;
+  padding: 40px;
+}
+
+.error-message {
+  color: #dc3545; /* Red for errors */
+  font-weight: bold;
+}
+
+.subcollections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 25px;
+  padding: 20px 0;
+}
+
+.subcollections-grid a {
+  text-decoration: none; /* Remove underline from links */
+  color: inherit; /* Inherit text color */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .subcollections-page-container {
+    padding: 20px 10px;
+    margin: 10px auto;
+  }
+  .page-title {
+    font-size: 1.8em;
+  }
+}
+
+@media (max-width: 480px) {
+  .subcollections-grid {
+    grid-template-columns: 1fr; /* Stack cards on very small screens */
+  }
+}
