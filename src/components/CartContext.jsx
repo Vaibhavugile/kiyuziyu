@@ -4,7 +4,7 @@ import React, { createContext, useState, useContext } from 'react';
 export const getPriceForQuantity = (tiers, quantity) => {
   if (!tiers || tiers.length === 0) return 0;
   const sortedTiers = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
-  let price = sortedTiers[0].price; // Default to the lowest tier price
+  let price = sortedTiers[0]?.price || 0;
   for (const tier of sortedTiers) {
     if (quantity >= tier.min_quantity && (tier.max_quantity === '' || quantity <= tier.max_quantity)) {
       price = tier.price;
@@ -21,37 +21,39 @@ export const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState({});
 
-  // Helper function to recalculate prices for a subcollection based on total quantity
-  const recalculateSubcollectionPrices = (prevCart, subcollectionId) => {
+  // Recalculates prices based on the total quantity for a subcollection
+  const recalculatePrices = (prevCart, subcollectionId, userRole) => {
     const newCart = { ...prevCart };
-    let totalSubcollectionQuantity = 0;
+    let totalQuantity = 0;
 
-    // First, calculate the total quantity for the subcollection
+    // First, find the total quantity of items in the subcollection
     for (const productId in newCart) {
       if (newCart[productId].subcollectionId === subcollectionId) {
-        totalSubcollectionQuantity += newCart[productId].quantity;
+        totalQuantity += newCart[productId].quantity;
       }
     }
 
-    // Then, find the new price based on the total quantity
-    const tieredPricing = newCart[Object.keys(newCart).find(key => newCart[key].subcollectionId === subcollectionId)]?.tieredPricing?.retail;
-    const newPrice = getPriceForQuantity(tieredPricing, totalSubcollectionQuantity);
+    // Now, get the tiered pricing for the subcollection based on userRole
+    const productItem = Object.values(newCart).find(item => item.subcollectionId === subcollectionId);
+    const tieredPricing = productItem?.tieredPricing?.[userRole];
     
-    // Finally, update the price for every product in that subcollection
-    for (const productId in newCart) {
-      if (newCart[productId].subcollectionId === subcollectionId) {
-        newCart[productId].price = newPrice;
+    if (tieredPricing) {
+      const newPrice = getPriceForQuantity(tieredPricing, totalQuantity);
+      
+      // Update the price for all items in that subcollection
+      for (const productId in newCart) {
+        if (newCart[productId].subcollectionId === subcollectionId) {
+          newCart[productId].price = newPrice;
+        }
       }
     }
-
     return newCart;
   };
 
-  // Function to add a product to the cart
-  const addToCart = (productId, productData, maxQuantity) => {
+  const addToCart = (productId, productData) => {
     setCart(prevCart => {
       const currentQuantity = prevCart[productId]?.quantity || 0;
-      if (currentQuantity >= maxQuantity) {
+      if (currentQuantity >= productData.maxQuantity) {
         return prevCart;
       }
 
@@ -60,20 +62,19 @@ export const CartProvider = ({ children }) => {
         [productId]: {
           ...productData,
           quantity: currentQuantity + 1,
-          price: 0, // Price will be updated in the next step
         },
       };
 
       // Recalculate prices for the entire subcollection
-      return recalculateSubcollectionPrices(newCart, productData.subcollectionId);
+      return recalculatePrices(newCart, productData.subcollectionId, productData.userRole);
     });
   };
 
-  // Function to remove a product from the cart
   const removeFromCart = (productId) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
       const subcollectionId = newCart[productId]?.subcollectionId;
+      const userRole = newCart[productId]?.userRole;
 
       const newQuantity = (newCart[productId]?.quantity || 0) - 1;
 
@@ -85,7 +86,7 @@ export const CartProvider = ({ children }) => {
 
       // Recalculate prices for the entire subcollection
       if (subcollectionId) {
-        return recalculateSubcollectionPrices(newCart, subcollectionId);
+        return recalculatePrices(newCart, subcollectionId, userRole);
       }
 
       return newCart;
@@ -104,7 +105,11 @@ export const CartProvider = ({ children }) => {
     getCartTotal,
   };
 
-  return <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={contextValue}>
+      {children}
+    </CartContext.Provider>
+  );
 };
 
 // Custom hook to use the cart context

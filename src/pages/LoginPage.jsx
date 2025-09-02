@@ -1,262 +1,295 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   auth,
   db,
-  collection,
-  setDoc, // For storing user profiles
-  doc, // For specifying document ID
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from '../firebase'; // Import auth and Firestore functions
+  doc,
+  setDoc,
+  signInWithPhoneNumber,
+  onAuthStateChanged,
+  signOut,
+  getDoc,
+  RecaptchaVerifier, // Ensure this is imported
+} from '../firebase';
+
 import '../styles/LoginPage.css';
 
 const countryCodes = [
   { code: '+91', country: 'India' },
   { code: '+1', country: 'USA' },
   { code: '+44', country: 'UK' },
-  { code: '+86', country: 'China' },
-  { code: '+49', country: 'Germany' },
-  // Add more country codes as needed
 ];
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const navigate = useNavigate(); // Initialize useNavigate hook
+  const navigate = useNavigate();
 
-  // State for Login form
-  const [loginMobile, setLoginMobile] = useState('');
+  const [loginPhoneNumber, setLoginPhoneNumber] = useState('');
   const [loginCountryCode, setLoginCountryCode] = useState('+91');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // State for Sign-up form
-  const [signupName, setSignupName] = useState('');
-  const [signupMobile, setSignupMobile] = useState('');
+  const [signupPhoneNumber, setSignupPhoneNumber] = useState('');
   const [signupCountryCode, setSignupCountryCode] = useState('+91');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupCity, setSignupCity] = useState('');
-  const [signupCountry, setSignupCountry] = useState('');
-  const [signupRole, setSignupRole] = useState('retailer'); // New state for role, default to 'retailer'
+  const [signupName, setSignupName] = useState('');
+  const [signupRole, setSignupRole] = useState('retailer');
+  const [verificationCode, setVerificationCode] = useState('');
 
-  // State to manage feedback messages
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // 'success' or 'error'
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  // We will initialize the verifier inside a useEffect hook
+  // to ensure the DOM element exists.
+  useEffect(() => {
+    // Check if reCAPTCHA has already been initialized
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible', // This makes the reCAPTCHA invisible
+        'callback': (response) => {
+          // reCAPTCHA solved, allows you to proceed with phone sign-in
+          console.log("reCAPTCHA solved, response:", response);
+        },
+        'expired-callback': () => {
+          console.log("reCAPTCHA expired.");
+        }
+      });
+    }
+
+    // Cleanup function to clear reCAPTCHA when the component unmounts
+    return () => {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        delete window.recaptchaVerifier;
+      }
+    };
+  }, []);
+
+  const handleSendCode = async (fullPhoneNumber) => {
+    setError('');
+    setInfo('');
+    setIsSendingCode(true);
+
+    if (!window.recaptchaVerifier) {
+      setError('reCAPTCHA not initialized. Please refresh the page.');
+      setIsSendingCode(false);
+      return;
+    }
+
+    try {
+      // The signInWithPhoneNumber function requires the auth instance,
+      // the phone number, and the recaptchaVerifier instance.
+      const result = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+
+      setConfirmationResult(result);
+      setIsVerifying(true);
+      setInfo('Verification code sent! Please check your phone.');
+
+    } catch (err) {
+      console.error("Error sending code:", err);
+      setError(`Failed to send code: ${err.message}`);
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async (fullPhoneNumber) => {
+    setError('');
+    setInfo('');
+
+    if (!confirmationResult || !verificationCode) {
+      setError('Please enter the verification code.');
+      return;
+    }
+
+    try {
+      const userCredential = await confirmationResult.confirm(verificationCode);
+      const user = userCredential.user;
+
+      if (!isLogin) {
+        await setDoc(doc(db, 'users', user.uid), {
+          name: signupName,
+          phoneNumber: fullPhoneNumber,
+          role: signupRole,
+          createdAt: new Date(),
+        });
+        setInfo('Sign-up successful! Redirecting...');
+      } else {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          console.warn('User found in auth but not in Firestore. Redirecting to sign-up.');
+          await signOut(auth);
+          setIsLogin(false);
+          setSignupPhoneNumber(loginPhoneNumber);
+          setSignupCountryCode(loginCountryCode);
+          setError('User profile not found. Please sign up.');
+          return;
+        }
+        setInfo('Login successful! Redirecting...');
+      }
+
+      navigate('/');
+
+    } catch (err) {
+      console.error("Error verifying code:", err);
+      setError(`Verification failed: ${err.message}`);
+    }
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setMessage(''); // Clear previous messages
-    setMessageType('');
-
-    // Firebase Authentication uses email, so we combine mobile and a placeholder domain
-    const email = `${loginCountryCode}${loginMobile}@example.com`;
-
-    try {
-      await signInWithEmailAndPassword(auth, email, loginPassword);
-      setMessage('Login successful! Redirecting...');
-      setMessageType('success');
-      setTimeout(() => {
-        navigate('/'); // Redirect to homepage after successful login
-      }, 1500);
-    } catch (error) {
-      console.error("Error logging in:", error.code, error.message);
-      setMessage(`Login failed: ${error.message}`);
-      setMessageType('error');
-    }
+    const fullPhoneNumber = `${loginCountryCode}${loginPhoneNumber}`;
+    await handleSendCode(fullPhoneNumber);
   };
 
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
-    setMessage(''); // Clear previous messages
-    setMessageType('');
-
-    // Firebase Authentication uses email, so we combine mobile and a placeholder domain
-    const email = `${signupCountryCode}${signupMobile}@example.com`;
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, signupPassword);
-      const user = userCredential.user;
-
-      // Store additional user details in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: signupName,
-        mobile: signupMobile,
-        countryCode: signupCountryCode,
-        city: signupCity,
-        country: signupCountry,
-        role: signupRole, // Store the selected role
-        email: email, // Store the generated email for reference
-        createdAt: new Date(),
-      });
-
-      setMessage('Account created successfully! Please log in.');
-      setMessageType('success');
-      // Optionally switch to login form after successful signup
-      setTimeout(() => {
-        setIsLogin(true);
-        setMessage(''); // Clear message when switching forms
-        setMessageType('');
-      }, 2000);
-    } catch (error) {
-      console.error("Error signing up:", error.code, error.message);
-      setMessage(`Sign up failed: ${error.message}`);
-      setMessageType('error');
-    }
+    const fullPhoneNumber = `${signupCountryCode}${signupPhoneNumber}`;
+    await handleSendCode(fullPhoneNumber);
   };
 
   return (
-    <div className="login-container">
-      <div className="form-toggle">
-        <button
-          className={isLogin ? 'active' : ''}
-          onClick={() => {
-            setIsLogin(true);
-            setMessage('');
-            setMessageType('');
-          }}
-        >
-          Login
-        </button>
-        <button
-          className={!isLogin ? 'active' : ''}
-          onClick={() => {
-            setIsLogin(false);
-            setMessage('');
-            setMessageType('');
-          }}
-        >
-          Sign Up
-        </button>
+    <div className="login-page">
+      <div className="login-container">
+        <h2>{isLogin ? 'Login to your Account' : 'Create an Account'}</h2>
+        {error && <p className="error-message">{error}</p>}
+        {info && <p className="info-message">{info}</p>}
+
+        {!isVerifying ? (
+          <>
+            {isLogin ? (
+              <form onSubmit={handleLoginSubmit}>
+                {/* ... (login form fields) ... */}
+                <div className="form-group">
+                  <label htmlFor="login-phone">Phone Number</label>
+                  <div className="phone-input-group">
+                    <select
+                      id="login-country-code"
+                      value={loginCountryCode}
+                      onChange={(e) => setLoginCountryCode(e.target.value)}
+                    >
+                      {countryCodes.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.country} ({c.code})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      id="login-phone"
+                      value={loginPhoneNumber}
+                      onChange={(e) => setLoginPhoneNumber(e.target.value)}
+                      placeholder="Enter phone number"
+                      required
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="login-button" disabled={isSendingCode}>
+                  {isSendingCode ? 'Sending Code...' : 'Send Login Code'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSignupSubmit}>
+                {/* ... (signup form fields) ... */}
+                <div className="form-group">
+                  <label htmlFor="signup-name">Full Name</label>
+                  <input
+                    type="text"
+                    id="signup-name"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="signup-phone">Phone Number</label>
+                  <div className="phone-input-group">
+                    <select
+                      id="signup-country-code"
+                      value={signupCountryCode}
+                      onChange={(e) => setSignupCountryCode(e.target.value)}
+                    >
+                      {countryCodes.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.country} ({c.code})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      id="signup-phone"
+                      value={signupPhoneNumber}
+                      onChange={(e) => setSignupPhoneNumber(e.target.value)}
+                      placeholder="Enter phone number"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="signup-role">Role</label>
+                  <select
+                    id="signup-role"
+                    value={signupRole}
+                    onChange={(e) => setSignupRole(e.target.value)}
+                    required
+                  >
+                    <option value="retailer">Retailer</option>
+                    <option value="wholesaler">Wholesaler</option>
+                  </select>
+                </div>
+                <button type="submit" className="login-button" disabled={isSendingCode}>
+                  {isSendingCode ? 'Sending Code...' : 'Send Sign Up Code'}
+                </button>
+              </form>
+            )}
+            {/* The reCAPTCHA container MUST be rendered for the verifier to attach to it */}
+            <div id="recaptcha-container"></div>
+          </>
+        ) : (
+          <form onSubmit={(e) => { e.preventDefault(); handleVerifyCode(isLogin ? `${loginCountryCode}${loginPhoneNumber}` : `${signupCountryCode}${signupPhoneNumber}`); }}>
+            {/* ... (verification form fields) ... */}
+            <div className="form-group">
+              <label htmlFor="verification-code">Verification Code</label>
+              <input
+                type="text"
+                id="verification-code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+                required
+              />
+            </div>
+            <button type="submit" className="login-button">
+              Verify Code
+            </button>
+          </form>
+        )}
+
+        <p className="toggle-text">
+          {isLogin ? (
+            <>
+              Don't have an account?{' '}
+              <span onClick={() => {
+                setIsLogin(false);
+                setIsVerifying(false);
+                setInfo('');
+                setError('');
+              }}>Sign Up</span>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <span onClick={() => {
+                setIsLogin(true);
+                setIsVerifying(false);
+                setInfo('');
+                setError('');
+              }}>Login</span>
+            </>
+          )}
+        </p>
       </div>
-
-      {/* Display message */}
-      {message && <div className={`message ${messageType}`}>{message}</div>}
-
-      {isLogin ? (
-        <form className="login-form" onSubmit={handleLoginSubmit}>
-          <h2>Log In</h2>
-          <div className="form-group mobile-input-group">
-            <label htmlFor="login-mobile">Mobile Number</label>
-            <div className="input-with-dropdown">
-              <select
-                className="country-code-dropdown"
-                value={loginCountryCode}
-                onChange={(e) => setLoginCountryCode(e.target.value)}
-              >
-                {countryCodes.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} ({c.country})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="login-mobile"
-                value={loginMobile}
-                onChange={(e) => setLoginMobile(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="login-password">Password</label>
-            <input
-              type="password"
-              id="login-password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="login-button">
-            Log In
-          </button>
-        </form>
-      ) : (
-        <form className="login-form" onSubmit={handleSignupSubmit}>
-          <h2>Sign Up</h2>
-          <div className="form-group">
-            <label htmlFor="signup-name">Name</label>
-            <input
-              type="text"
-              id="signup-name"
-              value={signupName}
-              onChange={(e) => setSignupName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group mobile-input-group">
-            <label htmlFor="signup-mobile">Mobile Number</label>
-            <div className="input-with-dropdown">
-              <select
-                className="country-code-dropdown"
-                value={signupCountryCode}
-                onChange={(e) => setSignupCountryCode(e.target.value)}
-              >
-                {countryCodes.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} ({c.country})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                id="signup-mobile"
-                value={signupMobile}
-                onChange={(e) => setSignupMobile(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label htmlFor="signup-password">Password</label>
-            <input
-              type="password"
-              id="signup-password"
-              value={signupPassword}
-              onChange={(e) => setSignupPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="signup-city">City</label>
-            <input
-              type="text"
-              id="signup-city"
-              value={signupCity}
-              onChange={(e) => setSignupCity(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="signup-country">Country</label>
-            <input
-              type="text"
-              id="signup-country"
-              value={signupCountry}
-              onChange={(e) => setSignupCountry(e.target.value)}
-              required
-            />
-          </div>
-          {/* New Role Dropdown */}
-          <div className="form-group">
-            <label htmlFor="signup-role">Role</label>
-            <select
-              id="signup-role"
-              className="form-control" // You might want to style this class in LoginPage.css
-              value={signupRole}
-              onChange={(e) => setSignupRole(e.target.value)}
-              required
-            >
-              <option value="retailer">Retailer</option>
-              <option value="wholesaler">Wholesaler</option>
-            </select>
-          </div>
-          <button type="submit" className="login-button">
-            Sign Up
-          </button>
-        </form>
-      )}
     </div>
   );
 };

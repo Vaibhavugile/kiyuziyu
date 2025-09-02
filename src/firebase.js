@@ -1,7 +1,9 @@
+// src/firebase.js
+
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, setDoc, doc, updateDoc, deleteDoc,getDoc } from 'firebase/firestore'; // Added updateDoc, deleteDoc
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; // Added deleteObject
+import { getFirestore, collection, getDocs, addDoc, setDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { getAuth, signInWithPhoneNumber, onAuthStateChanged, RecaptchaVerifier, signOut } from 'firebase/auth'; // Import signOut here
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBrxx_BAmHnqKciFqh9E_3Yu6ziRzANnYQ",
@@ -28,14 +30,16 @@ export {
   getDoc,
   setDoc,
   doc,
-  updateDoc, // Export updateDoc
-  deleteDoc, // Export deleteDoc
+  updateDoc,
+  deleteDoc,
   auth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  onAuthStateChanged,
+  RecaptchaVerifier,
+  signOut, // Export signOut here
   storage,
   ref,
   uploadBytes,
   getDownloadURL,
-  deleteObject // Export deleteObject
+  deleteObject
 };
