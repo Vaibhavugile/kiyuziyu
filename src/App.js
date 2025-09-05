@@ -9,12 +9,12 @@ import ProductsPage from './pages/ProductsPage';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { CartProvider } from './components/CartContext';
-import { AuthProvider } from './components/AuthContext'; // Import the AuthProvider
+import { AuthProvider } from './components/AuthContext'; // Import AuthProvider
 import CartPage from './pages/CartPage';
 
 function App() {
   return (
-    // Wrap the entire app with AuthProvider first, then CartProvider
+    // Wrap the entire app with AuthProvider first
     <AuthProvider>
       <CartProvider>
         <Router>

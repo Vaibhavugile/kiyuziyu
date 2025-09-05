@@ -1,8 +1,13 @@
-// src/firebase.js
-
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, addDoc, setDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { getAuth, signInWithPhoneNumber, onAuthStateChanged, RecaptchaVerifier, signOut } from 'firebase/auth'; // Import signOut here
+import { 
+  getAuth, 
+  signInWithPhoneNumber, 
+  onAuthStateChanged, 
+  RecaptchaVerifier,
+  createUserWithEmailAndPassword, // Added for user signup
+  signInWithEmailAndPassword,     // Added for user login
+} from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -36,10 +41,12 @@ export {
   signInWithPhoneNumber,
   onAuthStateChanged,
   RecaptchaVerifier,
-  signOut, // Export signOut here
   storage,
   ref,
   uploadBytes,
   getDownloadURL,
-  deleteObject
+  deleteObject,
+  // Export the newly added authentication functions
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 };

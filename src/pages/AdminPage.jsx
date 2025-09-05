@@ -35,6 +35,8 @@ const AdminPage = () => {
   const [subcollectionDescription, setSubcollectionDescription] = useState('');
   const [subcollectionImageFile, setSubcollectionImageFile] = useState(null);
   const [subcollectionShowNumber, setSubcollectionShowNumber] = useState('');
+  // Inside the AdminPage component
+  const [subcollectionPurchaseRate, setSubcollectionPurchaseRate] = useState('');
   const [isSubcollectionLoading, setIsSubcollectionLoading] = useState(false);
   const [isSubcollectionUploading, setIsSubcollectionUploading] = useState(false);
   const [editingSubcollection, setEditingSubcollection] = useState(null);
@@ -141,7 +143,7 @@ const AdminPage = () => {
     }
     setIsSubcollectionLoading(false);
   };
-  
+
   // --- Fetch Products for Selected Subcollection ---
   const fetchProducts = async () => {
     if (!selectedMainCollectionId || !selectedSubcollectionId) {
@@ -171,7 +173,7 @@ const AdminPage = () => {
     }
     setIsProductLoading(false);
   };
-  
+
   // UseEffects to trigger data fetching on dependency changes
   useEffect(() => {
     fetchMainCollections();
@@ -262,7 +264,7 @@ const AdminPage = () => {
   // --- Subcollection Handlers ---
   const handleAddSubcollection = async (e) => {
     e.preventDefault();
-    if (!selectedMainCollectionId || !subcollectionName || !subcollectionImageFile || !subcollectionShowNumber || subcollectionTieredPricing.retail.length === 0 || subcollectionTieredPricing.wholesale.length === 0) {
+    if (!selectedMainCollectionId || !subcollectionName || !subcollectionPurchaseRate || !subcollectionImageFile || !subcollectionShowNumber || subcollectionTieredPricing.retail.length === 0 || subcollectionTieredPricing.wholesale.length === 0) {
       alert('Please fill out all fields and add at least one pricing tier for both retail and wholesale.');
       return;
     }
@@ -275,6 +277,7 @@ const AdminPage = () => {
         description: subcollectionDescription,
         image: imageUrl,
         showNumber: parseInt(subcollectionShowNumber),
+        purchaseRate: parseFloat(subcollectionPurchaseRate), // Add this line
         tieredPricing: subcollectionTieredPricing,
       });
       console.log('Subcollection added with ID: ', newDoc.id);
@@ -291,6 +294,7 @@ const AdminPage = () => {
     setSubcollectionName(item.name);
     setSubcollectionDescription(item.description);
     setSubcollectionShowNumber(item.showNumber);
+    setSubcollectionPurchaseRate(item.purchaseRate || ''); // Add this line
     setSubcollectionTieredPricing(item.tieredPricing || { retail: [], wholesale: [] });
   };
 
@@ -310,6 +314,7 @@ const AdminPage = () => {
         description: subcollectionDescription,
         image: imageUrl,
         showNumber: parseInt(subcollectionShowNumber),
+        purchaseRate: parseFloat(subcollectionPurchaseRate),
         tieredPricing: subcollectionTieredPricing,
       });
       console.log('Subcollection updated successfully');
@@ -341,6 +346,7 @@ const AdminPage = () => {
     setSubcollectionShowNumber('');
     setSubcollectionTieredPricing({ retail: [], wholesale: [] });
     setEditingSubcollection(null);
+    setSubcollectionPurchaseRate(''); // Add this line
   };
 
   // --- Product Handlers ---
@@ -421,22 +427,22 @@ const AdminPage = () => {
     e.preventDefault();
     setIsProductUploading(true);
     try {
-        const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
-        const productData = {
-            productCode: productCode,
-            quantity: Number(productQuantity),
-        };
-        await updateDoc(productDocRef, productData);
-        fetchProducts();
-        resetProductForm();
+      const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
+      const productData = {
+        productCode: productCode,
+        quantity: Number(productQuantity),
+      };
+      await updateDoc(productDocRef, productData);
+      fetchProducts();
+      resetProductForm();
     } catch (err) {
-        console.error("Error updating product:", err);
-        alert("Failed to update product data.");
+      console.error("Error updating product:", err);
+      alert("Failed to update product data.");
     } finally {
-        setIsProductUploading(false);
+      setIsProductUploading(false);
     }
   };
-  
+
   const handleDeleteProduct = async (productId, imageUrl) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
@@ -565,6 +571,16 @@ const AdminPage = () => {
                   />
                 </div>
                 <div className="form-group">
+                  <label>Purchase Rate:</label>
+                  <input
+                    type="number"
+                    value={subcollectionPurchaseRate}
+                    onChange={(e) => setSubcollectionPurchaseRate(e.target.value)}
+                    placeholder="Purchase Rate (e.g., 50)"
+                    required
+                  />
+                </div>
+                <div className="form-group">
                   <label>Image:</label>
                   <input
                     type="file"
@@ -601,7 +617,7 @@ const AdminPage = () => {
                             value={tier.max_quantity}
                             onChange={(e) => handleTierChange(type, index, 'max_quantity', e.target.value)}
                             placeholder="Max Qty"
-                            
+
                           />
                           <input
                             type="number"
@@ -716,7 +732,7 @@ const AdminPage = () => {
                   </div>
                 </form>
               )}
-              
+
               {/* "Submit All" form for final step */}
               {showProductForm && currentImageIndex === newProducts.length && (
                 <form onSubmit={handleAddAllProducts} className="add-product-form">

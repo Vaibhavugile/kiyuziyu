@@ -1,48 +1,46 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, doc, onAuthStateChanged, getDoc } from '../firebase';
 
-// Create the Auth Context
+// Create the context
 export const AuthContext = createContext();
 
+// Create the provider component
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // This listener checks for changes in the user's authentication state
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
       if (user) {
-        // User is logged in, now fetch their profile from Firestore
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserProfile(docSnap.data());
+        // User is logged in, fetch their role from Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserRole(userDocSnap.data().role);
+        } else {
+          // No user profile found, default to 'retailer' or handle as an error
+          console.error("User profile not found in Firestore.");
+          setUserRole('retailer');
         }
-        setCurrentUser(user);
       } else {
         // User is logged out
-        setCurrentUser(null);
-        setUserProfile(null);
+        setUserRole(null);
       }
       setIsLoading(false);
     });
 
-    // Clean up the listener on component unmount
-    return () => unsubscribe();
+    return unsubscribe; // Cleanup subscription on unmount
   }, []);
 
   const value = {
     currentUser,
-    userProfile,
+    userRole,
     isLoading,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!isLoading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Custom hook to use the auth context

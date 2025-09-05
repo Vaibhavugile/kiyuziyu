@@ -8,7 +8,7 @@ const ProductCard = ({ productCode, quantity, price, image, cartQuantity, onIncr
       <div className="product-info">
         <h4 className="product-title">{productCode}</h4>
         <p className="product-quantity">Quantity: {quantity}</p>
-        {price && <p className="product-price">₹{price}</p>}
+        {price !== null && <p className="product-price">₹{price}</p>}
         {cartQuantity !== undefined && (
           <div className="cart-actions">
             {cartQuantity > 0 ? (
