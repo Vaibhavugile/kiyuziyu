@@ -9,12 +9,13 @@ import ProductsPage from './pages/ProductsPage';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { CartProvider } from './components/CartContext';
-import { AuthProvider } from './components/AuthContext'; // Import AuthProvider
+import { AuthProvider } from './components/AuthContext';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrderSuccessPage from './pages/OrderSuccessPage'; // Import the new component
 
 function App() {
   return (
-    // Wrap the entire app with AuthProvider first
     <AuthProvider>
       <CartProvider>
         <Router>
@@ -26,6 +27,8 @@ function App() {
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
             <Route path="/collections/:collectionId/subcollections/:subcollectionId" element={<ProductsPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/order-success" element={<OrderSuccessPage />} /> {/* Add the new route here */}
           </Routes>
           <Footer />
         </Router>

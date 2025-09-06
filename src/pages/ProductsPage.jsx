@@ -3,74 +3,65 @@ import { useParams, Link } from 'react-router-dom';
 import { db, collection, getDocs, doc, getDoc } from '../firebase';
 import ProductCard from '../components/ProductCard';
 import { useCart, getPriceForQuantity } from '../components/CartContext';
-import { useAuth } from '../components/AuthContext'; // Import useAuth hook
+import { useAuth } from '../components/AuthContext';
 
-// Utility function to get the price based on user role and tiered pricing
 const getProductPrice = (product, subcollection, userRole, cartQuantity) => {
   if (!subcollection?.tieredPricing || !product?.tieredPricing) {
-    return null; // Return null if no pricing data exists
+    return null;
   }
 
-  // Determine the price tier based on the user's role
   const pricingTiers = userRole === 'wholesaler'
     ? subcollection.tieredPricing.wholesale
     : subcollection.tieredPricing.retail;
 
-  // If logged in, calculate price based on cart quantity and tiered pricing
   if (userRole) {
     return getPriceForQuantity(pricingTiers, cartQuantity);
   } else {
-    // If not logged in, show the base retail price (min_quantity of 1)
     const retailTiers = subcollection.tieredPricing.retail;
     const baseRetailTier = retailTiers.find(tier => tier.min_quantity === 1);
     return baseRetailTier ? baseRetailTier.price : null;
   }
 };
 
-
 const ProductsPage = () => {
   const { collectionId, subcollectionId } = useParams();
-  const [mainCollection, setMainCollection] = useState(null);
-  const [subcollection, setSubcollection] = useState(null);
   const [products, setProducts] = useState([]);
+  const [subcollection, setSubcollection] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const { cart, addToCart, removeFromCart } = useCart();
-  const { currentUser, userRole, isLoading: isAuthLoading } = useAuth(); // Use the auth hook
+  const { userRole } = useAuth();
 
   useEffect(() => {
-    const fetchProductData = async () => {
+    const fetchProducts = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const mainCollectionDocRef = doc(db, "collections", collectionId);
-        const mainCollectionDocSnap = await getDoc(mainCollectionDocRef);
-        if (!mainCollectionDocSnap.exists()) {
-          setError("Main collection not found.");
-          setIsLoading(false);
-          return;
-        }
-        setMainCollection({ id: mainCollectionDocSnap.id, ...mainCollectionDocSnap.data() });
-
         const subcollectionDocRef = doc(db, "collections", collectionId, "subcollections", subcollectionId);
         const subcollectionDocSnap = await getDoc(subcollectionDocRef);
+
         if (!subcollectionDocSnap.exists()) {
           setError("Subcollection not found.");
           setIsLoading(false);
           return;
         }
+
         setSubcollection({ id: subcollectionDocSnap.id, ...subcollectionDocSnap.data() });
 
         const productsCollectionRef = collection(db, "collections", collectionId, "subcollections", subcollectionId, "products");
         const querySnapshot = await getDocs(productsCollectionRef);
-        const fetchedProducts = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setProducts(fetchedProducts.sort((a, b) => a.productCode.localeCompare(b.productCode)));
+        const fetchedProducts = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            // Cast the quantity to a number as soon as it's fetched
+            quantity: Number(data.quantity)
+          };
+        });
+        setProducts(fetchedProducts);
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Error fetching products:", err);
         setError("Failed to load products.");
       } finally {
         setIsLoading(false);
@@ -78,17 +69,17 @@ const ProductsPage = () => {
     };
 
     if (collectionId && subcollectionId) {
-      fetchProductData();
+      fetchProducts();
     } else {
-      setError("Collection or subcollection ID not provided.");
+      setError("No collection or subcollection ID provided.");
       setIsLoading(false);
     }
   }, [collectionId, subcollectionId]);
 
-  if (isLoading || isAuthLoading) {
+  if (isLoading) {
     return (
       <div className="products-page-container">
-        <p>Loading...</p>
+        <p>Loading products...</p>
       </div>
     );
   }
@@ -105,23 +96,14 @@ const ProductsPage = () => {
     <>
       <div className="products-page-container">
         <h2 className="page-title">
-          Products for: "{subcollection?.name || 'Unknown Subcollection'}"
+          Products in "{subcollection?.name || 'Unknown'}"
         </h2>
-        <p className="breadcrumb">
-          <Link to={`/collections/${collectionId}`}>
-            {mainCollection?.title || 'Main Collections'}
-          </Link>
-          {' > '}
-          {subcollection?.name || 'Unknown Subcollection'}
-        </p>
-
         {products.length === 0 ? (
           <p className="no-products-message">No products found in this subcollection.</p>
         ) : (
           <div className="products-grid collections-grid">
             {products.map((product) => {
               const cartQuantity = cart[product.id]?.quantity || 0;
-              // Get the price based on user role and current cart quantity
               const price = getProductPrice(product, subcollection, userRole, cartQuantity);
 
               return (
@@ -130,7 +112,7 @@ const ProductsPage = () => {
                   productCode={product.productCode}
                   quantity={product.quantity}
                   image={product.image}
-                  price={price} // Pass the dynamically determined price
+                  price={price}
                   cartQuantity={cartQuantity}
                   onIncrement={() => addToCart(product.id, {
                     id: product.id,
@@ -139,7 +121,7 @@ const ProductsPage = () => {
                     maxQuantity: product.quantity,
                     tieredPricing: subcollection.tieredPricing,
                     subcollectionId: subcollection.id,
-                    // We don't need to pass the price here anymore, as it's calculated in the context
+                    collectionId: collectionId,
                   }, product.quantity)}
                   onDecrement={() => removeFromCart(product.id)}
                 />

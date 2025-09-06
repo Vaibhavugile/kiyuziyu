@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
-import { useAuth } from './AuthContext'; // Import useAuth hook
+import { useAuth } from './AuthContext';
 
 // Utility function to get the price from tiered pricing based on quantity
 export const getPriceForQuantity = (tiers, quantity) => {
@@ -22,7 +22,7 @@ export const CartContext = createContext();
 // Create the provider component
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState({});
-  const { userRole } = useAuth(); // Get user role from AuthContext
+  const { userRole } = useAuth();
 
   // Helper function to recalculate prices for a subcollection based on total quantity
   const recalculateSubcollectionPrices = (prevCart, subcollectionId) => {
@@ -55,7 +55,6 @@ export const CartProvider = ({ children }) => {
     return newCart;
   };
 
-  // Function to add a product to the cart
   const addToCart = (productId, productData, maxQuantity) => {
     setCart(prevCart => {
       const currentQuantity = prevCart[productId]?.quantity || 0;
@@ -68,22 +67,17 @@ export const CartProvider = ({ children }) => {
         [productId]: {
           ...productData,
           quantity: currentQuantity + 1,
-          // Price is a placeholder here, it will be updated in the recalculate step
           price: 0, 
         },
       };
-
-      // Recalculate prices for the entire subcollection
       return recalculateSubcollectionPrices(newCart, productData.subcollectionId);
     });
   };
 
-  // Function to remove a product from the cart
   const removeFromCart = (productId) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
       const subcollectionId = newCart[productId]?.subcollectionId;
-
       const newQuantity = (newCart[productId]?.quantity || 0) - 1;
 
       if (newQuantity <= 0) {
@@ -92,18 +86,20 @@ export const CartProvider = ({ children }) => {
         newCart[productId].quantity = newQuantity;
       }
 
-      // Recalculate prices for the entire subcollection
       if (subcollectionId) {
         return recalculateSubcollectionPrices(newCart, subcollectionId);
       }
-
       return newCart;
     });
   };
 
-  // Function to get total cost of the cart
   const getCartTotal = () => {
     return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+  
+  // New function to clear the cart
+  const clearCart = () => {
+    setCart({});
   };
 
   const contextValue = {
@@ -111,12 +107,12 @@ export const CartProvider = ({ children }) => {
     addToCart,
     removeFromCart,
     getCartTotal,
+    clearCart, // Add the new function to the context value
   };
 
   return <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>;
 };
 
-// Custom hook to use the cart context
 export const useCart = () => {
   return useContext(CartContext);
 };

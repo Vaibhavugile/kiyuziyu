@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCart } from '../components/CartContext';
-import './CartPage.css'; // You will create this CSS file
+import { Link } from 'react-router-dom'; // Import Link
+import './CartPage.css';
 
 const CartPage = () => {
   const { cart, addToCart, removeFromCart, getCartTotal } = useCart();
@@ -37,16 +38,10 @@ const CartPage = () => {
           <div className="cart-summary">
             <h3>Order Summary</h3>
             <p className="cart-total">Total: <span>₹{getCartTotal().toFixed(2)}</span></p>
-            <div className="billing-section">
-              <h4>Billing Information</h4>
-              <form>
-                <input type="text" placeholder="Full Name" required />
-                <input type="email" placeholder="Email Address" required />
-                <input type="text" placeholder="Phone Number" required />
-                <textarea placeholder="Shipping Address" required></textarea>
-                <button type="submit" className="checkout-btn">Proceed to Checkout</button>
-              </form>
-            </div>
+            {/* The checkout form is moved to a separate component */}
+            <Link to="/checkout" className="checkout-btn">
+              Proceed to Checkout
+            </Link>
           </div>
         </>
       )}
