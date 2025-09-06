@@ -301,7 +301,6 @@ button[type="submit"]:disabled {
   background-color: #4b6a6a;
 }
 
-
 /* Responsive Adjustments */
 @media (max-width: 992px) {
   .admin-page {
@@ -362,7 +361,6 @@ button[type="submit"]:disabled {
     width: 100%;
   }
 }
-/* src/pages/AdminPage.css */
 
 /* Add this new section at the end of the file */
 .tiered-pricing-container {
@@ -414,4 +412,163 @@ button[type="submit"]:disabled {
   border-radius: 5px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+/* Add to your existing AdminPage.css */
+
+.admin-tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.admin-tabs button {
+  background: none;
+  border: none;
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.3s, border-bottom 0.3s;
+}
+
+.admin-tabs button:hover {
+  color: var(--primary-color);
+}
+
+.admin-tabs button.active {
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--primary-color);
+  margin-bottom: -2px; /* Pull it slightly down to overlap the border */
+}
+/* New styles for the Orders and Low Stock sections */
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.low-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.low-stock-card {
+  background-color: #fff5f5;
+  border: 1px solid #ffcccc;
+  border-left: 5px solid #ff4d4f;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.low-stock-card h3 {
+  margin-top: 0;
+  color: #c82333;
+}
+
+.low-stock-count {
+  font-weight: bold;
+  color: #ff4d4f;
+  font-size: 1.2em;
+}
+
+.low-stock-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.download-btn {
+  background-color: var(--primary-color);
+  color: white;
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.download-btn:hover:not(:disabled) {
+  background-color: #4b6a6a;
+}
+
+.download-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.simulate-btn {
+  background-color: #17a2b8; /* A nice blue color for simulation */
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  margin-bottom: 20px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.simulate-btn:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.simulate-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.download-all-btn {
+  background-color: #218838;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+  margin-bottom: 20px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.download-all-btn:hover:not(:disabled) {
+  background-color: #1e7e34;
+}
+
+.download-all-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.download-button {
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.download-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }

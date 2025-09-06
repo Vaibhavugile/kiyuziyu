@@ -1,12 +1,26 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc, setDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  getDocs, 
+  addDoc, 
+  setDoc, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  getDoc,
+  query,
+  where,
+  writeBatch, // Added for batch operations
+  runTransaction // Added for transactions
+} from 'firebase/firestore';
 import { 
   getAuth, 
   signInWithPhoneNumber, 
   onAuthStateChanged, 
   RecaptchaVerifier,
-  createUserWithEmailAndPassword, // Added for user signup
-  signInWithEmailAndPassword,     // Added for user login
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -46,7 +60,10 @@ export {
   uploadBytes,
   getDownloadURL,
   deleteObject,
-  // Export the newly added authentication functions
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  query,
+  where,
+  writeBatch, // Exporting the newly added function
+  runTransaction // Exporting the newly added function
 };
