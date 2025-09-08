@@ -18,7 +18,7 @@ import {
 } from '../firebase';
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
-import OrderDetailsModal from '../components/OrderDetailsModal'; // New modal component
+import OrderDetailsModal from '../components/OrderDetailsModal';
 import './AdminPage.css';
 
 // Low stock threshold constant
@@ -75,6 +75,10 @@ const AdminPage = () => {
   // States for modal display
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedLowStockProduct, setSelectedLowStockProduct] = useState(null);
+
+  // New states for User Management
+  const [users, setUsers] = useState([]);
+  const [isUserLoading, setIsUserLoading] = useState(false);
 
 
   // Handlers for Tiered Pricing (now for Subcollections)
@@ -257,6 +261,29 @@ const AdminPage = () => {
     };
     fetchLowStockProducts();
   }, [activeTab, mainCollections]);
+  
+  // New: Fetches all users for admin management
+  const fetchUsers = async () => {
+    if (activeTab === 'users') {
+      setIsUserLoading(true);
+      try {
+        const querySnapshot = await getDocs(collection(db, 'users'));
+        const fetchedUsers = querySnapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+        }));
+        setUsers(fetchedUsers);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+      setIsUserLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [activeTab]);
+
   const handleDownloadLowStockImages = async () => {
     setIsDownloading(true);
     try {
@@ -298,6 +325,37 @@ const AdminPage = () => {
     } catch (error) {
       console.error("Error updating order status:", error);
       alert("Failed to update order status.");
+    }
+  };
+
+  // New: Function to update a user's role
+  const handleUpdateUserRole = async (userId, newRole) => {
+    if (window.confirm(`Are you sure you want to change this user's role to '${newRole}'?`)) {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { role: newRole });
+        fetchUsers(); // Refresh the user list
+        alert('User role updated successfully!');
+      } catch (error) {
+        console.error('Error updating user role:', error);
+        alert('Failed to update user role.');
+      }
+    }
+  };
+
+  // New: Function to delete a user
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        // You would typically use Firebase Admin SDK to delete the user from Authentication
+        // For now, we'll just delete the document from Firestore.
+        await deleteDoc(doc(db, 'users', userId));
+        fetchUsers(); // Refresh the user list
+        alert('User deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user.');
+      }
     }
   };
 
@@ -603,6 +661,12 @@ const AdminPage = () => {
           onClick={() => setActiveTab('lowStock')}
         >
           Low Stock Alerts ({lowStockProducts.length})
+        </button>
+        <button
+          className={activeTab === 'users' ? 'active' : ''}
+          onClick={() => setActiveTab('users')}
+        >
+          User Management
         </button>
       </div>
 
@@ -985,6 +1049,48 @@ const AdminPage = () => {
         )}
     </div>
 )}
+
+        {/* --- User Management Tab --- */}
+        {activeTab === 'users' && (
+          <div className="admin-section">
+            <h2>User Management</h2>
+            {isUserLoading ? (
+              <p>Loading users...</p>
+            ) : users.length === 0 ? (
+              <p>No users found.</p>
+            ) : (
+              <ul className="user-list">
+                {users.map((user) => (
+                  <li key={user.id} className="user-list-item">
+                    {Object.entries(user).map(([key, value]) => {
+                      if (key === 'id') return null; // Don't show the user ID in the list
+                      return (
+                        <p key={key}>
+                          <strong>{key}:</strong> {String(value)}
+                        </p>
+                      );
+                    })}
+                    <div className="user-actions">
+                      {user.role === 'retailer' && (
+                        <button onClick={() => handleUpdateUserRole(user.id, 'wholesaler')}>
+                          Change to Wholesaler
+                        </button>
+                      )}
+                      {user.role === 'wholesaler' && (
+                        <button onClick={() => handleUpdateUserRole(user.id, 'retailer')}>
+                          Change to Retailer
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteUser(user.id)} className="delete-user-button">
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

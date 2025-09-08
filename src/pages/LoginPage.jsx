@@ -8,18 +8,16 @@ import {
   onAuthStateChanged,
   RecaptchaVerifier,
   getDoc,
-  createUserWithEmailAndPassword, // Ensure this is imported
-  signInWithEmailAndPassword,     // Ensure this is imported
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from '../firebase';
 import '../styles/LoginPage.css';
 
-// ... (other imports and countryCodes remain the same)
 const countryCodes = [
     { code: "+91", name: "India" },
     { code: "+1", name: "United States" },
     { code: "+44", name: "United Kingdom" },
     { code: "+61", name: "Australia" },
-    // Add more country codes as needed
   ];
 
 
@@ -33,62 +31,38 @@ const LoginPage = () => {
   const [signupCountryCode, setSignupCountryCode] = useState('+91');
   const [signupMobile, setSignupMobile] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
-  const [signupRole, setSignupRole] = useState('retailer');
 
   const [isLogin, setIsLogin] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [info, setInfo] = useState('');
   const [error, setError] = useState('');
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState(null);
-
+  const [info, setInfo] = useState('');
   const navigate = useNavigate();
 
-  // useEffect to setup the RecaptchaVerifier
   useEffect(() => {
-    // Check if re-captcha container already exists to prevent duplication
-    if (!document.getElementById('recaptcha-container')) {
-      const appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': (response) => {
-          console.log('Recaptcha resolved');
-        },
-        'expired-callback': () => {
-          console.log('Recaptcha expired');
-        }
-      });
-      setRecaptchaVerifier(appVerifier);
-    }
-  }, []);
-
-  // Use useEffect to handle auth state changes and redirection
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // if (user) {
-      //   // User is logged in, redirect to the home page after a small delay
-      //   setTimeout(() => {
-      //     navigate('/');
-      //   }, 1000);
-      // }
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate('/admin');
+      }
     });
 
-    return unsubscribe;
-  }, [navigate]);
+    if (!isLogin) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+        });
+    }
+  }, [isLogin, navigate]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setInfo('Logging in...');
-
-    // The email must be constructed in the same way it was during signup
-    const email = `${loginCountryCode.replace('+', '')}${loginMobile}@example.com`;
-    const password = loginPassword;
-
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const email = `${loginCountryCode.replace('+', '')}${loginMobile}@example.com`;
+      await signInWithEmailAndPassword(auth, email, loginPassword);
       setInfo('Login successful! Redirecting...');
+      setTimeout(() => navigate('/admin'), 1000);
     } catch (err) {
       console.error('Error logging in:', err);
-      setError(`Login failed: ${err.message}`);
+      setError('Login failed. Please check your mobile number and password.');
       setInfo('');
     }
   };
@@ -97,7 +71,7 @@ const LoginPage = () => {
     e.preventDefault();
     setError('');
     setInfo('Signing up...');
-
+    
     const email = `${signupCountryCode.replace('+', '')}${signupMobile}@example.com`;
     const password = signupPassword;
 
@@ -114,9 +88,9 @@ const LoginPage = () => {
       // Save user role to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         mobile: `${signupCountryCode}${signupMobile}`,
-        role: signupRole,
+        role: 'retailer', // Set a default role
       });
-
+      
       setInfo('Account created successfully! Redirecting...');
       setTimeout(() => navigate('/'), 1000);
     } catch (err) {
@@ -133,36 +107,40 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <h2>{isLogin ? 'Login' : 'Sign Up'}</h2>
+    <div className="login-page">
+      <div className="login-container">
+        <h1>Admin Panel</h1>
         {error && <p className="error-message">{error}</p>}
         {info && <p className="info-message">{info}</p>}
+        
         {isLogin ? (
+          // Login Form
           <form onSubmit={handleLoginSubmit}>
+            <h2>Login</h2>
+            <div className="form-group">
+                <label htmlFor="login-country-code">Country</label>
+                <select
+                    id="login-country-code"
+                    value={loginCountryCode}
+                    onChange={(e) => setLoginCountryCode(e.target.value)}
+                >
+                    {countryCodes.map((cc) => (
+                        <option key={cc.code} value={cc.code}>
+                            {cc.name} ({cc.code})
+                        </option>
+                    ))}
+                </select>
+            </div>
             <div className="form-group">
               <label htmlFor="login-mobile">Mobile Number</label>
-              <div className="mobile-input-group">
-                <select
-                  value={loginCountryCode}
-                  onChange={(e) => setLoginCountryCode(e.target.value)}
-                  className="country-code-select"
-                >
-                  {countryCodes.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} ({c.name})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  id="login-mobile"
-                  value={loginMobile}
-                  onChange={(e) => setLoginMobile(e.target.value)}
-                  placeholder="Enter mobile number"
-                  required
-                />
-              </div>
+              <input
+                type="tel"
+                id="login-mobile"
+                value={loginMobile}
+                onChange={(e) => setLoginMobile(e.target.value)}
+                placeholder="Enter mobile number"
+                required
+              />
             </div>
             <div className="form-group">
               <label htmlFor="login-password">Password</label>
@@ -171,7 +149,7 @@ const LoginPage = () => {
                 id="login-password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder="Password"
                 required
               />
             </div>
@@ -180,30 +158,33 @@ const LoginPage = () => {
             </button>
           </form>
         ) : (
+          // Sign Up Form
           <form onSubmit={handleSignupSubmit}>
+            <h2>Sign Up</h2>
+            <div className="form-group">
+                <label htmlFor="signup-country-code">Country</label>
+                <select
+                    id="signup-country-code"
+                    value={signupCountryCode}
+                    onChange={(e) => setSignupCountryCode(e.target.value)}
+                >
+                    {countryCodes.map((cc) => (
+                        <option key={cc.code} value={cc.code}>
+                            {cc.name} ({cc.code})
+                        </option>
+                    ))}
+                </select>
+            </div>
             <div className="form-group">
               <label htmlFor="signup-mobile">Mobile Number</label>
-              <div className="mobile-input-group">
-                <select
-                  value={signupCountryCode}
-                  onChange={(e) => setSignupCountryCode(e.target.value)}
-                  className="country-code-select"
-                >
-                  {countryCodes.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} ({c.name})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  id="signup-mobile"
-                  value={signupMobile}
-                  onChange={(e) => setSignupMobile(e.target.value)}
-                  placeholder="Enter mobile number"
-                  required
-                />
-              </div>
+              <input
+                type="tel"
+                id="signup-mobile"
+                value={signupMobile}
+                onChange={(e) => setSignupMobile(e.target.value)}
+                placeholder="Enter mobile number"
+                required
+              />
             </div>
             <div className="form-group">
               <label htmlFor="signup-password">Password</label>
@@ -216,17 +197,7 @@ const LoginPage = () => {
                 required
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="signup-role">Role</label>
-              <select
-                id="signup-role"
-                value={signupRole}
-                onChange={(e) => setSignupRole(e.target.value)}
-              >
-                <option value="retailer">Retailer</option>
-                <option value="wholesaler">Wholesaler</option>
-              </select>
-            </div>
+            {/* The role selection is removed from the signup form */}
             <button type="submit" className="login-button">
               Sign Up
             </button>

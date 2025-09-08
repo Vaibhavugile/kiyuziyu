@@ -6,6 +6,37 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
 
   const orderDate = order.createdAt?.toDate().toLocaleString();
 
+  const handlePrint = (printType) => {
+    // Hide elements not needed for printing
+    document.body.classList.add('printing');
+    
+    // Hide all info groups by default
+    const infoGroups = document.querySelectorAll('.order-info-group');
+    infoGroups.forEach(group => {
+      group.style.display = 'none';
+    });
+
+    // Show the relevant info groups based on printType
+    if (printType === 'order') {
+      infoGroups.forEach(group => {
+        group.style.display = 'block';
+      });
+    } else if (printType === 'shipping') {
+      const billingGroup = document.querySelector('.billing-info-group');
+      const shippingGroup = document.querySelector('.shipping-info-group');
+      if (billingGroup) billingGroup.style.display = 'block';
+      if (shippingGroup) shippingGroup.style.display = 'block';
+    }
+
+    window.print();
+
+    // Restore the normal view after printing
+    document.body.classList.remove('printing');
+    infoGroups.forEach(group => {
+      group.style.display = '';
+    });
+  };
+
   return (
     <div className="modal-backdrop">
       <div className="modal-content">
@@ -20,14 +51,14 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
             <p><strong>Total Amount:</strong> ₹{order.totalAmount.toFixed(2)}</p>
           </div>
           
-          <div className="order-info-group">
+          <div className="order-info-group billing-info-group">
             <h4>Billing Information</h4>
             <p><strong>Name:</strong> {order.billingInfo?.fullName}</p>
             <p><strong>Email:</strong> {order.billingInfo?.email}</p>
             <p><strong>Phone:</strong> {order.billingInfo?.phoneNumber}</p>
           </div>
 
-          <div className="order-info-group">
+          <div className="order-info-group shipping-info-group">
             <h4>Shipping Information</h4>
             <p><strong>Address:</strong> {order.billingInfo?.address}</p>
           </div>
@@ -44,11 +75,12 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
                     <p><strong>Price:</strong> ₹{item.price}</p>
                   </div>
                 </li>
-              ))}
-            </ul>
+              ))}\r\n            </ul>
           </div>
         </div>
         <div className="modal-footer">
+          <button onClick={() => handlePrint('order')} className="print-btn">Print Order Details</button>
+          <button onClick={() => handlePrint('shipping')} className="print-btn">Print Shipping Label</button>
           <select
             value={order.status}
             onChange={(e) => onUpdateStatus(order.id, e.target.value)}
