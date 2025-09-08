@@ -21,7 +21,7 @@ const OrderCard = ({ order, onUpdateStatus }) => {
           <ul>
             {order.items.map((item, index) => (
               <li key={index}>
-                {item.productCode} x {item.quantity}
+                {item.productName} ({item.productCode}) x {item.quantity}
               </li>
             ))}
           </ul>
@@ -36,6 +36,7 @@ const OrderCard = ({ order, onUpdateStatus }) => {
           <option value="Processing">Processing</option>
           <option value="Shipped">Shipped</option>
           <option value="Delivered">Delivered</option>
+          <option value="Cancelled">Cancelled</option>
         </select>
       </div>
     </div>

@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { db, collection, addDoc, updateDoc, doc } from '../firebase';
 import './CartPage.css';
 
+const SHIPPING_FEE = 199;
+
 const CheckoutPage = () => {
   const { cart, getCartTotal, clearCart } = useCart();
   const { currentUser } = useAuth();
@@ -14,7 +16,11 @@ const CheckoutPage = () => {
     fullName: '',
     email: currentUser?.email || '',
     phoneNumber: '',
-    shippingAddress: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    pincode: '',
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,16 +42,26 @@ const CheckoutPage = () => {
       return;
     }
 
+    // Check if all mandatory fields are filled
+    const { fullName, email, phoneNumber, addressLine1, city, state, pincode } = formData;
+    if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+      setError("Please fill out all mandatory shipping details.");
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       const validatedItems = Object.values(cart).map(item => {
-        if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId) {
+        if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName || !item.image) {
           console.error("Skipping item due to missing data:", item);
           return null;
         }
 
         return {
           productId: item.id,
+          productName: item.productName,
           productCode: item.productCode,
+          image: item.image,
           quantity: Number(item.quantity),
           priceAtTimeOfOrder: Number(item.price),
           subcollectionId: item.subcollectionId,
@@ -59,12 +75,16 @@ const CheckoutPage = () => {
         setIsProcessing(false);
         return;
       }
+      
+      const subtotal = getCartTotal();
+      const totalWithShipping = subtotal + SHIPPING_FEE;
 
-      // Create the order document with the validated data
       const orderData = {
         userId: currentUser?.uid || 'guest',
         items: validatedItems.map(({ maxQuantity, ...rest }) => rest),
-        totalAmount: getCartTotal(),
+        totalAmount: totalWithShipping,
+        subtotal: subtotal,
+        shippingFee: SHIPPING_FEE,
         billingInfo: formData,
         status: 'Pending',
         createdAt: new Date(),
@@ -72,7 +92,6 @@ const CheckoutPage = () => {
 
       const orderRef = await addDoc(collection(db, "orders"), orderData);
 
-      // Update product quantities in Firestore
       const updatePromises = validatedItems.map(item => {
         const productRef = doc(db, "collections", item.collectionId, "subcollections", item.subcollectionId, "products", item.productId);
         const newQuantity = item.maxQuantity - item.quantity;
@@ -100,38 +119,57 @@ const CheckoutPage = () => {
       {error && <p className="error-message">{error}</p>}
       
       {Object.values(cart).length > 0 ? (
-        <>
+        <div className="checkout-content">
           <div className="cart-summary">
             <h3>Order Summary</h3>
             <div className="cart-items-list">
               {Object.values(cart).map((item) => (
                 <div key={item.id} className="cart-item">
-                  <div className="cart-item-info">
-                    <h3 className="cart-item-code">{item.productCode}</h3>
-                    <p className="cart-item-price">₹{item.price} x {item.quantity}</p>
+                  <img src={item.image} alt={item.productName} className="cart-item-image" />
+                  <div className="cart-item-details">
+                    <h4 className="cart-item-name">{item.productName}</h4>
+                    <p className="cart-item-code">Code: {item.productCode}</p>
+                    <p className="cart-item-quantity">Quantity: {item.quantity}</p>
+                    <p className="cart-item-price">Price: ₹{item.price}</p>
                   </div>
-                  <p className="cart-item-subtotal">
-                    Subtotal: ₹{(Number(item.price) * Number(item.quantity)).toFixed(2)}
-                  </p>
                 </div>
               ))}
             </div>
-            <p className="cart-total">Total: <span>₹{getCartTotal().toFixed(2)}</span></p>
+            <div className="cart-total-section">
+              <p>Subtotal:</p>
+              <p>₹{getCartTotal().toFixed(2)}</p>
+            </div>
+            <div className="cart-total-section">
+              <p>Shipping:</p>
+              <p>₹{SHIPPING_FEE.toFixed(2)}</p>
+            </div>
+            <div className="cart-total-section total-final">
+              <p>Total:</p>
+              <p>₹{(getCartTotal() + SHIPPING_FEE).toFixed(2)}</p>
+            </div>
           </div>
 
           <div className="billing-section">
-            <h4>Billing Information</h4>
+            <h4>Billing & Shipping Information</h4>
             <form onSubmit={handleSubmitOrder}>
-              <input type="text" name="fullName" placeholder="Full Name" value={formData.fullName} onChange={handleInputChange} required />
-              <input type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleInputChange} required />
-              <input type="tel" name="phoneNumber" placeholder="Phone Number" value={formData.phoneNumber} onChange={handleInputChange} required />
-              <textarea name="shippingAddress" placeholder="Shipping Address" value={formData.shippingAddress} onChange={handleInputChange} required></textarea>
+              <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
+              <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleInputChange} required />
+              <input type="tel" name="phoneNumber" placeholder="Phone Number *" value={formData.phoneNumber} onChange={handleInputChange} required />
+              
+              <div className="address-fields">
+                <input type="text" name="addressLine1" placeholder="Address Line 1 *" value={formData.addressLine1} onChange={handleInputChange} required />
+                <input type="text" name="addressLine2" placeholder="Address Line 2 (Optional)" value={formData.addressLine2} onChange={handleInputChange} />
+                <input type="text" name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
+                <input type="text" name="state" placeholder="State/Province/Region *" value={formData.state} onChange={handleInputChange} required />
+                <input type="text" name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
+              </div>
+
               <button type="submit" className="checkout-btn" disabled={isProcessing}>
                 {isProcessing ? 'Processing...' : 'Place Order'}
               </button>
             </form>
           </div>
-        </>
+        </div>
       ) : (
         <p className="empty-cart-message">Your cart is empty.</p>
       )}

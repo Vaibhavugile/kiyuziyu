@@ -34,29 +34,30 @@ export const CartProvider = ({ children }) => {
     for (const productId in newCart) {
       if (newCart[productId].subcollectionId === subcollectionId) {
         totalSubcollectionQuantity += newCart[productId].quantity;
-        // Assume all products in a subcollection share the same tiered pricing structure
-        if (!tiers) {
-            tiers = userRole === 'wholesaler'
-            ? newCart[productId].tieredPricing.wholesale
-            : newCart[productId].tieredPricing.retail;
-        }
+        tiers = newCart[productId].tieredPricing;
       }
     }
+    
+    if (!tiers) {
+        return newCart; // If no tiers found, return the cart as is
+    }
 
-    if (!tiers) return newCart;
+    const price = getPriceForQuantity(
+      userRole === 'wholesaler' ? tiers.wholesale : tiers.retail,
+      totalSubcollectionQuantity
+    );
 
-    // Then, update the price for each item in that subcollection
-    const newPrice = getPriceForQuantity(tiers, totalSubcollectionQuantity);
+    // Then, apply the new price to all products in that subcollection
     for (const productId in newCart) {
       if (newCart[productId].subcollectionId === subcollectionId) {
-        newCart[productId].price = newPrice;
+        newCart[productId].price = price;
       }
     }
     return newCart;
   };
 
   const addToCart = (productId, productData, maxQuantity) => {
-    setCart(prevCart => {
+    setCart((prevCart) => {
       const currentQuantity = prevCart[productId]?.quantity || 0;
       if (currentQuantity >= maxQuantity) {
         return prevCart;
@@ -107,12 +108,15 @@ export const CartProvider = ({ children }) => {
     addToCart,
     removeFromCart,
     getCartTotal,
-    clearCart, // Add the new function to the context value
+    clearCart,
   };
 
-  return <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={contextValue}>
+      {children}
+    </CartContext.Provider>
+  );
 };
 
-export const useCart = () => {
-  return useContext(CartContext);
-};
+// Custom hook to use the cart context
+export const useCart = () => useContext(CartContext);

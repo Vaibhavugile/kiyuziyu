@@ -53,6 +53,7 @@ const AdminPage = () => {
   // State for Products
   const [selectedSubcollectionId, setSelectedSubcollectionId] = useState('');
   const [products, setProducts] = useState([]);
+  const [productName, setProductName] = useState(''); // New state for product name
   const [productCode, setProductCode] = useState('');
   const [productQuantity, setProductQuantity] = useState('');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -525,6 +526,7 @@ const AdminPage = () => {
   const handleProductImageChange = (e) => {
     const files = Array.from(e.target.files);
     const initialProducts = files.map((file) => ({
+      productName: '', // Initialize new field
       productCode: '',
       quantity: '',
       imageFile: file,
@@ -537,16 +539,18 @@ const AdminPage = () => {
 
   const handleNextProduct = (e) => {
     e.preventDefault();
-    if (!productCode || !productQuantity) {
-      alert("Please fill out both product code and quantity.");
+    if (!productName || !productCode || !productQuantity) {
+      alert("Please fill out product name, product code, and quantity.");
       return;
     }
 
     const updatedProducts = [...newProducts];
+    updatedProducts[currentImageIndex].productName = productName;
     updatedProducts[currentImageIndex].productCode = productCode;
     updatedProducts[currentImageIndex].quantity = Number(productQuantity);
 
     setNewProducts(updatedProducts);
+    setProductName(''); // Reset new field
     setProductCode('');
     setProductQuantity('');
     setCurrentImageIndex(currentImageIndex + 1);
@@ -559,6 +563,7 @@ const AdminPage = () => {
     // Save the last product's details
     const finalProducts = [...newProducts];
     if (currentImageIndex < finalProducts.length) {
+      finalProducts[currentImageIndex].productName = productName;
       finalProducts[currentImageIndex].productCode = productCode;
       finalProducts[currentImageIndex].quantity = Number(productQuantity);
     }
@@ -568,6 +573,7 @@ const AdminPage = () => {
       const uploadPromises = finalProducts.map(async (product) => {
         const imageUrl = await uploadImageAndGetURL(product.imageFile);
         const productData = {
+          productName: product.productName, // Add new field to Firestore
           productCode: product.productCode,
           quantity: product.quantity,
           image: imageUrl,
@@ -589,6 +595,7 @@ const AdminPage = () => {
 
   const startEditProduct = (product) => {
     setEditingProduct(product);
+    setProductName(product.productName); // Set new field for editing
     setProductCode(product.productCode);
     setProductQuantity(product.quantity);
     setShowProductForm(true);
@@ -600,6 +607,7 @@ const AdminPage = () => {
     try {
       const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
       const productData = {
+        productName: productName, // Update new field
         productCode: productCode,
         quantity: Number(productQuantity),
       };
@@ -632,6 +640,7 @@ const AdminPage = () => {
   };
 
   const resetProductForm = () => {
+    setProductName(''); // Reset new field
     setProductCode('');
     setProductQuantity('');
     setEditingProduct(null);
@@ -909,6 +918,13 @@ const AdminPage = () => {
                         <div className="product-details-inputs">
                           <input
                             type="text"
+                            value={productName}
+                            onChange={(e) => setProductName(e.target.value)}
+                            placeholder="Product Name"
+                            required
+                          />
+                          <input
+                            type="text"
                             value={productCode}
                             onChange={(e) => setProductCode(e.target.value)}
                             placeholder="Product Code"
@@ -924,7 +940,7 @@ const AdminPage = () => {
                         </div>
                       </div>
                       <div className="form-actions">
-                        <button type="submit" disabled={isProductUploading || !productCode || !productQuantity}>
+                        <button type="submit" disabled={isProductUploading || !productName || !productCode || !productQuantity}>
                           Next
                         </button>
                         <button type="button" onClick={resetProductForm}>
@@ -942,7 +958,7 @@ const AdminPage = () => {
                         {newProducts.map((product, index) => (
                           <div key={index} className="product-summary-item">
                             <img src={product.previewUrl} alt={`Product ${index + 1}`} className="product-preview-image" />
-                            <span>{product.productCode} - Qty: {product.quantity}</span>
+                            <span>{product.productName} - {product.productCode} - Qty: {product.quantity}</span>
                           </div>
                         ))}
                       </div>
@@ -972,6 +988,7 @@ const AdminPage = () => {
                       {products.map((product) => (
                         <ProductCard
                           key={product.id}
+                          productName={product.productName} // Pass new prop to ProductCard
                           productCode={product.productCode}
                           quantity={product.quantity}
                           image={product.image}

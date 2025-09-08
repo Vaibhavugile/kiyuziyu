@@ -1,7 +1,5 @@
-// src/pages/OrderHistoryPage.jsx
-
 import React, { useState, useEffect } from 'react';
-import { db, collection, query, where, getDocs } from '../firebase';
+import { db, collection, query, where, getDocs, orderBy } from '../firebase';
 import { useAuth } from '../components/AuthContext';
 import OrderTrackingCard from '../components/OrderTrackingCard';
 import './OrderHistoryPage.css';
@@ -23,7 +21,7 @@ const OrderHistoryPage = () => {
       setError(null);
       try {
         const ordersRef = collection(db, 'orders');
-        const q = query(ordersRef, where('userId', '==', currentUser.uid));
+        const q = query(ordersRef, where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'));
         const querySnapshot = await getDocs(q);
 
         const fetchedOrders = querySnapshot.docs.map(doc => ({

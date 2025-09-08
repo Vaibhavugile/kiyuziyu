@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCart } from '../components/CartContext';
-import { Link } from 'react-router-dom'; // Import Link
-import './CartPage.css';
+import { Link } from 'react-router-dom';
+import './CheckoutPage.css';
 
 const CartPage = () => {
   const { cart, addToCart, removeFromCart, getCartTotal } = useCart();
@@ -18,10 +18,11 @@ const CartPage = () => {
           <div className="cart-items-list">
             {cartItems.map((item) => (
               <div key={item.id} className="cart-item">
-                <img src={item.image} alt={item.productCode} className="cart-item-image" />
+                <img src={item.image} alt={item.productName} className="cart-item-image" />
                 <div className="cart-item-info">
-                  <h3 className="cart-item-code">{item.productCode}</h3>
-                  <p className="cart-item-price">₹{item.price}</p>
+                  <h3 className="cart-item-name">{item.productName}</h3>
+                  <p className="cart-item-code">Code: {item.productCode}</p>
+                  <p className="cart-item-price">Price: ₹{item.price}</p>
                   <div className="cart-quantity-controls">
                     <button onClick={() => removeFromCart(item.id)}>-</button>
                     <span>{item.quantity}</span>
@@ -38,7 +39,6 @@ const CartPage = () => {
           <div className="cart-summary">
             <h3>Order Summary</h3>
             <p className="cart-total">Total: <span>₹{getCartTotal().toFixed(2)}</span></p>
-            {/* The checkout form is moved to a separate component */}
             <Link to="/checkout" className="checkout-btn">
               Proceed to Checkout
             </Link>
@@ -48,5 +48,5 @@ const CartPage = () => {
     </div>
   );
 };
-
+ 
 export default CartPage;

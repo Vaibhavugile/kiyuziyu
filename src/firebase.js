@@ -12,7 +12,8 @@ import {
   query,
   where,
   writeBatch, // Added for batch operations
-  runTransaction // Added for transactions
+  runTransaction, // Added for transactions
+  orderBy // This is the new import you need
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -64,6 +65,7 @@ export {
   signInWithEmailAndPassword,
   query,
   where,
-  writeBatch, // Exporting the newly added function
-  runTransaction // Exporting the newly added function
+  writeBatch,
+  runTransaction,
+  orderBy // Exporting the newly added function
 };

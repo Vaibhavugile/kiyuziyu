@@ -2,11 +2,12 @@
 
 .cart-page-container {
   max-width: 900px;
-  margin: 20px auto;
+  margin: 40px auto;
   padding: 20px;
   background-color: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
 }
 
 .cart-title {
@@ -42,8 +43,8 @@
 }
 
 .cart-item-image {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: 4px;
 }
@@ -52,16 +53,18 @@
   flex-grow: 1;
 }
 
-.cart-item-code {
-  font-size: 1.2em;
-  font-weight: 600;
+.cart-item-name {
+  font-size: 1.4em;
+  font-weight: bold;
   color: #333;
-  margin-bottom: 5px;
+  margin: 0 0 5px;
 }
 
+.cart-item-code,
 .cart-item-price {
   font-size: 1em;
   color: #777;
+  margin: 0;
 }
 
 .cart-quantity-controls {
@@ -72,28 +75,30 @@
 }
 
 .cart-quantity-controls button {
-  background-color: #8b6b6c;
+  background-color: #5a7d7d;
   color: #fff;
   border: none;
   border-radius: 50%;
-  width: 25px;
-  height: 25px;
-  font-size: 1em;
+  width: 30px;
+  height: 30px;
+  font-size: 1.2em;
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
 .cart-quantity-controls button:hover {
-  background-color: #6a4d4e;
+  background-color: #4a6a6a;
 }
 
 .cart-quantity-controls span {
   font-weight: bold;
+  font-size: 1.1em;
 }
 
 .cart-item-subtotal {
   font-weight: bold;
-  color: #000;
+  font-size: 1.2em;
+  color: #5a7d7d;
   min-width: 120px;
   text-align: right;
 }
@@ -122,57 +127,24 @@
 }
 
 .cart-total span {
-  color: #000;
-}
-
-.billing-section {
-  border-top: 1px dashed #ccc;
-  padding-top: 20px;
-}
-
-.billing-section h4 {
-  text-align: center;
-  font-size: 1.4em;
-  color: #555;
-  margin-bottom: 15px;
-}
-
-.billing-section form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.billing-section input,
-.billing-section textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 1em;
-  transition: border-color 0.3s;
-}
-
-.billing-section input:focus,
-.billing-section textarea:focus {
-  outline: none;
-  border-color: #5a7d7d;
+  color: #5a7d7d;
 }
 
 .checkout-btn {
-  background-color: #8b6b6c;
+  display: block;
+  background-color: #5a7d7d;
   color: #fff;
-  border: none;
+  text-decoration: none;
+  text-align: center;
   padding: 15px;
   font-size: 1.2em;
   font-weight: bold;
   border-radius: 5px;
-  cursor: pointer;
   transition: background-color 0.3s;
 }
 
 .checkout-btn:hover {
-  background-color: #6a4d4e;
+  background-color: #4a6a6a;
 }
 
 @media (max-width: 768px) {

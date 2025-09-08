@@ -12,7 +12,9 @@ const CollectionCard = ({ title, description, image, tieredPricing, children }) 
 
   return (
     <div className="collection-card">
-      <img src={image} alt={title} className="collection-image" />
+      <div className="collection-image-container">
+        <img src={image} alt={title} className="collection-image" />
+      </div>
       <div className="collection-info">
         <div className="title">{title}</div>
         {description && <p className="description">{description}</p>}

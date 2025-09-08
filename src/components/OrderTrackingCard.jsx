@@ -1,5 +1,3 @@
-// src/components/OrderTrackingCard.jsx
-
 import React from 'react';
 import './OrderTrackingCard.css';
 
@@ -18,8 +16,14 @@ const OrderTrackingCard = ({ order }) => {
           {order.status}
         </p>
       </div>
-      <p className="order-date">Date: {orderDate}</p>
-      <p className="order-total">Total: ₹{order.totalAmount.toFixed(2)}</p>
+      <div className="order-details-summary">
+        <p className="order-date">Date: {orderDate}</p>
+        <div className="order-totals">
+          <p>Subtotal: ₹{order.subtotal?.toFixed(2) || '0.00'}</p>
+          <p>Shipping: ₹{order.shippingFee?.toFixed(2) || '0.00'}</p>
+          <p className="final-total">Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}</p>
+        </div>
+      </div>
 
       <div className="order-timeline">
         {orderTimeline.map((status, index) => (
@@ -38,8 +42,10 @@ const OrderTrackingCard = ({ order }) => {
         <ul>
           {order.items.map((item, index) => (
             <li key={index}>
-              <img src={item.image} alt={item.productCode} className="item-image" />
-              <p>{item.productCode} x {item.quantity}</p>
+              <img src={item.image} alt={item.productName} className="item-image" />
+              <p>
+                {item.productName} ({item.productCode}) x {item.quantity}
+              </p>
             </li>
           ))}
         </ul>
