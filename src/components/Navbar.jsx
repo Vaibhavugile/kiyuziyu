@@ -1,30 +1,32 @@
+// src/components/Navbar.jsx
+
 import React from 'react';
-import { Link } from 'react-router-dom'; // Import Link for routing
-import MiniCart from './MiniCart'; // Import the MiniCart component
-import logo from '../assets/logoj.png'; // your actual logo path
+import { Link } from 'react-router-dom';
+import MiniCart from './MiniCart';
+import logo from '../assets/logoj.png';
 import '../App.css';
+import { useAuth } from './AuthContext'; // Import useAuth
 
 const Navbar = () => {
+  const { currentUser, userRole } = useAuth(); // Get currentUser and userRole
+
   return (
     <nav className="navbar">
-      {/* Left: Logo and Home Link */}
       <div className="navbar-left">
         <Link to="/">
           <img src={logo} alt="Kiyuziyu Logo" className="logo" />
         </Link>
       </div>
 
-      {/* Center: Title */}
       <div className="navbar-center">
         <h1 className="navbar-title">Kiyuziyu</h1>
       </div>
 
-      {/* Right: Nav Links and Mini Cart */}
       <ul className="navbar-right">
         <li><Link to="/">Home</Link></li>
         <li><Link to="/collections">Collections</Link></li>
-        <li><Link to="/contact">Contact</Link></li>
-        {/* Add the MiniCart component here */}
+        {currentUser && <li><Link to="/order-history">Order History</Link></li>} {/* Conditional link */}
+        {userRole === 'admin' && <li><Link to="/admin">Admin</Link></li>}
         <li><MiniCart /></li>
         <li><Link to="/login">Login</Link></li>
       </ul>

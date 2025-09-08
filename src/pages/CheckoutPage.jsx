@@ -37,7 +37,6 @@ const CheckoutPage = () => {
     }
 
     try {
-      // Validate cart items to ensure no 'undefined' values are passed to Firestore
       const validatedItems = Object.values(cart).map(item => {
         if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId) {
           console.error("Skipping item due to missing data:", item);
@@ -47,11 +46,11 @@ const CheckoutPage = () => {
         return {
           productId: item.id,
           productCode: item.productCode,
-          quantity: Number(item.quantity), // Ensure quantity is a number
-          priceAtTimeOfOrder: Number(item.price), // Ensure price is a number
+          quantity: Number(item.quantity),
+          priceAtTimeOfOrder: Number(item.price),
           subcollectionId: item.subcollectionId,
           collectionId: item.collectionId,
-          maxQuantity: Number(item.maxQuantity) // Ensure maxQuantity is a number
+          maxQuantity: Number(item.maxQuantity)
         };
       }).filter(Boolean);
 
@@ -64,7 +63,7 @@ const CheckoutPage = () => {
       // Create the order document with the validated data
       const orderData = {
         userId: currentUser?.uid || 'guest',
-        items: validatedItems.map(({ maxQuantity, ...rest }) => rest), // Exclude maxQuantity from the saved data
+        items: validatedItems.map(({ maxQuantity, ...rest }) => rest),
         totalAmount: getCartTotal(),
         billingInfo: formData,
         status: 'Pending',
@@ -78,13 +77,12 @@ const CheckoutPage = () => {
         const productRef = doc(db, "collections", item.collectionId, "subcollections", item.subcollectionId, "products", item.productId);
         const newQuantity = item.maxQuantity - item.quantity;
         return updateDoc(productRef, {
-            quantity: newQuantity,
+          quantity: newQuantity,
         });
       });
 
       await Promise.all(updatePromises);
       
-      // Clear the cart and navigate
       clearCart();
       navigate('/order-success');
 
