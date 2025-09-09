@@ -34,6 +34,7 @@ const AdminPage = () => {
   const [isMainCollectionUploading, setIsMainCollectionUploading] = useState(false);
   const [editingMainCollection, setEditingMainCollection] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  
   // State for Subcollections
   const [selectedMainCollectionId, setSelectedMainCollectionId] = useState('');
   const [subcollections, setSubcollections] = useState([]);
@@ -61,13 +62,14 @@ const AdminPage = () => {
   const [isProductUploading, setIsProductUploading] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [selectedSubcollectionData, setSelectedSubcollectionData] = useState(null);
-
+  
   // New state for multi-photo product upload
   const [newProducts, setNewProducts] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // New states for Orders and Low Stock Alerts
   const [activeTab, setActiveTab] = useState('collections');
+  const [activeSubTab, setActiveSubTab] = useState('collections'); // New state for sub-tabs
   const [orders, setOrders] = useState([]);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
   const [lowStockProducts, setLowStockProducts] = useState([]);
@@ -80,7 +82,14 @@ const AdminPage = () => {
   // New states for User Management
   const [users, setUsers] = useState([]);
   const [isUserLoading, setIsUserLoading] = useState(false);
+  
+  // NEW: State for search and filter
+  const [productSearchTerm, setProductSearchTerm] = useState('');
 
+   const [orderReports, setOrderReports] = useState([]);
+  const [paymentReports, setPaymentReports] = useState([]);
+  const [isReportsLoading, setIsReportsLoading] = useState(false);
+   const [productReports, setProductReports] = useState([]);
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -522,7 +531,6 @@ const AdminPage = () => {
   };
 
   // --- Product Handlers ---
-
   const handleProductImageChange = (e) => {
     const files = Array.from(e.target.files);
     const initialProducts = files.map((file) => ({
@@ -543,12 +551,10 @@ const AdminPage = () => {
       alert("Please fill out product name, product code, and quantity.");
       return;
     }
-
     const updatedProducts = [...newProducts];
     updatedProducts[currentImageIndex].productName = productName;
     updatedProducts[currentImageIndex].productCode = productCode;
     updatedProducts[currentImageIndex].quantity = Number(productQuantity);
-
     setNewProducts(updatedProducts);
     setProductName(''); // Reset new field
     setProductCode('');
@@ -559,7 +565,6 @@ const AdminPage = () => {
   const handleAddAllProducts = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);
-
     // Save the last product's details
     const finalProducts = [...newProducts];
     if (currentImageIndex < finalProducts.length) {
@@ -567,7 +572,6 @@ const AdminPage = () => {
       finalProducts[currentImageIndex].productCode = productCode;
       finalProducts[currentImageIndex].quantity = Number(productQuantity);
     }
-
     try {
       const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
       const uploadPromises = finalProducts.map(async (product) => {
@@ -580,7 +584,6 @@ const AdminPage = () => {
         };
         await addDoc(productCollectionRef, productData);
       });
-
       await Promise.all(uploadPromises);
       console.log("All products added successfully.");
       fetchProducts();
@@ -639,6 +642,68 @@ const AdminPage = () => {
     }
   };
 
+    
+  // NEW: useEffect to fetch reports data
+useEffect(() => {
+  const fetchReports = async () => {
+    if (activeTab === 'reports') {
+      setIsReportsLoading(true);
+      try {
+        const ordersRef = collection(db, 'orders');
+        const ordersSnapshot = await getDocs(ordersRef);
+        const ordersData = ordersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate().toLocaleDateString(),
+        }));
+        
+        setOrderReports(ordersData);
+        
+        const paymentsData = ordersData.map(order => ({
+          orderId: order.id,
+          totalAmount: order.totalAmount,
+          paymentMethod: order.paymentMethod || 'N/A',
+          status: order.status,
+          date: order.createdAt,
+        }));
+        
+        setPaymentReports(paymentsData);
+        
+        // Fetch all products to generate the product report
+        const productsRef = collection(db, 'products');
+        const productsSnapshot = await getDocs(productsRef);
+        const allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const productSales = {};
+        ordersData.forEach(order => {
+          order.items.forEach(item => {
+            if (!productSales[item.productCode]) {
+              productSales[item.productCode] = { quantity: 0, revenue: 0 };
+            }
+            productSales[item.productCode].quantity += item.quantity;
+            productSales[item.productCode].revenue += item.quantity * item.price;
+          });
+        });
+
+        const reports = allProducts.map(product => ({
+          productName: product.productName,
+          productCode: product.productCode,
+          quantityInStock: product.quantity,
+          totalSales: productSales[product.productCode]?.quantity || 0,
+          totalRevenue: productSales[product.productCode]?.revenue || 0,
+        }));
+
+        setProductReports(reports);
+        
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+      }
+      setIsReportsLoading(false);
+    }
+  };
+  fetchReports();
+}, [activeTab]);
+
   const resetProductForm = () => {
     setProductName(''); // Reset new field
     setProductCode('');
@@ -648,6 +713,14 @@ const AdminPage = () => {
     setNewProducts([]);
     setCurrentImageIndex(0);
   };
+  
+  // NEW: Filter products based on search term
+  const filteredProducts = products.filter(product => {
+  const searchTerm = productSearchTerm.toLowerCase();
+  const productNameMatch = (product.productName || '').toLowerCase().includes(searchTerm);
+  const productCodeMatch = (product.productCode || '').toLowerCase().includes(searchTerm);
+  return productNameMatch || productCodeMatch;
+});
 
   return (
     <div className="admin-page">
@@ -657,7 +730,7 @@ const AdminPage = () => {
           className={activeTab === 'collections' ? 'active' : ''}
           onClick={() => setActiveTab('collections')}
         >
-          Collections & Products
+          Collections
         </button>
         <button
           className={activeTab === 'orders' ? 'active' : ''}
@@ -671,402 +744,514 @@ const AdminPage = () => {
         >
           Low Stock Alerts ({lowStockProducts.length})
         </button>
+         <button
+          className={activeTab === 'reports' ? 'active' : ''}
+          onClick={() => setActiveTab('reports')}
+        >
+          Reports
+        </button>
         <button
           className={activeTab === 'users' ? 'active' : ''}
           onClick={() => setActiveTab('users')}
         >
           User Management
         </button>
+        
+
       </div>
 
       <div className="tab-content">
-        {/* --- Collections & Products Tab --- */}
+        {/* --- Collections, Subcollections, and Products Tabs --- */}
         {activeTab === 'collections' && (
-          <div className="forms-container">
-            {/* Main Collections Section */}
-            <div className="admin-section">
-              <h2>Main Collections</h2>
-              <div className="forms-container">
-                <form onSubmit={editingMainCollection ? handleUpdateMainCollection : handleAddMainCollection} className="add-collection-form">
-                  <h3>{editingMainCollection ? 'Edit' : 'Add'} Main Collection</h3>
-                  <div className="form-group">
-                    <label>Name:</label>
-                    <input
-                      type="text"
-                      value={mainCollectionName}
-                      onChange={(e) => setMainCollectionName(e.target.value)}
-                      placeholder="Main Collection Name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Image:</label>
-                    <input
-                      type="file"
-                      onChange={(e) => handleImageChange(e, setMainCollectionImageFile)}
-                      required={!editingMainCollection}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Show Number:</label>
-                    <input
-                      type="number"
-                      value={mainCollectionShowNumber}
-                      onChange={(e) => setMainCollectionShowNumber(e.target.value)}
-                      placeholder="Order (e.g., 1, 2)"
-                      required
-                    />
-                  </div>
-                  <button type="submit" disabled={isMainCollectionUploading}>
-                    {isMainCollectionUploading ? 'Processing...' : editingMainCollection ? 'Update Collection' : 'Add Collection'}
-                  </button>
-                  {editingMainCollection && (
-                    <button type="button" onClick={resetMainCollectionForm} className="cancel-button">
-                      Cancel Edit
-                    </button>
-                  )}
-                </form>
-              </div>
-              <div className="current-collections">
-                <h3>Current Main Collections</h3>
-                {isMainCollectionLoading ? (
-                  <p>Loading collections...</p>
-                ) : (
-                  <div className="collections-grid">
-                    {mainCollections.map((item) => (
-                      <CollectionCard
-                        key={item.id}
-                        title={`${item.title} (#${item.showNumber})`}
-                        image={item.image}
-                      >
-                        <div className="admin-actions">
-                          <button onClick={() => {
-                            setSelectedMainCollectionId(item.id);
-                            setSelectedSubcollectionId('');
-                          }}>Select</button>
-                          <button onClick={() => startEditMainCollection(item)}>Edit</button>
-                          <button onClick={() => handleDeleteMainCollection(item.id, item.image)}>Delete</button>
-                        </div>
-                      </CollectionCard>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div className="collection-management-container">
+            <div className="sub-tabs">
+              <button
+                className={activeSubTab === 'collections' ? 'active' : ''}
+                onClick={() => setActiveSubTab('collections')}
+              >
+                Collections
+              </button>
+              <button
+                className={activeSubTab === 'subcollections' ? 'active' : ''}
+                onClick={() => setActiveSubTab('subcollections')}
+              >
+                Subcollections
+              </button>
+              <button
+                className={activeSubTab === 'products' ? 'active' : ''}
+                onClick={() => setActiveSubTab('products')}
+              >
+                Products
+              </button>
             </div>
 
-            {/* Subcollections Section */}
-            <div className="admin-section">
-              <h2>Subcollections</h2>
-              {selectedMainCollectionId ? (
-                <>
-                  <form onSubmit={editingSubcollection ? handleUpdateSubcollection : handleAddSubcollection} className="add-collection-form">
-                    <h3>{editingSubcollection ? 'Edit' : 'Add'} Subcollection</h3>
+            {/* --- Collections Sub-tab Content --- */}
+            {activeSubTab === 'collections' && (
+              <div className="forms-container">
+                <div className="admin-section">
+                  <h2>Main Collections</h2>
+                  <form onSubmit={editingMainCollection ? handleUpdateMainCollection : handleAddMainCollection} className="add-collection-form">
+                    <h3>{editingMainCollection ? 'Edit' : 'Add'} Main Collection</h3>
                     <div className="form-group">
                       <label>Name:</label>
-                      <input
-                        type="text"
-                        value={subcollectionName}
-                        onChange={(e) => setSubcollectionName(e.target.value)}
-                        placeholder="Subcollection Name"
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Description:</label>
-                      <input
-                        type="text"
-                        value={subcollectionDescription}
-                        onChange={(e) => setSubcollectionDescription(e.target.value)}
-                        placeholder="Description"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Purchase Rate:</label>
-                      <input
-                        type="number"
-                        value={subcollectionPurchaseRate}
-                        onChange={(e) => setSubcollectionPurchaseRate(e.target.value)}
-                        placeholder="Purchase Rate (e.g., 50)"
-                        required
-                      />
+                      <input type="text" value={mainCollectionName} onChange={(e) => setMainCollectionName(e.target.value)} placeholder="Main Collection Name" required />
                     </div>
                     <div className="form-group">
                       <label>Image:</label>
-                      <input
-                        type="file"
-                        onChange={(e) => handleImageChange(e, setSubcollectionImageFile)}
-                        required={!editingSubcollection}
-                      />
+                      <input type="file" onChange={(e) => handleImageChange(e, setMainCollectionImageFile)} required={!editingMainCollection} />
                     </div>
                     <div className="form-group">
                       <label>Show Number:</label>
-                      <input
-                        type="number"
-                        value={subcollectionShowNumber}
-                        onChange={(e) => setSubcollectionShowNumber(e.target.value)}
-                        placeholder="Order (e.g., 1, 2)"
-                        required
-                      />
+                      <input type="number" value={mainCollectionShowNumber} onChange={(e) => setMainCollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
                     </div>
-                    {/* Tiered Pricing Sections */}
-                    <div className="tiered-pricing-container">
-                      {['retail', 'wholesale'].map(type => (
-                        <div key={type} className="pricing-section">
-                          <h4>{type.charAt(0).toUpperCase() + type.slice(1)} Pricing</h4>
-                          {subcollectionTieredPricing[type].map((tier, index) => (
-                            <div key={index} className="price-tier">
-                              <input
-                                type="number"
-                                value={tier.min_quantity}
-                                onChange={(e) => handleTierChange(type, index, 'min_quantity', e.target.value)}
-                                placeholder="Min Qty"
-                                required
-                              />
-                              <input
-                                type="number"
-                                value={tier.max_quantity}
-                                onChange={(e) => handleTierChange(type, index, 'max_quantity', e.target.value)}
-                                placeholder="Max Qty"
-
-                              />
-                              <input
-                                type="number"
-                                value={tier.price}
-                                onChange={(e) => handleTierChange(type, index, 'price', e.target.value)}
-                                placeholder="Price"
-                                required
-                              />
-                              <button type="button" onClick={() => handleRemoveTier(type, index)} className="remove-tier-button">
-                                -
-                              </button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => handleAddTier(type)} className="add-tier-button">
-                            + Add {type.charAt(0).toUpperCase() + type.slice(1)} Tier
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="submit" disabled={isSubcollectionUploading}>
-                      {isSubcollectionUploading ? 'Processing...' : editingSubcollection ? 'Update Subcollection' : 'Add Subcollection'}
+                    <button type="submit" disabled={isMainCollectionUploading}>
+                      {isMainCollectionUploading ? 'Processing...' : editingMainCollection ? 'Update Collection' : 'Add Collection'}
                     </button>
-                    {editingSubcollection && (
-                      <button type="button" onClick={resetSubcollectionForm} className="cancel-button">
+                    {editingMainCollection && (
+                      <button type="button" onClick={resetMainCollectionForm} className="cancel-button">
                         Cancel Edit
                       </button>
                     )}
                   </form>
+                </div>
+
+                <div className="admin-section">
                   <div className="current-collections">
-                    <h3>Current Subcollections</h3>
-                    {isSubcollectionLoading ? (
-                      <p>Loading subcollections...</p>
+                    <h3>Current Main Collections</h3>
+                    {isMainCollectionLoading ? (
+                      <p>Loading collections...</p>
                     ) : (
                       <div className="collections-grid">
-                        {subcollections.map((item) => (
-                          <CollectionCard
-                            key={item.id}
-                            title={`${item.name} (#${item.showNumber})`}
-                            description={item.description}
-                            tieredPricing={item.tieredPricing}
-                            image={item.image}
-                          >
+                        {mainCollections.map((item) => (
+                          <CollectionCard key={item.id} title={item.title} image={item.image} showNumber={item.showNumber}>
                             <div className="admin-actions">
-                              <button onClick={() => {
-                                setSelectedSubcollectionId(item.id);
-                              }}>Select</button>
-                              <button onClick={() => startEditSubcollection(item)}>Edit</button>
-                              <button onClick={() => handleDeleteSubcollection(item.id, item.image)}>Delete</button>
+                              <button onClick={() => startEditMainCollection(item)}>Edit</button>
+                              <button onClick={() => handleDeleteMainCollection(item.id, item.image)}>Delete</button>
                             </div>
                           </CollectionCard>
                         ))}
                       </div>
                     )}
                   </div>
-                </>
-              ) : (
-                <p className="select-prompt">Please select a Main Collection to view/add Subcollections.</p>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
 
-            {/* Products Section */}
-            <div className="admin-section product-section">
-              <h2>Products</h2>
-              {selectedSubcollectionId && (
-                <>
-                  {/* Product Image Selection */}
-                  {!showProductForm && (
-                    <div className="image-select-form">
-                      <h3>Select Product Images</h3>
-                      <input
-                        type="file"
-                        multiple
-                        onChange={handleProductImageChange}
-                        accept="image/*"
-                      />
-                      <p className="instruction">Select one or more images to add new products.</p>
-                    </div>
-                  )}
+            {/* --- Subcollections Sub-tab Content --- */}
+            {activeSubTab === 'subcollections' && (
+              <div className="forms-container">
+                <div className="admin-section">
+                  <h2>Subcollections</h2>
+                  <div className="form-group">
+                    <label>Select Main Collection:</label>
+                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+                      <option value="">-- Select a Collection --</option>
+                      {mainCollections.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  {/* Multi-step product form */}
-                  {showProductForm && newProducts.length > 0 && currentImageIndex < newProducts.length && (
-                    <form onSubmit={handleNextProduct} className="add-product-form">
-                      <h3>
-                        Add Product {currentImageIndex + 1} of {newProducts.length}
-                      </h3>
-                      <div className="product-form-content">
-                        <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
-                        <div className="product-details-inputs">
-                          <input
-                            type="text"
-                            value={productName}
-                            onChange={(e) => setProductName(e.target.value)}
-                            placeholder="Product Name"
-                            required
-                          />
-                          <input
-                            type="text"
-                            value={productCode}
-                            onChange={(e) => setProductCode(e.target.value)}
-                            placeholder="Product Code"
-                            required
-                          />
-                          <input
-                            type="number"
-                            value={productQuantity}
-                            onChange={(e) => setProductQuantity(e.target.value)}
-                            placeholder="Quantity"
-                            required
-                          />
+                  {selectedMainCollectionId && (
+                    <form onSubmit={editingSubcollection ? handleUpdateSubcollection : handleAddSubcollection} className="add-collection-form">
+                      <h3>{editingSubcollection ? 'Edit' : 'Add'} Subcollection</h3>
+                      <div className="form-group">
+                        <label>Name:</label>
+                        <input type="text" value={subcollectionName} onChange={(e) => setSubcollectionName(e.target.value)} placeholder="Subcollection Name" required />
+                      </div>
+                      <div className="form-group">
+                        <label>Description:</label>
+                        <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection Description"></textarea>
+                      </div>
+                      <div className="form-group">
+                        <label>Image:</label>
+                        <input type="file" onChange={(e) => handleImageChange(e, setSubcollectionImageFile)} required={!editingSubcollection} />
+                      </div>
+                      <div className="form-group">
+                        <label>Show Number:</label>
+                        <input type="number" value={subcollectionShowNumber} onChange={(e) => setSubcollectionShowNumber(e.target.value)} placeholder="Order (e.g., 1, 2)" required />
+                      </div>
+                      <div className="form-group">
+                        <label>Purchase Rate:</label>
+                        <input type="number" step="0.01" value={subcollectionPurchaseRate} onChange={(e) => setSubcollectionPurchaseRate(e.target.value)} placeholder="Purchase Rate (e.g., 0.50)" required />
+                      </div>
+                      <div className="tiered-pricing-container">
+                        <div className="pricing-section">
+                          <h4>Retail Pricing</h4>
+                          {subcollectionTieredPricing.retail.map((tier, index) => (
+                            <div key={index} className="price-tier">
+                              <input type="number" placeholder="Min Qty" value={tier.min_quantity} onChange={(e) => handleTierChange('retail', index, 'min_quantity', e.target.value)} required />
+                              <input type="number" placeholder="Max Qty" value={tier.max_quantity} onChange={(e) => handleTierChange('retail', index, 'max_quantity', e.target.value)} required />
+                              <input type="number" step="0.01" placeholder="Price" value={tier.price} onChange={(e) => handleTierChange('retail', index, 'price', e.target.value)} required />
+                              <button type="button" onClick={() => handleRemoveTier('retail', index)} className="remove-tier-button">
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => handleAddTier('retail')} className="add-tier-button">
+                            Add Retail Tier
+                          </button>
+                        </div>
+                        <div className="pricing-section">
+                          <h4>Wholesale Pricing</h4>
+                          {subcollectionTieredPricing.wholesale.map((tier, index) => (
+                            <div key={index} className="price-tier">
+                              <input type="number" placeholder="Min Qty" value={tier.min_quantity} onChange={(e) => handleTierChange('wholesale', index, 'min_quantity', e.target.value)} required />
+                              <input type="number" placeholder="Max Qty" value={tier.max_quantity} onChange={(e) => handleTierChange('wholesale', index, 'max_quantity', e.target.value)} required />
+                              <input type="number" step="0.01" placeholder="Price" value={tier.price} onChange={(e) => handleTierChange('wholesale', index, 'price', e.target.value)} required />
+                              <button type="button" onClick={() => handleRemoveTier('wholesale', index)} className="remove-tier-button">
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => handleAddTier('wholesale')} className="add-tier-button">
+                            Add Wholesale Tier
+                          </button>
                         </div>
                       </div>
-                      <div className="form-actions">
-                        <button type="submit" disabled={isProductUploading || !productName || !productCode || !productQuantity}>
-                          Next
+                      <button type="submit" disabled={isSubcollectionUploading}>
+                        {isSubcollectionUploading ? 'Processing...' : editingSubcollection ? 'Update Subcollection' : 'Add Subcollection'}
+                      </button>
+                      {editingSubcollection && (
+                        <button type="button" onClick={resetSubcollectionForm} className="cancel-button">
+                          Cancel Edit
                         </button>
-                        <button type="button" onClick={resetProductForm}>
-                          Cancel
-                        </button>
-                      </div>
+                      )}
                     </form>
                   )}
+                </div>
 
-                  {/* "Submit All" form for final step */}
-                  {showProductForm && currentImageIndex === newProducts.length && (
-                    <form onSubmit={handleAddAllProducts} className="add-product-form">
-                      <h3>Ready to Save Products?</h3>
-                      <div className="summary-list">
-                        {newProducts.map((product, index) => (
-                          <div key={index} className="product-summary-item">
-                            <img src={product.previewUrl} alt={`Product ${index + 1}`} className="product-preview-image" />
-                            <span>{product.productName} - {product.productCode} - Qty: {product.quantity}</span>
-                          </div>
+                <div className="admin-section">
+                  <h3>Current Subcollections</h3>
+                  {selectedMainCollectionId ? (
+                    isSubcollectionLoading ? (
+                      <p>Loading subcollections...</p>
+                    ) : (
+                      <div className="collections-grid">
+                        {subcollections.map((item) => (
+                          <CollectionCard key={item.id} title={item.name} description={item.description} image={item.image} tieredPricing={item.tieredPricing}>
+                            <div className="admin-actions">
+                              <button onClick={() => startEditSubcollection(item)}>Edit</button>
+                              <button onClick={() => handleDeleteSubcollection(item.id, item.image)}>Delete</button>
+                            </div>
+                          </CollectionCard>
                         ))}
                       </div>
-                      <div className="form-actions">
-                        <button type="submit" className="submit-all-button" disabled={isProductUploading}>
-                          {isProductUploading ? 'Uploading...' : 'Submit All Products'}
-                        </button>
-                        <button type="button" onClick={resetProductForm}>
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </>
-              )}
-
-              {/* Display Products section remains the same */}
-              {selectedSubcollectionId && (
-                <div className="current-collections">
-                  <h3>Products</h3>
-                  {isProductLoading ? (
-                    <p>Loading products...</p>
-                  ) : products.length === 0 ? (
-                    <p>No products found in this subcollection.</p>
+                    )
                   ) : (
-                    <div className="collections-grid">
-                      {products.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          productName={product.productName} // Pass new prop to ProductCard
-                          productCode={product.productCode}
-                          quantity={product.quantity}
-                          image={product.image}
-                        >
-                          <div className="admin-actions">
-                            <button onClick={() => startEditProduct(product)}>Edit</button>
-                            <button onClick={() => handleDeleteProduct(product.id, product.image)}>Delete</button>
-                          </div>
-                        </ProductCard>
+                    <p className="select-prompt">Please select a main collection to view its subcollections.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* --- Products Sub-tab Content --- */}
+            {activeSubTab === 'products' && (
+              <div className="forms-container">
+                <div className="admin-section">
+                  <h2>Products</h2>
+                  <div className="form-group">
+                    <label>Select Main Collection:</label>
+                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+                      <option value="">-- Select a Collection --</option>
+                      {mainCollections.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Select Subcollection:</label>
+                    <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
+                      <option value="">-- Select a Subcollection --</option>
+                      {subcollections.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedSubcollectionId && (
+                    <div className="add-collection-form">
+                      <h3>Add/Edit Products</h3>
+                      {showProductForm ? (
+                        <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
+                          {editingProduct ? (
+                            <>
+                              <div className="product-form-item">
+                                <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
+                                <div className="product-details-inputs">
+                                  <div className="form-group">
+                                    <label>Product Name:</label>
+                                    <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                  </div>
+                                  <div className="form-group">
+                                    <label>Product Code:</label>
+                                    <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                  </div>
+                                  <div className="form-group">
+                                    <label>Quantity:</label>
+                                    <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                  </div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                                <>
+                                  <div className="product-form-item">
+                                    <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                                    <div className="product-details-inputs">
+                                      <div className="form-group">
+                                        <label>Product Name:</label>
+                                        <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>Product Code:</label>
+                                        <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>Quantity:</label>
+                                        <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="file-info">
+                                    Image {currentImageIndex + 1} of {newProducts.length}
+                                  </div>
+                                </>
+                              ) : (
+                                <p>All product details filled. Click 'Add All Products' to save.</p>
+                              )}
+                            </>
+                          )}
+                          <button type="submit" disabled={isProductUploading} className="submit-all-button">
+                            {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
+                          </button>
+                          <button type="button" onClick={resetProductForm} className="cancel-button">
+                            Cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="form-group">
+                          <label>Upload Product Photos:</label>
+                          <input type="file" onChange={handleProductImageChange} multiple />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+
+                <div className="admin-section">
+                  <h3>Current Products</h3>
+                  {selectedSubcollectionId ? (
+                    isProductLoading ? (
+                      <p>Loading products...</p>
+                    ) : (
+                      <>
+                        <div className="search-container">
+                          <input
+                            type="text"
+                            placeholder="Search by name or code..."
+                            value={productSearchTerm}
+                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                            className="search-input"
+                          />
+                        </div>
+                        <div className="collections-grid">
+                          {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product) => (
+                              <ProductCard key={product.id} productName={product.productName} productCode={product.productCode} quantity={product.quantity} image={product.image}>
+                                <div className="admin-actions">
+                                  <button onClick={() => startEditProduct(product)}>Edit</button>
+                                  <button onClick={() => handleDeleteProduct(product.id, product.image)}>Delete</button>
+                                </div>
+                              </ProductCard>
+                            ))
+                          ) : (
+                            <p>No products found matching your search criteria.</p>
+                          )}
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+                  )}
+                </div>
+              </div>
+            )}
+            
           </div>
         )}
 
         {/* --- Orders Tab --- */}
         {activeTab === 'orders' && (
+  <div className="admin-section">
+    <h2>Customer Orders</h2>
+    {isOrderLoading ? (
+      <p>Loading orders...</p>
+    ) : orders.length === 0 ? (
+      <p>No orders have been placed yet.</p>
+    ) : (
+      <ul className="orders-list">
+        {orders.map((order) => (
+          <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
+            <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+            <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+            <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+)}
+  
+{/* Render Order Details Modal */}
+{selectedOrder && (
+  <OrderDetailsModal
+    order={selectedOrder}
+    onClose={() => setSelectedOrder(null)}
+    onUpdateStatus={handleUpdateOrderStatus}
+  />
+)}
+
+        {/* --- Low Stock Tab --- */}
+        {activeTab === 'lowStock' && (
           <div className="admin-section">
-            <h2>Customer Orders</h2>
-            {isOrderLoading ? (
-              <p>Loading orders...</p>
-            ) : orders.length === 0 ? (
-              <p>No orders have been placed yet.</p>
+            <h2>Low Stock Alerts</h2>
+            <div className="low-stock-header">
+              <p>The following products have a quantity less than or equal to {LOW_STOCK_THRESHOLD}.</p>
+              <button onClick={handleDownloadLowStockImages} disabled={isDownloading || lowStockProducts.length === 0} className="download-all-btn">
+                {isDownloading ? 'Downloading...' : 'Download All Images'}
+              </button>
+            </div>
+            {isLowStockLoading ? (
+              <p>Scanning for low stock products...</p>
+            ) : lowStockProducts.length === 0 ? (
+              <p>No products are currently low in stock.</p>
             ) : (
-              <ul className="orders-list">
-                {orders.map((order) => (
-                  <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                    <p>Status: <span className={`order-status status-${order.status.toLowerCase()}`}>{order.status}</span></p>
-                  </li>
+              <div className="collections-grid">
+                {lowStockProducts.map((product) => (
+                  <ProductCard key={product.id} productName={product.productName} productCode={product.productCode} quantity={product.quantity} image={product.image} />
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         )}
+
+{activeTab === 'reports' && (
+  <div className="admin-section">
+    <h2>Financial Reports</h2>
+    {isReportsLoading ? (
+      <p>Loading reports...</p>
+    ) : (
+      <div className="reports-container">
         
-        {/* Render Order Details Modal */}
-        {selectedOrder && (
-          <OrderDetailsModal
-            order={selectedOrder}
-            onClose={() => setSelectedOrder(null)}
-            onUpdateStatus={handleUpdateOrderStatus}
-          />
-        )}
+        <div className="report-table-container">
+          <h3>Order Report</h3>
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Total Amount</th>
+                <th>Status</th>
+                <th>Customer Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderReports.length > 0 ? (
+                orderReports.map(report => (
+                  <tr key={report.id}>
+                    <td>{report.id.substring(0, 8)}...</td>
+                    <td>{report.createdAt}</td>
+                    <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
+                    <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
+                    <td>{report.userEmail || 'N/A'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5">No order data found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {/* --- Low Stock Alerts Tab --- */}
-       {activeTab === 'lowStock' && (
-    <div className="admin-section">
-        <h2>Low Stock Alerts</h2>
-        <button
-            onClick={handleDownloadLowStockImages}
-            disabled={isLowStockLoading || isDownloading || lowStockProducts.length === 0}
-            className="download-button"
-        >
-            {isDownloading ? 'Downloading...' : 'Download All Low Stock Images'}
-        </button>
-        {isLowStockLoading ? (
-            <p>Checking inventory...</p>
-        ) : lowStockProducts.length === 0 ? (
-            <p>All products are in stock. No alerts to show.</p>
-        ) : (
-            <ul className="low-stock-list">
-                {lowStockProducts.map((product) => (
-                    <li key={product.id} className="low-stock-list-item">
-                        <p>Product Code: <strong>{product.productCode}</strong></p>
-                        <p>Current Stock: <span className="low-stock-count">{product.quantity}</span></p>
-                        <p>Location: {product.mainCollectionName} / {product.subcollectionName}</p>
-                    </li>
-                ))}
-            </ul>
-        )}
-    </div>
+        <div className="report-table-container">
+          <h3>Payment Report</h3>
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Total Amount</th>
+                <th>Payment Method</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paymentReports.length > 0 ? (
+                paymentReports.map((report, index) => (
+                  <tr key={index}>
+                    <td>{report.orderId.substring(0, 8)}...</td>
+                    <td>{report.date}</td>
+                    <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
+                    <td>{report.paymentMethod}</td>
+                    <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5">No payment data found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="report-table-container">
+          <h3>Product Report</h3>
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Product Code</th>
+                <th>Product Name</th>
+                <th>Quantity in Stock</th>
+                <th>Total Sales</th>
+                <th>Total Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productReports.length > 0 ? (
+                productReports.map((report, index) => (
+                  <tr key={index}>
+                    <td>{report.productCode}</td>
+                    <td>{report.productName}</td>
+                    <td>{report.quantityInStock}</td>
+                    <td>{report.totalSales}</td>
+                    <td>₹{report.totalRevenue.toFixed(2)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5">No product data found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+  </div>
 )}
-
         {/* --- User Management Tab --- */}
         {activeTab === 'users' && (
           <div className="admin-section">

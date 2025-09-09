@@ -63,20 +63,25 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
             <p><strong>Address:</strong> {order.billingInfo?.address}</p>
           </div>
 
-          <div className="order-info-group">
-            <h4>Items</h4>
-            <ul className="order-items-list">
-              {order.items.map((item, index) => (
-                <li key={index}>
-                  <img src={item.image} alt={item.productCode} />
-                  <div>
-                    <p><strong>Code:</strong> {item.productCode}</p>
-                    <p><strong>Quantity:</strong> {item.quantity}</p>
-                    <p><strong>Price:</strong> ₹{item.price}</p>
-                  </div>
-                </li>
-              ))}\r\n            </ul>
-          </div>
+         <div className="order-info-group">
+  <h4>Items</h4>
+  <ul className="order-items-list">
+    {order.items.map((item, index) => (
+      <li key={index}>
+        {item.image ? (
+          <img src={item.image} alt={item.productCode} />
+        ) : (
+          <div className="image-placeholder">No Image</div>
+        )}
+        <div>
+          <p><strong>Code:</strong> {item.productCode}</p>
+          <p><strong>Quantity:</strong> {item.quantity}</p>
+          <p><strong>Price:</strong> ₹{item.price}</p>
+        </div>
+      </li>
+    ))}
+  </ul>
+</div>
         </div>
         <div className="modal-footer">
           <button onClick={() => handlePrint('order')} className="print-btn">Print Order Details</button>

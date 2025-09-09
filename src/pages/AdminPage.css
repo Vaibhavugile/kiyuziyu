@@ -720,3 +720,127 @@ button[type="submit"]:disabled {
 .download-all-btn:hover {
   background-color: #1e7e34;
 }
+/* New styles for nested tabs */
+.collection-management-container {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    background-color: var(--background-light);
+    margin-top: 20px;
+}
+
+.sub-tabs {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.sub-tabs button {
+    background-color: transparent;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--light-text-color);
+    transition: color 0.3s ease, border-bottom 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.sub-tabs button.active {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.sub-tabs button:hover {
+    color: var(--primary-color);
+}
+/* src/pages/AdminPage.css */
+
+/* ... other styles ... */
+
+.search-container {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.search-input {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(90, 125, 125, 0.5);
+}
+
+/* ... (existing styles) ... */
+.reports-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.report-table-container {
+    background-color: var(--card-background);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.report-table-container h3 {
+    color: var(--secondary-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.report-table th,
+.report-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.report-table th {
+    background-color: var(--background-light);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.report-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Add a separate style for order status in the report */
+.report-table .order-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.8em;
+    text-transform: capitalize;
+}
+
+.report-table .status-pending { background-color: #ffc107; color: #333; }
+.report-table .status-processing { background-color: #17a2b8; color: white; }
+.report-table .status-shipped { background-color: #28a745; color: white; }
+.report-table .status-delivered { background-color: #6f42c1; color: white; }
+.report-table .status-cancelled { background-color: #dc3545; color: white; }
+.report-table .status-unknown { background-color: #6c757d; color: white; }
