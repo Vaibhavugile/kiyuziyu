@@ -7,8 +7,10 @@ import { useAuth } from '../components/AuthContext';
 import Footer from '../components/Footer';
 import './ProductsPage.css';
 
-const getProductPrice = (product, subcollectionsMap, userRole, cartQuantity) => {
+// The getProductPrice function now calculates the total quantity from relevant products in the cart
+const getProductPrice = (product, subcollectionsMap, userRole, cart) => {
   const subcollection = subcollectionsMap[product.subcollectionId];
+  
   if (!subcollection?.tieredPricing) {
     return null;
   }
@@ -16,14 +18,27 @@ const getProductPrice = (product, subcollectionsMap, userRole, cartQuantity) => 
   const pricingTiers = userRole === 'wholesaler'
     ? subcollection.tieredPricing.wholesale
     : subcollection.tieredPricing.retail;
+  
+  // Create a unique ID for this specific pricing tier structure
+  const pricingId = JSON.stringify(pricingTiers);
 
-  if (userRole) {
-    return getPriceForQuantity(pricingTiers, cartQuantity);
-  } else {
-    const retailTiers = subcollection.tieredPricing.retail;
-    const baseRetailTier = retailTiers.find(tier => tier.min_quantity === 1);
-    return baseRetailTier ? baseRetailTier.price : null;
-  }
+  // Calculate the total quantity for all products in the cart that share this pricing ID
+  const totalRelevantQuantity = Object.values(cart).reduce((total, item) => {
+    const itemPricingTiers = userRole === 'wholesaler'
+      ? item.tieredPricing?.wholesale
+      : item.tieredPricing?.retail;
+    
+    // Compare the stringified tiers to find products with the exact same pricing structure
+    if (JSON.stringify(itemPricingTiers) === pricingId) {
+      return total + item.quantity;
+    }
+    return total;
+  }, 0);
+  
+  // Log the quantity used for price calculation
+  console.log(`Product "${product.productName}": Total relevant quantity in cart is ${totalRelevantQuantity}`);
+
+  return getPriceForQuantity(pricingTiers, totalRelevantQuantity);
 };
 
 const ProductsPage = () => {
@@ -102,14 +117,13 @@ const ProductsPage = () => {
   }, [collectionId]);
 
   const filteredProducts = useMemo(() => {
+    console.log("Filtering and Sorting Products...");
     let currentProducts = [...allProducts];
 
-    // Filter by subcollection
     if (selectedSubcollectionId !== 'all') {
       currentProducts = currentProducts.filter(p => p.subcollectionId === selectedSubcollectionId);
     }
 
-    // Filter by search term
     if (searchTerm) {
       currentProducts = currentProducts.filter(p =>
         p && p.productName && p.productCode && (
@@ -119,17 +133,16 @@ const ProductsPage = () => {
       );
     }
     
-    // Sort products
     if (sortBy === 'price-asc') {
         currentProducts.sort((a, b) => {
-            const priceA = getProductPrice(a, subcollectionsMap, userRole, cart[a.id]?.quantity || 0);
-            const priceB = getProductPrice(b, subcollectionsMap, userRole, cart[b.id]?.quantity || 0);
+            const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
+            const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
             return (priceA || Infinity) - (priceB || Infinity);
         });
     } else if (sortBy === 'price-desc') {
         currentProducts.sort((a, b) => {
-            const priceA = getProductPrice(a, subcollectionsMap, userRole, cart[a.id]?.quantity || 0);
-            const priceB = getProductPrice(b, subcollectionsMap, userRole, cart[b.id]?.quantity || 0);
+            const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
+            const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
             return (priceB || -Infinity) - (priceA || -Infinity);
         });
     }
@@ -199,7 +212,11 @@ const ProductsPage = () => {
           <div className="products-grid collections-grid">
             {filteredProducts.map((product) => {
               const cartQuantity = cart[product.id]?.quantity || 0;
-              const price = getProductPrice(product, subcollectionsMap, userRole, cartQuantity);
+              const price = getProductPrice(product, subcollectionsMap, userRole, cart);
+              const tieredPricing = subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
+
+              // Create a consistent pricing ID for the cart
+              const pricingId = JSON.stringify(subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']);
 
               return (
                 <ProductCard
@@ -210,6 +227,7 @@ const ProductsPage = () => {
                   image={product.image}
                   price={price}
                   cartQuantity={cartQuantity}
+                  tieredPricing={tieredPricing}
                   onIncrement={() => addToCart(product.id, {
                     id: product.id,
                     productName: product.productName,
@@ -219,6 +237,7 @@ const ProductsPage = () => {
                     tieredPricing: subcollectionsMap[product.subcollectionId].tieredPricing,
                     subcollectionId: product.subcollectionId,
                     collectionId: collectionId,
+                    pricingId: pricingId, // Pass the new unique pricing ID
                   }, product.quantity)}
                   onDecrement={() => removeFromCart(product.id)}
                   onQuickView={() => setQuickViewProduct(product)}

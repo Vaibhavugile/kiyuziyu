@@ -1,19 +1,21 @@
 import React, { createContext, useState, useContext } from 'react';
 import { useAuth } from './AuthContext';
 
-// Utility function to get the price from tiered pricing based on quantity
-export const getPriceForQuantity = (tiers, quantity) => {
-  if (!tiers || tiers.length === 0) return 0;
-  const sortedTiers = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
-  let price = sortedTiers[0].price; // Default to the lowest tier price
+// Utility function to get the price from tiered pricing based on total quantity
+export const getPriceForQuantity = (tiers, totalQuantity) => {
+  if (!tiers || tiers.length === 0) return null;
+
+  // Sort the tiers in descending order of quantity to find the highest tier first
+  const sortedTiers = [...tiers].sort((a, b) => b.min_quantity - a.min_quantity);
+
   for (const tier of sortedTiers) {
-    if (quantity >= tier.min_quantity) {
-      if (tier.max_quantity === '' || quantity <= tier.max_quantity) {
-        price = tier.price;
-      }
+    if (totalQuantity >= tier.min_quantity) {
+      return tier.price;
     }
   }
-  return price;
+
+  // Fallback to the price of the lowest tier if no tier matches
+  return sortedTiers[sortedTiers.length - 1]?.price || null;
 };
 
 // Create the context
@@ -24,35 +26,39 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState({});
   const { userRole } = useAuth();
 
-  // Helper function to recalculate prices for a subcollection based on total quantity
-  const recalculateSubcollectionPrices = (prevCart, subcollectionId) => {
-    const newCart = { ...prevCart };
-    let totalSubcollectionQuantity = 0;
-    let tiers;
+  // New helper function to recalculate all prices in the cart based on collective quantity
+  const recalculateCartPrices = (currentCart) => {
+    console.log("--- Starting Cart Price Recalculation ---");
+    const newCart = { ...currentCart };
+    const pricingGroups = {};
 
-    // First, calculate the total quantity for the subcollection and find the tiers
+    // Group products in the cart by their unique pricing ID
     for (const productId in newCart) {
-      if (newCart[productId].subcollectionId === subcollectionId) {
-        totalSubcollectionQuantity += newCart[productId].quantity;
-        tiers = newCart[productId].tieredPricing;
+      const item = newCart[productId];
+      const pricingId = item.pricingId; 
+
+      if (!pricingGroups[pricingId]) {
+        pricingGroups[pricingId] = {
+          totalQuantity: 0,
+          productIds: [],
+          tiers: item.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'],
+        };
+      }
+      pricingGroups[pricingId].totalQuantity += item.quantity;
+      pricingGroups[pricingId].productIds.push(productId);
+    }
+    console.log("Grouped products by pricing tiers:", pricingGroups);
+
+    // Recalculate and apply the new price for each group
+    for (const key in pricingGroups) {
+      const group = pricingGroups[key];
+      const newPrice = getPriceForQuantity(group.tiers, group.totalQuantity);
+      for (const productId of group.productIds) {
+        newCart[productId].price = newPrice;
       }
     }
-    
-    if (!tiers) {
-        return newCart; // If no tiers found, return the cart as is
-    }
-
-    const price = getPriceForQuantity(
-      userRole === 'wholesaler' ? tiers.wholesale : tiers.retail,
-      totalSubcollectionQuantity
-    );
-
-    // Then, apply the new price to all products in that subcollection
-    for (const productId in newCart) {
-      if (newCart[productId].subcollectionId === subcollectionId) {
-        newCart[productId].price = price;
-      }
-    }
+    console.log("--- Finished Cart Price Recalculation ---");
+    console.log("New Cart State:", newCart);
     return newCart;
   };
 
@@ -71,14 +77,13 @@ export const CartProvider = ({ children }) => {
           price: 0, 
         },
       };
-      return recalculateSubcollectionPrices(newCart, productData.subcollectionId);
+      return recalculateCartPrices(newCart);
     });
   };
 
   const removeFromCart = (productId) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
-      const subcollectionId = newCart[productId]?.subcollectionId;
       const newQuantity = (newCart[productId]?.quantity || 0) - 1;
 
       if (newQuantity <= 0) {
@@ -86,11 +91,7 @@ export const CartProvider = ({ children }) => {
       } else {
         newCart[productId].quantity = newQuantity;
       }
-
-      if (subcollectionId) {
-        return recalculateSubcollectionPrices(newCart, subcollectionId);
-      }
-      return newCart;
+      return recalculateCartPrices(newCart);
     });
   };
 
@@ -98,7 +99,6 @@ export const CartProvider = ({ children }) => {
     return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
   };
   
-  // New function to clear the cart
   const clearCart = () => {
     setCart({});
   };
