@@ -26,8 +26,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/collections/:collectionId" element={<SubcollectionsPage />} />
-            <Route path="/collections/:collectionId/subcollections/:subcollectionId" element={<ProductsPage />} />
-            <Route path="/cart" element={<CartPage />} />
+            <Route path="/collections/:collectionId/all-products" element={<ProductsPage />} />            <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/order-success" element={<OrderSuccessPage />} />
             <Route path="/order-history" element={<OrderHistoryPage />} /> {/* Add the new route here */}

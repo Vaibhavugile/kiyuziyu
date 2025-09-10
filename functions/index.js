@@ -1,59 +1,68 @@
-const functions = require('firebase-functions');
-const axios = require('axios');
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const logger = require("firebase-functions/logger");
+const axios = require("axios");
 
-// Set up environment variables for secure access
-const msg91Authkey = functions.config().msg91.authkey;
-const yourMobileNumber = functions.config().msg91.mobile_number;
-const templateId = functions.config().msg91.template_id; // Your Msg91 template ID
+const msg91Authkey = process.env.MSG91_AUTHKEY;
+const yourMobileNumber = process.env.MSG91_MOBILE_NUMBER;
 
-// This function will be triggered whenever a new document is created in the 'orders' collection
-exports.sendWhatsAppNotification = functions.firestore
-  .document('orders/{orderId}')
-  .onCreate(async (snap, context) => {
-    try {
-      // Get the newly created order data
-      const orderData = snap.data();
-      const orderId = context.params.orderId;
-      const totalAmount = orderData.totalAmount;
+exports.sendWhatsAppNotification = onDocumentCreated(
+    "orders/{orderId}",
+    async (event) => {
+      try {
+        const orderData = event.data.data();
+        const orderId = event.params.orderId;
+        const totalAmount = orderData.totalAmount;
 
-      // Log the new order details for debugging
-      console.log(`New order placed! ID: ${orderId}, Total: ₹${totalAmount}`);
+        logger.info(`New order placed! ID: ${orderId}, Total: ₹${totalAmount}`);
 
-      // Msg91 API endpoint for WhatsApp messages
-      const msg91ApiUrl = 'https://control.msg91.com/api/v5/whatsapp/outbound';
+        const msg91ApiUrl =
+          "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
 
-      // The variables to be inserted into your WhatsApp template
-      const templateParams = {
-        orderId: orderId.substring(0, 8), // Use a shorter ID
-        totalAmount: totalAmount.toFixed(2),
-      };
-
-      // Construct the API request payload
-      const payload = {
-        authkey: msg91Authkey,
-        template_id: templateId,
-        integrated_number: "15558698269", // Updated with your Msg91 number
-        // This is the variable data for the template.
-        variables: [templateParams.orderId, templateParams.totalAmount],
-        contacts: [
-          {
-            to: yourMobileNumber,
+        const payload = {
+          integrated_number: "15558698269",
+          content_type: "template",
+          payload: {
+            messaging_product: "whatsapp",
+            type: "template",
+            template: {
+              name: "new_order_notification",
+              language: {
+                code: "en",
+                policy: "deterministic",
+              },
+              namespace: "9fdcfe39_c1cc_4d44_b582_d043de7d016d",
+              to_and_components: [
+                {
+                  to: [yourMobileNumber],
+                  components: {
+                    body_1: {
+                      type: "text",
+                      value: orderId.substring(0, 8),
+                    },
+                    body_2: {
+                      type: "text",
+                      value: totalAmount.toFixed(2),
+                    },
+                  },
+                },
+              ],
+            },
           },
-        ],
-      };
+        };
 
-      // Make the API call to Msg91
-      const response = await axios.post(msg91ApiUrl, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        const response = await axios.post(msg91ApiUrl, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            "authkey": msg91Authkey,
+          },
+        });
 
-      console.log('Msg91 API response:', response.data);
-      return { success: true, message: 'WhatsApp message sent successfully' };
-
-    } catch (error) {
-      console.error("Error sending WhatsApp message:", error.response?.data || error.message);
-      return { success: false, message: 'Failed to send WhatsApp message' };
-    }
-  });
+        logger.info("Msg91 API response:", response.data);
+      } catch (error) {
+        logger.error(
+            "Error sending WhatsApp message:",
+            error.response?.data || error.message,
+        );
+      }
+    },
+);
