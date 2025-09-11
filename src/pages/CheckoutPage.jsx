@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { db, collection, addDoc, updateDoc, doc } from '../firebase';
 import './CartPage.css';
 
 const SHIPPING_FEE = 199;
@@ -42,7 +41,6 @@ const CheckoutPage = () => {
       return;
     }
 
-    // Check if all mandatory fields are filled
     const { fullName, email, phoneNumber, addressLine1, city, state, pincode } = formData;
     if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
       setError("Please fill out all mandatory shipping details.");
@@ -50,58 +48,56 @@ const CheckoutPage = () => {
       return;
     }
 
-    try {
-      const validatedItems = Object.values(cart).map(item => {
-        if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName || !item.image) {
-          console.error("Skipping item due to missing data:", item);
-          return null;
-        }
-
-        return {
-          productId: item.id,
-          productName: item.productName,
-          productCode: item.productCode,
-          image: item.image,
-          quantity: Number(item.quantity),
-          priceAtTimeOfOrder: Number(item.price),
-          subcollectionId: item.subcollectionId,
-          collectionId: item.collectionId,
-          maxQuantity: Number(item.maxQuantity)
-        };
-      }).filter(Boolean);
-
-      if (validatedItems.length === 0) {
-        setError("Your cart contains invalid items. Please clear your cart and try again.");
-        setIsProcessing(false);
-        return;
+    const validatedItems = Object.values(cart).map(item => {
+      if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName || !item.image) {
+        console.error("Skipping item due to missing data:", item);
+        return null;
       }
-      
-      const subtotal = getCartTotal();
-      const totalWithShipping = subtotal + SHIPPING_FEE;
-
-      const orderData = {
-        userId: currentUser?.uid || 'guest',
-        items: validatedItems.map(({ maxQuantity, ...rest }) => rest),
-        totalAmount: totalWithShipping,
-        subtotal: subtotal,
-        shippingFee: SHIPPING_FEE,
-        billingInfo: formData,
-        status: 'Pending',
-        createdAt: new Date(),
+      return {
+        productId: item.id,
+        productName: item.productName,
+        productCode: item.productCode,
+        image: item.image,
+        quantity: Number(item.quantity),
+        priceAtTimeOfOrder: Number(item.price),
+        subcollectionId: item.subcollectionId,
+        collectionId: item.collectionId,
+        maxQuantity: Number(item.maxQuantity)
       };
+    }).filter(Boolean);
 
-      const orderRef = await addDoc(collection(db, "orders"), orderData);
+    if (validatedItems.length === 0) {
+      setError("Your cart contains invalid items. Please clear your cart and try again.");
+      setIsProcessing(false);
+      return;
+    }
+    
+    const subtotal = getCartTotal();
+    const totalWithShipping = subtotal + SHIPPING_FEE;
 
-      const updatePromises = validatedItems.map(item => {
-        const productRef = doc(db, "collections", item.collectionId, "subcollections", item.subcollectionId, "products", item.productId);
-        const newQuantity = item.maxQuantity - item.quantity;
-        return updateDoc(productRef, {
-          quantity: newQuantity,
-        });
+    const orderData = {
+      userId: currentUser?.uid || 'guest',
+      items: validatedItems.map(({ maxQuantity, ...rest }) => rest),
+      totalAmount: totalWithShipping,
+      subtotal: subtotal,
+      shippingFee: SHIPPING_FEE,
+      billingInfo: formData,
+      status: 'Pending',
+    };
+
+    try {
+      const response = await fetch('https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/placeOrder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
       });
 
-      await Promise.all(updatePromises);
-      
+      if (!response.ok) {
+        throw new Error('Failed to place order. Please try again.');
+      }
+
       clearCart();
       navigate('/order-success');
 
@@ -129,7 +125,6 @@ const CheckoutPage = () => {
                   <div className="cart-item-details">
                     <h4 className="cart-item-name">{item.productName}</h4>
                     <p className="cart-item-code">Code: {item.productCode}</p>
-                    <p className="cart-item-quantity">Quantity: {item.quantity}</p>
                     <p className="cart-item-price">Price: ₹{item.price}</p>
                   </div>
                 </div>
