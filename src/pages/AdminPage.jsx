@@ -105,6 +105,10 @@ const [offlineCart, setOfflineCart] = useState({});
 const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
 const [subcollectionsMap, setSubcollectionsMap] = useState({});
 const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  // Add this line to your other useState declarations
+const [editedTotal, setEditedTotal] = useState('');
+
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
     setSubcollectionTieredPricing((prevPricing) => ({
@@ -901,7 +905,7 @@ const handleOfflineRemoveFromCart = (productId) => {
   const getOfflineCartTotal = () => {
     return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
   };
- const handleFinalizeSale = async () => {
+const handleFinalizeSale = async () => {
   if (Object.keys(offlineCart).length === 0) {
     alert('The cart is empty. Please add products to finalize the sale.');
     return;
@@ -909,6 +913,9 @@ const handleOfflineRemoveFromCart = (productId) => {
 
   if (window.confirm('Are you sure you want to finalize this offline sale?')) {
     try {
+      // Determine the final total amount based on the edited input or the calculated total
+      const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : getOfflineCartTotal();
+
       const orderData = {
         userId: 'offline-sale',
         status: 'Delivered',
@@ -921,16 +928,15 @@ const handleOfflineRemoveFromCart = (productId) => {
           price: typeof item.price === 'number' ? item.price : 0,
           image: item.image || '',
         })),
-        totalAmount: typeof getOfflineCartTotal() === 'number' ? getOfflineCartTotal() : 0,
-        subtotal: typeof getOfflineCartTotal() === 'number' ? getOfflineCartTotal() : 0,
+        totalAmount: typeof finalTotal === 'number' ? finalTotal : 0,
+        subtotal: typeof finalTotal === 'number' ? finalTotal : 0,
         shippingFee: 0,
       };
 
       await addDoc(collection(db, 'orders'), orderData);
       console.log('Order added to Firestore successfully!');
 
-      // Fix: Use writeBatch() instead of db.batch()
-      const batch = writeBatch(db); 
+      const batch = writeBatch(db);
       for (const productId in offlineCart) {
         const item = offlineCart[productId];
         const productRef = doc(db, 'collections', item.collectionId, 'subcollections', item.subcollectionId, 'products', productId);
@@ -947,10 +953,11 @@ const handleOfflineRemoveFromCart = (productId) => {
 
       alert('Offline sale finalized and stock updated successfully!');
       setOfflineCart({});
+      setEditedTotal(''); // Clear the edited total after sale
       setSelectedOfflineCollectionId('');
       setSelectedOfflineSubcollectionId('');
       setOfflineProducts([]);
-    //  if (activeTab === 'orders') fetchOrders();
+      if (activeTab === 'orders') fetchOrders();
       if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
     } catch (error) {
       console.error('Error finalizing offline sale:', error);
@@ -973,6 +980,12 @@ useEffect(() => {
   fetchOfflineProducts();
 }, [selectedOfflineSubcollectionId, subcollectionsMap]);
 
+const filteredOfflineProducts = offlineProducts.filter(product =>
+  product && (
+    (product.productName && product.productName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (product.productCode && product.productCode.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
+);
   return (
     <div className="admin-page">
       <h1>Admin Dashboard</h1>
@@ -1120,7 +1133,7 @@ useEffect(() => {
                         <input type="text" value={subcollectionName} onChange={(e) => setSubcollectionName(e.target.value)} placeholder="Subcollection Name" required />
                       </div>
                       <div className="form-group">
-                        <label>Description:</label>
+                        <label>Code:</label>
                         <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection Description"></textarea>
                       </div>
                       <div className="form-group">
@@ -1551,124 +1564,144 @@ useEffect(() => {
             )}
           </div>
         )}
-      {activeTab === 'offline-billing' && (
-        <div className="offline-billing-section">
-          <h2>Offline Billing</h2>
-          <div className="billing-container">
-            <div className="product-selection-panel">
-              <h4>Select Products</h4>
-              <div className="dropdown-group">
-                <select
-                  className="billing-select"
-                  value={offlinePricingType}
-                  onChange={(e) => setOfflinePricingType(e.target.value)}
-                >
-                  <option value="retail">Retail Pricing</option>
-                  <option value="wholesale">Wholesale Pricing</option>
-                </select>
-                <select
-                  className="billing-select"
-                  value={selectedOfflineCollectionId}
-                  onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
-                >
-                  <option value="">Select Collection</option>
-                  {mainCollections.map((collection) => (
-                    <option key={collection.id} value={collection.id}>
-                      {collection.title}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="billing-select"
-                  value={selectedOfflineSubcollectionId}
-                  onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
-                  disabled={!selectedOfflineCollectionId}
-                >
-                  <option value="">Select Subcollection</option>
-                  {offlineSubcollections.map((subcollection) => (
-                    <option key={subcollection.id} value={subcollection.id}>
-                      {subcollection.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {isOfflineProductsLoading ? (
-  <p className="loading-message">Loading products...</p>
-) : offlineProducts.length > 0 ? (
-  <div className="billing-product-list">
-    {offlineProducts.map(product => {
-      // Get the current price from the cart state
-      const currentPriceInCart = offlineCart[product.id]?.price;
-
-      return (
-        <div
-          key={product.id}
-          className="billing-product-item"
-          onClick={() => handleOfflineAddToCart(product)}
-        >
-          <img src={product.image} alt={product.productName} />
-          <span className="product-name">{product.productName}</span>
-          <span className="product-code">{product.productCode}</span>
-          <span className="product-quantity">Qty: {product.quantity}</span>
-          {/* Add a check to ensure currentPriceInCart is a number before using toFixed() */}
-          {typeof currentPriceInCart === 'number' && (
-            <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
-          )}
+    {activeTab === 'offline-billing' && (
+  <div className="offline-billing-section">
+    <h2>Offline Billing</h2>
+    <div className="billing-container">
+      <div className="product-selection-panel">
+        <h4>Select Products</h4>
+        <div className="dropdown-group">
+          <select
+            className="billing-select"
+            value={offlinePricingType}
+            onChange={(e) => setOfflinePricingType(e.target.value)}
+          >
+            <option value="retail">Retail Pricing</option>
+            <option value="wholesale">Wholesale Pricing</option>
+          </select>
+          <select
+            className="billing-select"
+            value={selectedOfflineCollectionId}
+            onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+          >
+            <option value="">Select Collection</option>
+            {mainCollections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.title}
+              </option>
+            ))}
+          </select>
+          <select
+            className="billing-select"
+            value={selectedOfflineSubcollectionId}
+            onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+            disabled={!selectedOfflineCollectionId}
+          >
+            <option value="">Select Subcollection</option>
+            {offlineSubcollections.map((subcollection) => (
+              <option key={subcollection.id} value={subcollection.id}>
+                {subcollection.name}
+              </option>
+            ))}
+          </select>
         </div>
-      );
-    })}
-  </div>
-) : (
-  <p className="no-products-found">
-    {selectedOfflineSubcollectionId
-      ? 'No products found in this subcollection.'
-      : 'Please select a collection and subcollection to view products.'}
-  </p>
-)}
-            </div>
-            <div className="billing-cart-panel">
-              <h4>Billing Cart</h4>
-             {Object.keys(offlineCart).length > 0 ? (
-  <>
-    <ul className="cart-list">
-      {Object.values(offlineCart).map((item) => (
-        <li key={item.id} className="cart-item">
-          <div className="cart-item-details">
-            <span className="cart-item-name">{item.productName}</span>
-            <span className="cart-item-name">{item.productCode}</span>
 
-            <span className="cart-item-info">
-              {item.quantity} x ₹
-              {typeof item.price === 'number'
-                ? item.price.toFixed(2)
-                : item.price !== undefined && item.price !== null
-                ? parseFloat(item.price).toFixed(2)
-                : '0.00'}
-            </span>
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="Search products by name or code..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="product-search-bar"
+        />
+
+        {isOfflineProductsLoading ? (
+          <p className="loading-message">Loading products...</p>
+        ) : filteredOfflineProducts.length > 0 ? (
+          <div className="billing-product-list">
+            {filteredOfflineProducts.map(product => {
+              // Get the current price from the cart state
+              const currentPriceInCart = offlineCart[product.id]?.price;
+
+              return (
+                <div
+                  key={product.id}
+                  className="billing-product-item"
+                  onClick={() => handleOfflineAddToCart(product)}
+                >
+                  <img src={product.image} alt={product.productName} />
+                  <span className="product-name">{product.productName}</span>
+                  <span className="product-code">{product.productCode}</span>
+                  <span className="product-quantity">Qty: {product.quantity}</span>
+                  {typeof currentPriceInCart === 'number' && (
+                    <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="cart-item-controls">
-            <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-            <span className="cart-quantity">{item.quantity}</span>
-            <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
-          </div>
-        </li>
-      ))}
-    </ul>
-    <div className="cart-total-info">
-      Total: ₹{getOfflineCartTotal().toFixed(2)}
+        ) : (
+          <p className="no-products-found">
+            {selectedOfflineSubcollectionId
+              ? 'No products found for your search.'
+              : 'Please select a collection and subcollection to view products.'}
+          </p>
+        )}
+      </div>
+      <div className="billing-cart-panel">
+  <h4>Billing Cart</h4>
+  {Object.keys(offlineCart).length > 0 ? (
+    <>
+      <ul className="cart-list">
+        {Object.values(offlineCart).map((item) => (
+          <li key={item.id} className="cart-item">
+            <div className="cart-item-details">
+              <span className="cart-item-name">{item.productName}</span>
+              <span className="cart-item-name">{item.productCode}</span>
+
+              <span className="cart-item-info">
+                {item.quantity} x ₹
+                {typeof item.price === 'number'
+                  ? item.price.toFixed(2)
+                  : item.price !== undefined && item.price !== null
+                    ? parseFloat(item.price).toFixed(2)
+                    : '0.00'}
+              </span>
+            </div>
+            <div className="cart-item-controls">
+              <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+              <span className="cart-quantity">{item.quantity}</span>
+              <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      
+      {/* NEW: Editable Total Input */}
+      <div className="cart-total-info">
+        <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
+        <label htmlFor="edited-total-input">Final Total:</label>
+        <input
+          id="edited-total-input"
+          type="number"
+          value={editedTotal}
+          onChange={(e) => setEditedTotal(e.target.value)}
+          placeholder="Enter final total"
+          className="editable-total-input"
+        />
+      </div>
+
+      <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+        Finalize Sale
+      </button>
+    </>
+  ) : (
+    <p>Cart is empty. Add products to start billing.</p>
+  )}
+</div>
     </div>
-    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-      Finalize Sale
-    </button>
-  </>
-) : (
-  <p>Cart is empty. Add products to start billing.</p>
+  </div>
 )}
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );

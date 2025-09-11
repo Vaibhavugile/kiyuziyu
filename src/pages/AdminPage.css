@@ -1028,3 +1028,53 @@ button[type="submit"]:disabled {
     gap: 20px;
   }
 }
+
+/* --- Editable Total Styles --- */
+.cart-total-info {
+  text-align: right;
+  margin-top: 20px;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.calculated-total {
+  font-size: 0.8em;
+  font-weight: normal;
+  color: var(--light-text-color);
+  margin-bottom: 5px;
+}
+
+.cart-total-info label {
+  font-size: 1em;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.editable-total-input {
+  width: 120px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1em;
+  font-weight: bold;
+  text-align: right;
+  color: var(--text-color);
+  background-color: var(--background-light);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.editable-total-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 5px rgba(90, 125, 125, 0.5);
+}
+/* Hide up and down arrows for number input */
+.editable-total-input::-webkit-outer-spin-button,
+.editable-total-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.editable-total-input[type=number] {
+  -moz-appearance: textfield;
+}
