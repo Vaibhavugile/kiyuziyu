@@ -15,10 +15,14 @@ import {
   getDoc,
   query,
   where,
+   serverTimestamp, 
+     writeBatch,
+
 } from '../firebase';
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
+import { getPriceForQuantity } from '../components/CartContext';
 import './AdminPage.css';
 
 // Low stock threshold constant
@@ -91,6 +95,16 @@ const AdminPage = () => {
   const [isReportsLoading, setIsReportsLoading] = useState(false);
    const [productReports, setProductReports] = useState([]);
 
+    // State for Offline Billing
+ const [offlineCollections, setOfflineCollections] = useState([]);
+const [selectedOfflineCollectionId, setSelectedOfflineCollectionId] = useState('');
+const [offlineSubcollections, setOfflineSubcollections] = useState([]);
+const [selectedOfflineSubcollectionId, setSelectedOfflineSubcollectionId] = useState('');
+const [offlineProducts, setOfflineProducts] = useState([]);
+const [offlineCart, setOfflineCart] = useState({});
+const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
+const [subcollectionsMap, setSubcollectionsMap] = useState({});
+const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
     setSubcollectionTieredPricing((prevPricing) => ({
@@ -293,6 +307,33 @@ const AdminPage = () => {
   useEffect(() => {
     fetchUsers();
   }, [activeTab]);
+  // useEffect(() => {
+  //   if (activeTab === 'orders') {
+  //     fetchOrders();
+  //   }
+  //   if (activeTab === 'users') {
+  //     fetchUsers();
+  //   }
+  //   if (activeTab === 'collections') {
+  //     fetchMainCollections();
+  //   }
+  //   if (activeTab === 'offline-billing') {
+  //     fetchMainCollectionsForOffline();
+  //   }
+  // }, [activeTab]);
+  useEffect(() => {
+    if (selectedOfflineCollectionId) {
+      fetchSubcollectionsForOffline(selectedOfflineCollectionId);
+      setOfflineProducts([]); // Clear products when collection changes
+      setSelectedOfflineSubcollectionId('');
+    }
+  }, [selectedOfflineCollectionId]);
+
+  useEffect(() => {
+    if (selectedOfflineSubcollectionId) {
+      fetchOfflineProducts(selectedOfflineSubcollectionId);
+    }
+  }, [selectedOfflineSubcollectionId]);
 
   const handleDownloadLowStockImages = async () => {
     setIsDownloading(true);
@@ -721,6 +762,216 @@ useEffect(() => {
   const productCodeMatch = (product.productCode || '').toLowerCase().includes(searchTerm);
   return productNameMatch || productCodeMatch;
 });
+const fetchMainCollectionsForOffline = async () => {
+    setIsOfflineProductsLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'collections'));
+      const fetchedCollections = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMainCollections(fetchedCollections);
+    } catch (error) {
+      console.error('Error fetching main collections for offline billing:', error);
+    }
+    setIsOfflineProductsLoading(false);
+  };
+
+  
+  
+
+
+const recalculateOfflineCartPrices = (currentCart) => {
+  const newCart = { ...currentCart };
+  const pricingGroups = {};
+
+  // Group products in the cart by their unique pricing ID
+  for (const productId in newCart) {
+    const item = newCart[productId];
+    // This is the correct way to get the pricing tiers from the subcollection
+    const itemPricingTiers = item.tieredPricing?.[offlinePricingType];
+    const pricingId = JSON.stringify(itemPricingTiers);
+
+    if (!pricingGroups[pricingId]) {
+      pricingGroups[pricingId] = [];
+    }
+    pricingGroups[pricingId].push(item);
+  }
+
+  // Recalculate and update the price for each group
+  for (const pricingId in pricingGroups) {
+    const groupItems = pricingGroups[pricingId];
+    const totalGroupQuantity = groupItems.reduce((total, item) => total + item.quantity, 0);
+    const tiers = groupItems[0].tieredPricing?.[offlinePricingType];
+    const groupPrice = getPriceForQuantity(tiers, totalGroupQuantity);
+
+    groupItems.forEach(item => {
+      newCart[item.id].price = groupPrice;
+    });
+  }
+  return newCart;
+};
+
+const fetchSubcollectionsForOffline = async (mainCollectionId) => {
+    setIsOfflineProductsLoading(true);
+    try {
+        const subcollectionsRef = collection(db, 'collections', mainCollectionId, 'subcollections');
+        const querySnapshot = await getDocs(subcollectionsRef);
+        const fetchedSubcollections = [];
+        const newSubcollectionsMap = {};
+        
+        querySnapshot.docs.forEach(doc => {
+            const data = { id: doc.id, ...doc.data() };
+            fetchedSubcollections.push(data);
+            newSubcollectionsMap[doc.id] = data;
+        });
+        
+        setOfflineSubcollections(fetchedSubcollections);
+        setSubcollectionsMap(newSubcollectionsMap);
+    } catch (error) {
+        console.error('Error fetching subcollections for offline billing:', error);
+    } finally {
+        setIsOfflineProductsLoading(false);
+    }
+};
+
+const fetchOfflineProducts = async () => {
+    if (selectedOfflineCollectionId && selectedOfflineSubcollectionId && Object.keys(subcollectionsMap).length > 0) {
+        setIsOfflineProductsLoading(true);
+        try {
+            const q = query(
+                collection(db, 'collections', selectedOfflineCollectionId, 'subcollections', selectedOfflineSubcollectionId, 'products')
+            );
+            const querySnapshot = await getDocs(q);
+            const products = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // IMPORTANT: Attach the subcollection's tiered pricing data to the product object
+                tieredPricing: subcollectionsMap[selectedOfflineSubcollectionId]?.tieredPricing,
+                subcollectionId: selectedOfflineSubcollectionId,
+                collectionId: selectedOfflineCollectionId,
+            }));
+            setOfflineProducts(products);
+        } catch (error) {
+            console.error('Error fetching offline products:', error);
+        } finally {
+            setIsOfflineProductsLoading(false);
+        }
+    }
+};
+
+const handleOfflineAddToCart = (product, quantity = 1) => {
+  setOfflineCart(prevCart => {
+    const newCart = { ...prevCart };
+    const currentQuantity = newCart[product.id]?.quantity || 0;
+
+    if (currentQuantity + quantity > product.quantity) {
+      alert('Not enough stock available.');
+      return prevCart;
+    }
+
+    const updatedQuantity = currentQuantity + quantity;
+    
+    // Now the product object already has the correct `tieredPricing`
+    newCart[product.id] = {
+      ...product,
+      quantity: updatedQuantity,
+      price: 0, // Placeholder price, will be recalculated
+    };
+
+    return recalculateOfflineCartPrices(newCart);
+  });
+};
+
+const handleOfflineRemoveFromCart = (productId) => {
+  setOfflineCart(prevCart => {
+    const newCart = { ...prevCart };
+    const newQuantity = (newCart[productId]?.quantity || 0) - 1;
+
+    if (newQuantity <= 0) {
+      delete newCart[productId];
+    } else {
+      newCart[productId].quantity = newQuantity;
+    }
+
+    return recalculateOfflineCartPrices(newCart);
+  });
+};
+
+  const getOfflineCartTotal = () => {
+    return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+ const handleFinalizeSale = async () => {
+  if (Object.keys(offlineCart).length === 0) {
+    alert('The cart is empty. Please add products to finalize the sale.');
+    return;
+  }
+
+  if (window.confirm('Are you sure you want to finalize this offline sale?')) {
+    try {
+      const orderData = {
+        userId: 'offline-sale',
+        status: 'Delivered',
+        createdAt: serverTimestamp(),
+        items: Object.values(offlineCart).map(item => ({
+          productId: item.id || 'N/A',
+          productName: item.productName || 'N/A',
+          productCode: item.productCode || 'N/A',
+          quantity: item.quantity || 0,
+          price: typeof item.price === 'number' ? item.price : 0,
+          image: item.image || '',
+        })),
+        totalAmount: typeof getOfflineCartTotal() === 'number' ? getOfflineCartTotal() : 0,
+        subtotal: typeof getOfflineCartTotal() === 'number' ? getOfflineCartTotal() : 0,
+        shippingFee: 0,
+      };
+
+      await addDoc(collection(db, 'orders'), orderData);
+      console.log('Order added to Firestore successfully!');
+
+      // Fix: Use writeBatch() instead of db.batch()
+      const batch = writeBatch(db); 
+      for (const productId in offlineCart) {
+        const item = offlineCart[productId];
+        const productRef = doc(db, 'collections', item.collectionId, 'subcollections', item.subcollectionId, 'products', productId);
+        
+        const productDoc = await getDoc(productRef);
+        if (productDoc.exists()) {
+          const currentQuantity = productDoc.data().quantity || 0;
+          const newQuantity = currentQuantity - item.quantity;
+          batch.update(productRef, { quantity: newQuantity });
+        }
+      }
+      await batch.commit();
+      console.log('Stock quantities updated successfully!');
+
+      alert('Offline sale finalized and stock updated successfully!');
+      setOfflineCart({});
+      setSelectedOfflineCollectionId('');
+      setSelectedOfflineSubcollectionId('');
+      setOfflineProducts([]);
+    //  if (activeTab === 'orders') fetchOrders();
+      if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
+    } catch (error) {
+      console.error('Error finalizing offline sale:', error);
+      alert('Failed to finalize the sale. Please try again.');
+    }
+  }
+};
+useEffect(() => {
+    if (selectedOfflineCollectionId) {
+        fetchSubcollectionsForOffline(selectedOfflineCollectionId);
+    } else {
+        setOfflineSubcollections([]);
+        setSubcollectionsMap({});
+    }
+}, [selectedOfflineCollectionId]);
+
+// This useEffect is critical for updating the products whenever the subcollection changes.
+// It ensures that products are loaded with the correct tiered pricing data.
+useEffect(() => {
+  fetchOfflineProducts();
+}, [selectedOfflineSubcollectionId, subcollectionsMap]);
 
   return (
     <div className="admin-page">
@@ -756,6 +1007,13 @@ useEffect(() => {
         >
           User Management
         </button>
+        <button
+            className={`admin-menu-item ${activeTab === 'offline-billing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('offline-billing')}
+          >
+            Offline Billing
+          </button>
+          
         
 
       </div>
@@ -1293,6 +1551,124 @@ useEffect(() => {
             )}
           </div>
         )}
+      {activeTab === 'offline-billing' && (
+        <div className="offline-billing-section">
+          <h2>Offline Billing</h2>
+          <div className="billing-container">
+            <div className="product-selection-panel">
+              <h4>Select Products</h4>
+              <div className="dropdown-group">
+                <select
+                  className="billing-select"
+                  value={offlinePricingType}
+                  onChange={(e) => setOfflinePricingType(e.target.value)}
+                >
+                  <option value="retail">Retail Pricing</option>
+                  <option value="wholesale">Wholesale Pricing</option>
+                </select>
+                <select
+                  className="billing-select"
+                  value={selectedOfflineCollectionId}
+                  onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+                >
+                  <option value="">Select Collection</option>
+                  {mainCollections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.title}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="billing-select"
+                  value={selectedOfflineSubcollectionId}
+                  onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+                  disabled={!selectedOfflineCollectionId}
+                >
+                  <option value="">Select Subcollection</option>
+                  {offlineSubcollections.map((subcollection) => (
+                    <option key={subcollection.id} value={subcollection.id}>
+                      {subcollection.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {isOfflineProductsLoading ? (
+  <p className="loading-message">Loading products...</p>
+) : offlineProducts.length > 0 ? (
+  <div className="billing-product-list">
+    {offlineProducts.map(product => {
+      // Get the current price from the cart state
+      const currentPriceInCart = offlineCart[product.id]?.price;
+
+      return (
+        <div
+          key={product.id}
+          className="billing-product-item"
+          onClick={() => handleOfflineAddToCart(product)}
+        >
+          <img src={product.image} alt={product.productName} />
+          <span className="product-name">{product.productName}</span>
+          <span className="product-code">{product.productCode}</span>
+          <span className="product-quantity">Qty: {product.quantity}</span>
+          {/* Add a check to ensure currentPriceInCart is a number before using toFixed() */}
+          {typeof currentPriceInCart === 'number' && (
+            <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
+          )}
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <p className="no-products-found">
+    {selectedOfflineSubcollectionId
+      ? 'No products found in this subcollection.'
+      : 'Please select a collection and subcollection to view products.'}
+  </p>
+)}
+            </div>
+            <div className="billing-cart-panel">
+              <h4>Billing Cart</h4>
+             {Object.keys(offlineCart).length > 0 ? (
+  <>
+    <ul className="cart-list">
+      {Object.values(offlineCart).map((item) => (
+        <li key={item.id} className="cart-item">
+          <div className="cart-item-details">
+            <span className="cart-item-name">{item.productName}</span>
+            <span className="cart-item-name">{item.productCode}</span>
+
+            <span className="cart-item-info">
+              {item.quantity} x ₹
+              {typeof item.price === 'number'
+                ? item.price.toFixed(2)
+                : item.price !== undefined && item.price !== null
+                ? parseFloat(item.price).toFixed(2)
+                : '0.00'}
+            </span>
+          </div>
+          <div className="cart-item-controls">
+            <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+            <span className="cart-quantity">{item.quantity}</span>
+            <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
+          </div>
+        </li>
+      ))}
+    </ul>
+    <div className="cart-total-info">
+      Total: ₹{getOfflineCartTotal().toFixed(2)}
+    </div>
+    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+      Finalize Sale
+    </button>
+  </>
+) : (
+  <p>Cart is empty. Add products to start billing.</p>
+)}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

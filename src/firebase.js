@@ -13,7 +13,8 @@ import {
   where,
   writeBatch, // Added for batch operations
   runTransaction, // Added for transactions
-  orderBy // This is the new import you need
+  orderBy, // This is the new import you need
+   serverTimestamp,
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -67,5 +68,6 @@ export {
   where,
   writeBatch,
   runTransaction,
-  orderBy // Exporting the newly added function
+  orderBy,
+   serverTimestamp,  // Exporting the newly added function
 };
