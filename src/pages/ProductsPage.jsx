@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, collection, getDocs, doc, getDoc } from '../firebase';
 import ProductCard from '../components/ProductCard';
-import { useCart, getPriceForQuantity } from '../components/CartContext';
+import { useCart, getPriceForQuantity,createStablePricingId} from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import Footer from '../components/Footer';
 import './ProductsPage.css';
@@ -19,17 +19,13 @@ const getProductPrice = (product, subcollectionsMap, userRole, cart) => {
     ? subcollection.tieredPricing.wholesale
     : subcollection.tieredPricing.retail;
   
-  // Create a unique ID for this specific pricing tier structure
-  const pricingId = JSON.stringify(pricingTiers);
-
+  // Create a unique ID by sorting the tiers before stringifying them
+  const sortedTiers = [...pricingTiers].sort((a, b) => a.min_quantity - b.min_quantity);
+   const pricingId = createStablePricingId(pricingTiers);
   // Calculate the total quantity for all products in the cart that share this pricing ID
   const totalRelevantQuantity = Object.values(cart).reduce((total, item) => {
-    const itemPricingTiers = userRole === 'wholesaler'
-      ? item.tieredPricing?.wholesale
-      : item.tieredPricing?.retail;
-    
-    // Compare the stringified tiers to find products with the exact same pricing structure
-    if (JSON.stringify(itemPricingTiers) === pricingId) {
+    // We can now directly compare the item's stored pricingId
+    if (item.pricingId === pricingId) {
       return total + item.quantity;
     }
     return total;
@@ -219,29 +215,41 @@ const ProductsPage = () => {
               const pricingId = JSON.stringify(subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']);
 
               return (
-                <ProductCard
-                  key={product.id}
-                  productName={product.productName}
-                  productCode={product.productCode}
-                  quantity={product.quantity}
-                  image={product.image}
-                  price={price}
-                  cartQuantity={cartQuantity}
-                  tieredPricing={tieredPricing}
-                  onIncrement={() => addToCart(product.id, {
-                    id: product.id,
-                    productName: product.productName,
-                    productCode: product.productCode,
-                    image: product.image,
-                    maxQuantity: product.quantity,
-                    tieredPricing: subcollectionsMap[product.subcollectionId].tieredPricing,
-                    subcollectionId: product.subcollectionId,
-                    collectionId: collectionId,
-                    pricingId: pricingId, // Pass the new unique pricing ID
-                  }, product.quantity)}
-                  onDecrement={() => removeFromCart(product.id)}
-                  onQuickView={() => setQuickViewProduct(product)}
-                />
+               <ProductCard
+    key={product.id}
+    productName={product.productName}
+    productCode={product.productCode}
+    quantity={product.quantity}
+    image={product.image}
+    price={price}
+    cartQuantity={cartQuantity}
+    tieredPricing={tieredPricing}
+    onIncrement={() => {
+        // Retrieve the tiered pricing data for the current product's subcollection.
+        const tieredPricingData = subcollectionsMap[product.subcollectionId].tieredPricing;
+        
+        // Select the correct pricing tiers based on the user's role.
+        const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
+        
+        // Use the new helper function to create a stable pricing ID
+        const pricingId = createStablePricingId(roleBasedTiers);
+
+        // Call addToCart with the correct product data, including the new pricingId.
+        addToCart(product.id, {
+            id: product.id,
+            productName: product.productName,
+            productCode: product.productCode,
+            image: product.image,
+            maxQuantity: product.quantity,
+            tieredPricing: tieredPricingData,
+            subcollectionId: product.subcollectionId,
+            collectionId: collectionId,
+            pricingId: pricingId, // Pass the new unique pricing ID
+        }, product.quantity);
+    }}
+    onDecrement={() => removeFromCart(product.id)}
+    onQuickView={() => setQuickViewProduct(product)}
+/>
               );
             })}
           </div>

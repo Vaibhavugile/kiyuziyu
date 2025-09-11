@@ -1,3 +1,4 @@
+// CartContext.jsx
 import React, { createContext, useState, useContext } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -16,6 +17,30 @@ export const getPriceForQuantity = (tiers, totalQuantity) => {
 
   // Fallback to the price of the lowest tier if no tier matches
   return sortedTiers[sortedTiers.length - 1]?.price || null;
+};
+
+// Helper function to create a stable, unique pricing ID
+export const createStablePricingId = (tiers) => {
+  if (!tiers) return null;
+
+  // Sort the tiers array by a key like min_quantity
+  const sortedTiers = [...tiers].sort((a, b) => {
+    const minA = parseInt(a.min_quantity, 10);
+    const minB = parseInt(b.min_quantity, 10);
+    return minA - minB;
+  });
+
+  // Then, create a consistent string representation by also sorting object keys
+  const stableString = sortedTiers.map(tier => {
+    const sortedKeys = Object.keys(tier).sort();
+    const sortedTier = {};
+    sortedKeys.forEach(key => {
+      sortedTier[key] = tier[key];
+    });
+    return sortedTier;
+  });
+
+  return JSON.stringify(stableString);
 };
 
 // Create the context
@@ -69,12 +94,16 @@ export const CartProvider = ({ children }) => {
         return prevCart;
       }
       
+      const roleBasedTiers = productData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
+      const pricingId = createStablePricingId(roleBasedTiers);
+
       const newCart = {
         ...prevCart,
         [productId]: {
           ...productData,
           quantity: currentQuantity + 1,
           price: 0, 
+          pricingId: pricingId, // Store the stable pricing ID
         },
       };
       return recalculateCartPrices(newCart);
