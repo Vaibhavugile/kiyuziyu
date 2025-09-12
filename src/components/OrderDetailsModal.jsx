@@ -59,9 +59,23 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
           </div>
 
           <div className="order-info-group shipping-info-group">
-            <h4>Shipping Information</h4>
-            <p><strong>Address:</strong> {order.billingInfo?.address}</p>
-          </div>
+  <h4>Shipping Information</h4>
+  <p><strong>Address:</strong>
+    {order.billingInfo ? (
+      <>
+        <br />
+        {order.billingInfo.addressLine1}
+        {order.billingInfo.addressLine2 ? <>, {order.billingInfo.addressLine2}</> : ''}
+        <br />
+        {order.billingInfo.city}, {order.billingInfo.state}
+        <br />
+        Pincode: {order.billingInfo.pincode}
+      </>
+    ) : (
+      'N/A'
+    )}
+  </p>
+</div>
 
          <div className="order-info-group">
   <h4>Items</h4>

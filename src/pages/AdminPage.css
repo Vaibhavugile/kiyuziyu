@@ -1144,4 +1144,53 @@ input[type=number] {
   cursor: not-allowed;
 }
 
+/* Styles for the new Order Filters section */
+.order-filters {
+    display: flex;
+    gap: 15px; /* Adds space between the search bar and date inputs */
+    margin-bottom: 25px; /* Creates space below the filter bar */
+    flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+    align-items: center; /* Vertically aligns the items */
+}
+
+.order-filters .search-input {
+    flex-grow: 1; /* Allows the search input to take up available space */
+    max-width: 400px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* Consistent with other form elements */
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.order-filters input[type="date"] {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1em;
+    color: var(--text-color);
+    background-color: var(--card-background);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.order-filters .search-input:focus,
+.order-filters input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(90, 125, 125, 0.15);
+}
+
+@media (max-width: 576px) {
+    .order-filters {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .order-filters .search-input,
+    .order-filters input[type="date"] {
+        width: 100%;
+        max-width: unset;
+    }
+}
+
 /* Update the existing image preview style for better consistency */

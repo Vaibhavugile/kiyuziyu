@@ -86,6 +86,12 @@ const [imageToCrop, setImageToCrop] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedLowStockProduct, setSelectedLowStockProduct] = useState(null);
 
+  // NEW: States for order search and date filtering
+const [orderSearchTerm, setOrderSearchTerm] = useState('');
+const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
+const [statusFilter, setStatusFilter] = useState('All');
+
   // New states for User Management
   const [users, setUsers] = useState([]);
   const [isUserLoading, setIsUserLoading] = useState(false);
@@ -265,6 +271,27 @@ const onCropComplete = (crop) => {
     };
     fetchOrders();
   }, [activeTab]);
+  // NEW: Filtered orders based on search and date range
+// Updated: Filtered orders based on search, date, and now status
+const filteredOrders = orders.filter((order) => {
+    // Search filter logic
+    const searchTerm = orderSearchTerm.toLowerCase();
+    const matchesSearch =
+        order.id.toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.email || '').toLowerCase().includes(searchTerm) ||
+        (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
+
+    // Date filter logic
+    const orderDate = order.createdAt?.toDate();
+    const isAfterStartDate = startDate ? orderDate >= new Date(startDate) : true;
+    const isBeforeEndDate = endDate ? orderDate <= new Date(endDate) : true;
+    
+    // NEW: Status filter logic
+    const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
+
+    return matchesSearch && isAfterStartDate && isBeforeEndDate && matchesStatus;
+});
 
   // New: Fetches low stock products
   useEffect(() => {
@@ -1460,17 +1487,52 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
           </div>
         )}
 
-        {/* --- Orders Tab --- */}
-        {activeTab === 'orders' && (
+  {/* --- Order Management Section --- */}
+{activeTab === 'orders' && (
   <div className="admin-section">
     <h2>Customer Orders</h2>
+
+    {/* NEW: Search and Filter Bar */}
+    <div className="order-filters">
+        <input
+            type="text"
+            placeholder="Search by ID, name, email, or phone"
+            value={orderSearchTerm}
+            onChange={(e) => setOrderSearchTerm(e.target.value)}
+            className="search-input"
+        />
+        <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            title="Start Date"
+        />
+        <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            title="End Date"
+        />
+          <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="status-select"
+        >
+          <option value="All">All Statuse</option>
+          <option value="Pending">Pending</option>
+          <option value="Processing">Processing</option>
+          <option value="Shipped">Shipped</option>
+          <option value="Delivered">Delivered</option>
+        </select>
+    </div>
+
     {isOrderLoading ? (
       <p>Loading orders...</p>
-    ) : orders.length === 0 ? (
-      <p>No orders have been placed yet.</p>
+    ) : filteredOrders.length === 0 ? (
+      <p>No orders found with the current filters.</p>
     ) : (
       <ul className="orders-list">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
             <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
             <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
@@ -1481,7 +1543,7 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
     )}
   </div>
 )}
-  
+
 {/* Render Order Details Modal */}
 {selectedOrder && (
   <OrderDetailsModal
@@ -1490,7 +1552,6 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
     onUpdateStatus={handleUpdateOrderStatus}
   />
 )}
-
         {/* --- Low Stock Tab --- */}
         {activeTab === 'lowStock' && (
           <div className="admin-section">
