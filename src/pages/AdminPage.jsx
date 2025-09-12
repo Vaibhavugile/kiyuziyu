@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   db,
   collection,
@@ -24,6 +24,8 @@ import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
 import { getPriceForQuantity } from '../components/CartContext';
 import './AdminPage.css';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 // Low stock threshold constant
 const LOW_STOCK_THRESHOLD = 10;
@@ -38,7 +40,8 @@ const AdminPage = () => {
   const [isMainCollectionUploading, setIsMainCollectionUploading] = useState(false);
   const [editingMainCollection, setEditingMainCollection] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  
+  const [isCropping, setIsCropping] = useState(false);
+const [imageToCrop, setImageToCrop] = useState(null);
   // State for Subcollections
   const [selectedMainCollectionId, setSelectedMainCollectionId] = useState('');
   const [subcollections, setSubcollections] = useState([]);
@@ -108,6 +111,10 @@ const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // Add this line to your other useState declarations
 const [editedTotal, setEditedTotal] = useState('');
+const [crop, setCrop] = useState();
+const [imageSrc, setImageSrc] = useState(null);
+const [completedCrop, setCompletedCrop] = useState(null);
+const imgRef = useRef(null);
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -116,6 +123,10 @@ const [editedTotal, setEditedTotal] = useState('');
       [type]: [...prevPricing[type], { min_quantity: '', max_quantity: '', price: '' }],
     }));
   };
+const onCropComplete = (crop) => {
+    setCompletedCrop(crop);
+};
+
 
   const handleRemoveTier = (type, index) => {
     setSubcollectionTieredPricing((prevPricing) => ({
@@ -576,19 +587,83 @@ const [editedTotal, setEditedTotal] = useState('');
   };
 
   // --- Product Handlers ---
-  const handleProductImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    const initialProducts = files.map((file) => ({
-      productName: '', // Initialize new field
-      productCode: '',
-      quantity: '',
-      imageFile: file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-    setNewProducts(initialProducts);
-    setCurrentImageIndex(0);
-    setShowProductForm(true);
-  };
+ const handleProductImageChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+        const files = Array.from(e.target.files);
+        const products = files.map(file => {
+            return {
+                productName: '',
+                productCode: '',
+                quantity: '',
+                imageFile: file,
+                previewUrl: URL.createObjectURL(file),
+            };
+        });
+        setNewProducts(products);
+        setCurrentImageIndex(0);
+        setShowProductForm(true); // Directly show the form
+    }
+};
+
+// Opens the cropper with the selected image
+const startCropping = (imageUrl) => {
+    setImageToCrop(imageUrl);
+     setCrop(undefined); 
+    setIsCropping(true);
+};
+
+// Handles the cropping action and updates the product in state
+const getCroppedImage = () => {
+    if (!imgRef.current || !completedCrop) {
+        return;
+    }
+
+    const image = imgRef.current;
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+    );
+
+    canvas.toBlob((blob) => {
+        const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' });
+
+        // Create a new array to update the state immutably
+        const updatedProducts = [...newProducts];
+        
+        // Find the index of the product being edited or the current one being added
+        const indexToUpdate = editingProduct ? newProducts.findIndex(p => p.id === editingProduct.id) : currentImageIndex;
+
+        // Update the image file and preview URL for the correct product
+        if (indexToUpdate !== -1) {
+            updatedProducts[indexToUpdate] = {
+                ...updatedProducts[indexToUpdate],
+                imageFile: croppedFile,
+                previewUrl: URL.createObjectURL(croppedFile),
+            };
+            setNewProducts(updatedProducts);
+        }
+
+        // Hide the cropper and return to the form
+        setIsCropping(false);
+        setImageToCrop(null);
+        setCompletedCrop(null);
+    }, 'image/png');
+};
 
   const handleNextProduct = (e) => {
     e.preventDefault();
@@ -1134,7 +1209,7 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
                       </div>
                       <div className="form-group">
                         <label>Code:</label>
-                        <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection Description"></textarea>
+                        <textarea value={subcollectionDescription} onChange={(e) => setSubcollectionDescription(e.target.value)} placeholder="Subcollection productcode"></textarea>
                       </div>
                       <div className="form-group">
                         <label>Image:</label>
@@ -1246,38 +1321,36 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
                       ))}
                     </select>
                   </div>
-
                   {selectedSubcollectionId && (
                     <div className="add-collection-form">
                       <h3>Add/Edit Products</h3>
-                      {showProductForm ? (
-                        <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
-                          {editingProduct ? (
-                            <>
-                              <div className="product-form-item">
-                                <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
-                                <div className="product-details-inputs">
-                                  <div className="form-group">
-                                    <label>Product Name:</label>
-                                    <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                                  </div>
-                                  <div className="form-group">
-                                    <label>Product Code:</label>
-                                    <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                                  </div>
-                                  <div className="form-group">
-                                    <label>Quantity:</label>
-                                    <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
-                                  </div>
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                      {isCropping ? (
+                        // This block shows the cropper
+                        <div className="cropper-container">
+                          <ReactCrop
+                            crop={crop}
+                            onChange={c => setCrop(c)}
+                            onComplete={c => setCompletedCrop(c)}
+                          >
+                            <img src={imageToCrop} ref={imgRef} alt="Product" />
+                          </ReactCrop>
+                          <div className="cropper-buttons">
+                            <button type="button" onClick={getCroppedImage}>Crop Image</button>
+                            <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        // This block shows either the product form or the file input
+                        <>
+                          {showProductForm ? (
+                            <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
+                              {editingProduct ? (
                                 <>
                                   <div className="product-form-item">
-                                    <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                                    <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
+                                    <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
+                                      <span role="img" aria-label="crop icon">✂️</span> Crop
+                                    </button>
                                     <div className="product-details-inputs">
                                       <div className="form-group">
                                         <label>Product Name:</label>
@@ -1289,36 +1362,62 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
                                       </div>
                                       <div className="form-group">
                                         <label>Quantity:</label>
-                                        <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                        <input type="text" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)}   onWheel={(e) => e.preventDefault()}  required  />
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="file-info">
-                                    Image {currentImageIndex + 1} of {newProducts.length}
-                                  </div>
                                 </>
                               ) : (
-                                <p>All product details filled. Click 'Add All Products' to save.</p>
+                                <>
+                                  {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                                    <>
+                                      <div className="product-form-item">
+                                        <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                                        <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
+                                          <span role="img" aria-label="crop icon">✂️</span> Crop
+                                        </button>
+                                        <div className="product-details-inputs">
+                                          <div className="form-group">
+                                            <label>Product Name:</label>
+                                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                          </div>
+                                          <div className="form-group">
+                                            <label>Product Code:</label>
+                                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                          </div>
+                                          <div className="form-group">
+                                            <label>Quantity:</label>
+                                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="file-info">
+                                        Image {currentImageIndex + 1} of {newProducts.length}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p>All product details filled. Click 'Add All Products' to save.</p>
+                                  )}
+                                </>
                               )}
-                            </>
+                              <button type="submit" disabled={isProductUploading} className="submit-all-button">
+                                {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
+                              </button>
+                              <button type="button" onClick={resetProductForm} className="cancel-button">
+                                Cancel
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="form-group">
+                              <label>Upload Product Photos:</label>
+                              <input type="file" onChange={handleProductImageChange} multiple />
+                            </div>
                           )}
-                          <button type="submit" disabled={isProductUploading} className="submit-all-button">
-                            {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
-                          </button>
-                          <button type="button" onClick={resetProductForm} className="cancel-button">
-                            Cancel
-                          </button>
-                        </form>
-                      ) : (
-                        <div className="form-group">
-                          <label>Upload Product Photos:</label>
-                          <input type="file" onChange={handleProductImageChange} multiple />
-                        </div>
+                        </>
                       )}
                     </div>
                   )}
                 </div>
-
                 <div className="admin-section">
                   <h3>Current Products</h3>
                   {selectedSubcollectionId ? (
