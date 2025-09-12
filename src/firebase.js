@@ -23,6 +23,7 @@ import {
   RecaptchaVerifier,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -69,5 +70,6 @@ export {
   writeBatch,
   runTransaction,
   orderBy,
-   serverTimestamp,  // Exporting the newly added function
+   serverTimestamp,
+   signOut,  // Exporting the newly added function
 };

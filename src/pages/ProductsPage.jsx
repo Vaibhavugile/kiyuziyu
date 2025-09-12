@@ -1,7 +1,7 @@
 // src/pages/ProductsPage.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db, collection, getDocs, doc, getDoc } from '../firebase';
 import ProductCard from '../components/ProductCard';
 import { useCart, getPriceForQuantity, createStablePricingId } from '../components/CartContext';
@@ -50,7 +50,8 @@ const ProductsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const { cart, addToCart, removeFromCart } = useCart();
-  const { userRole } = useAuth();
+  const { currentUser, userRole } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [quickViewProduct, setQuickViewProduct] = useState(null);
@@ -127,8 +128,8 @@ const ProductsPage = () => {
     if (searchTerm) {
       currentProducts = currentProducts.filter(p =>
         p && p.productName && p.productCode && (
-            p.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.productCode.toLowerCase().includes(searchTerm.toLowerCase())
+          p.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.productCode.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
@@ -149,6 +150,42 @@ const ProductsPage = () => {
 
     return currentProducts;
   }, [allProducts, selectedSubcollectionId, searchTerm, sortBy, subcollectionsMap, userRole, cart]);
+
+  const handleAddToCart = (product) => {
+    // Check if a user is logged in
+    if (!currentUser) {
+      alert("You must be logged in to add products to your cart.");
+      navigate('/login');
+      return;
+    }
+    
+    // Retrieve the tiered pricing data for the current product's subcollection.
+    const subcollection = subcollectionsMap[product.subcollectionId];
+    if (!subcollection || !subcollection.tieredPricing) {
+        console.error('Pricing information is missing for this product.');
+        return;
+    }
+    const tieredPricingData = subcollection.tieredPricing;
+
+    // Select the correct pricing tiers based on the user's role.
+    const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
+    
+    // Use the new helper function to create a stable pricing ID
+    const pricingId = createStablePricingId(roleBasedTiers);
+
+    // Call addToCart with the correct product data, including the new pricingId.
+    addToCart(product.id, {
+        id: product.id,
+        productName: product.productName,
+        productCode: product.productCode,
+        image: product.image,
+        maxQuantity: product.quantity,
+        tieredPricing: tieredPricingData,
+        subcollectionId: product.subcollectionId,
+        collectionId: collectionId,
+        pricingId: pricingId, // Pass the new unique pricing ID
+    }, product.quantity);
+  };
 
   if (isLoading) {
     return <div className="products-page-container"><p>Loading products...</p></div>;
@@ -218,45 +255,20 @@ const ProductsPage = () => {
               const price = getProductPrice(product, subcollectionsMap, userRole, cart);
               const tieredPricing = subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
 
-              // Create a consistent pricing ID for the cart
-              const pricingId = JSON.stringify(subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']);
-
               return (
                <ProductCard
-    key={product.id}
-    productName={product.productName}
-    productCode={product.productCode}
-    quantity={product.quantity}
-    image={product.image}
-    price={price}
-    cartQuantity={cartQuantity}
-    tieredPricing={tieredPricing}
-    onIncrement={() => {
-        // Retrieve the tiered pricing data for the current product's subcollection.
-        const tieredPricingData = subcollectionsMap[product.subcollectionId].tieredPricing;
-        
-        // Select the correct pricing tiers based on the user's role.
-        const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
-        
-        // Use the new helper function to create a stable pricing ID
-        const pricingId = createStablePricingId(roleBasedTiers);
-
-        // Call addToCart with the correct product data, including the new pricingId.
-        addToCart(product.id, {
-            id: product.id,
-            productName: product.productName,
-            productCode: product.productCode,
-            image: product.image,
-            maxQuantity: product.quantity,
-            tieredPricing: tieredPricingData,
-            subcollectionId: product.subcollectionId,
-            collectionId: collectionId,
-            pricingId: pricingId, // Pass the new unique pricing ID
-        }, product.quantity);
-    }}
-    onDecrement={() => removeFromCart(product.id)}
-    onQuickView={() => setQuickViewProduct(product)}
-/>
+                key={product.id}
+                productName={product.productName}
+                productCode={product.productCode}
+                quantity={product.quantity}
+                image={product.image}
+                price={price}
+                cartQuantity={cartQuantity}
+                tieredPricing={tieredPricing}
+                onIncrement={() => handleAddToCart(product)}
+                onDecrement={() => removeFromCart(product.id)}
+                onQuickView={() => setQuickViewProduct(product)}
+               />
               );
             })}
           </div>

@@ -399,5 +399,51 @@ body {
     font-size: 14px;
   }
 }
+/* Styles for the new profile dropdown */
+
+.profile-dropdown-container {
+    position: relative;
+}
+
+.profile-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    display: flex;
+    align-items: center;
+}
+
+.profile-dropdown-menu {
+    position: absolute;
+    top: 100%; /* Position below the button */
+    right: 0;
+    margin-top: 10px;
+    background-color: var(--card-background); /* White background */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 8px 0;
+    min-width: 120px;
+    z-index: 10;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    font-size: 1em;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: var(--background-light); /* Light gray on hover */
+}
 
 

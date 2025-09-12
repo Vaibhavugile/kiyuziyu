@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db, doc, onAuthStateChanged, getDoc } from '../firebase';
+import { auth, db, doc, onAuthStateChanged, getDoc, signOut } from '../firebase';
 
 // Create the context
 export const AuthContext = createContext();
@@ -9,6 +9,11 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // New logout function to sign the user out
+  const logout = () => {
+    return signOut(auth);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -38,6 +43,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     userRole,
     isLoading,
+    logout, // Add the logout function to the context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
