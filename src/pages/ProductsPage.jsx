@@ -1,11 +1,14 @@
+// src/pages/ProductsPage.jsx
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db, collection, getDocs, doc, getDoc } from '../firebase';
 import ProductCard from '../components/ProductCard';
-import { useCart, getPriceForQuantity,createStablePricingId} from '../components/CartContext';
+import { useCart, getPriceForQuantity, createStablePricingId } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import Footer from '../components/Footer';
 import './ProductsPage.css';
+import { FaShoppingCart, FaArrowLeft } from 'react-icons/fa';
 
 // The getProductPrice function now calculates the total quantity from relevant products in the cart
 const getProductPrice = (product, subcollectionsMap, userRole, cart) => {
@@ -51,6 +54,7 @@ const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('default');
   const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const cartItemsCount = Object.values(cart).reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -157,6 +161,9 @@ const ProductsPage = () => {
   return (
     <>
       <div className="products-page-container">
+        <Link to="/" className="back-to-collections">
+          <FaArrowLeft /> Back to Collections
+        </Link>
         <h2 className="page-title">
           {mainCollection?.title || 'Unknown Collection'} Products
         </h2>
@@ -254,6 +261,24 @@ const ProductsPage = () => {
             })}
           </div>
         )}
+
+        {cartItemsCount > 0 && (
+          <div className="view-cart-fixed-container">
+            <Link to="/cart" className="view-cart-btn-overlay">
+              <div className="cart-icon-wrapper">
+                <FaShoppingCart />
+              </div>
+              <div className="cart-details-wrapper">
+                <span className="view-cart-text">View cart</span>
+                <span className="cart-items-count-overlay">{cartItemsCount} item{cartItemsCount !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="cart-arrow-wrapper">
+                &gt;
+              </div>
+            </Link>
+          </div>
+        )}
+
       </div>
       
     </>

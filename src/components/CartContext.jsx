@@ -1,5 +1,5 @@
 // CartContext.jsx
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
 // Utility function to get the price from tiered pricing based on total quantity
@@ -48,11 +48,30 @@ export const CartContext = createContext();
 
 // Create the provider component
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState({});
   const { userRole } = useAuth();
 
+  // Initialize state by trying to load from localStorage
+  const [cart, setCart] = useState(() => {
+    try {
+      const storedCart = localStorage.getItem('cart');
+      return storedCart ? JSON.parse(storedCart) : {};
+    } catch (error) {
+      console.error("Failed to load cart from localStorage:", error);
+      return {};
+    }
+  });
+  
+  // Save the cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    } catch (error) {
+      console.error("Failed to save cart to localStorage:", error);
+    }
+  }, [cart]);
+
   // New helper function to recalculate all prices in the cart based on collective quantity
-  const recalculateCartPrices = (currentCart) => {
+  const recalculateCartPrices = useCallback((currentCart) => {
     console.log("--- Starting Cart Price Recalculation ---");
     const newCart = { ...currentCart };
     const pricingGroups = {};
@@ -85,9 +104,9 @@ export const CartProvider = ({ children }) => {
     console.log("--- Finished Cart Price Recalculation ---");
     console.log("New Cart State:", newCart);
     return newCart;
-  };
+  }, [userRole]); // Dependency on userRole
 
-  const addToCart = (productId, productData, maxQuantity) => {
+  const addToCart = useCallback((productId, productData, maxQuantity) => {
     setCart((prevCart) => {
       const currentQuantity = prevCart[productId]?.quantity || 0;
       if (currentQuantity >= maxQuantity) {
@@ -108,9 +127,9 @@ export const CartProvider = ({ children }) => {
       };
       return recalculateCartPrices(newCart);
     });
-  };
+  }, [userRole, recalculateCartPrices]); // Dependencies on userRole and recalculateCartPrices
 
-  const removeFromCart = (productId) => {
+  const removeFromCart = useCallback((productId) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
       const newQuantity = (newCart[productId]?.quantity || 0) - 1;
@@ -122,15 +141,15 @@ export const CartProvider = ({ children }) => {
       }
       return recalculateCartPrices(newCart);
     });
-  };
+  }, [recalculateCartPrices]); // Dependency on recalculateCartPrices
 
-  const getCartTotal = () => {
+  const getCartTotal = useCallback(() => {
     return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-  
-  const clearCart = () => {
+  }, [cart]); // Dependency on cart
+
+  const clearCart = useCallback(() => {
     setCart({});
-  };
+  }, []);
 
   const contextValue = {
     cart,

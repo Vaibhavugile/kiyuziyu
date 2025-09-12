@@ -81,3 +81,95 @@ select, input[type="text"] {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* New styles for the fixed "View Cart" overlay */
+.view-cart-fixed-container {
+  position: fixed; /* Makes the container stick to the viewport */
+  bottom: 20px; /* Distance from the bottom of the screen */
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center; /* Center the button horizontally */
+  z-index: 1000; /* Ensure it's above other content */
+  pointer-events: none; /* Allow clicks to pass through this container */
+}
+
+.view-cart-btn-overlay {
+  pointer-events: all; /* Re-enable clicks for the button itself */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Space out the icon, text, and arrow */
+  width: 15%; /* Adjust width as needed */
+  max-width: 400px; /* Maximum width for larger screens */
+  padding: 12px 20px;
+  background-color: #4CAF50; /* A green color, similar to the image */
+  color: #fff;
+  font-size: 1em;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 30px; /* Pill shape */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+}
+
+.view-cart-btn-overlay:hover {
+  background-color: #45a049; /* Darker green on hover */
+}
+
+.cart-icon-wrapper {
+  font-size: 1.5em; /* Size of the shopping cart icon */
+  margin-right: 10px;
+}
+
+.cart-details-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Allows it to take available space */
+  text-align: left;
+}
+
+.view-cart-text {
+  font-size: 1.1em;
+  line-height: 1.2;
+}
+
+.cart-items-count-overlay {
+  font-size: 0.85em;
+  opacity: 0.9;
+  line-height: 1.2;
+}
+
+.cart-arrow-wrapper {
+  font-size: 1.5em; /* Size of the arrow */
+  margin-left: 10px;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+  .view-cart-fixed-container {
+    bottom: 15px;
+  }
+
+  .view-cart-btn-overlay {
+    width: 35%; /* Slightly wider on small screens */
+    padding: 10px 15px;
+    font-size: 0.95em;
+  }
+}
+/* New styles for the back button */
+.back-to-collections {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 1em;
+  margin-bottom: 20px;
+  transition: color 0.2s ease;
+}
+
+.back-to-collections:hover {
+  color: var(--secondary-color);
+}
+
