@@ -7,6 +7,7 @@ import logo from '../assets/logoj.png';
 import '../App.css';
 import { useAuth } from './AuthContext';
 import { FaUserCircle } from 'react-icons/fa'; // Import the user icon
+import logo1 from '../assets/logotext.png';
 
 const Navbar = () => {
   const { currentUser, userRole } = useAuth();
@@ -20,7 +21,7 @@ const Navbar = () => {
       </div>
 
       <div className="navbar-center">
-        <h1 className="navbar-title">Kiyuziyu</h1>
+        <h1 className="navbar-title"><img src = {logo1} /></h1>
       </div>
 
       <ul className="navbar-right">

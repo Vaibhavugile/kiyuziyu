@@ -19,50 +19,225 @@ const WHATSAPP_TEMPLATE_NAMESPACE = "9fdcfe39_c1cc_4d44_b582_d043de7d016d";
 const WHATSAPP_INTEGRATED_NUMBER = "15558698269";
 
 // Generate PDF invoice
-const generateInvoice = (orderData, filePath) => {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument();
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
+// Generate PDF invoice
+const generateInvoice = async (orderData, filePath) => {
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 50,
+  });
+  const writeStream = fs.createWriteStream(filePath);
+  doc.pipe(writeStream);
 
-    doc.fontSize(25).text("Invoice", {align: "center"});
-    doc.moveDown();
-
-    doc.fontSize(12).text(`Order ID: ${orderData.orderId}`);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`);
-    doc.moveDown();
-
-    doc.fontSize(15).text("Customer Information", {underline: true});
-    doc.fontSize(12).text(`Name: ${orderData.billingInfo.fullName}`);
-    doc.text(`Phone: ${orderData.billingInfo.phoneNumber}`);
-    doc.text(`Email: ${orderData.billingInfo.email}`);
-    doc.text(
-        `Address: ${orderData.billingInfo.addressLine1}, ` +
-        `${orderData.billingInfo.city}, ${orderData.billingInfo.pincode},`,
-    );
-    doc.moveDown();
-
-    doc.fontSize(15).text("Order Details", {underline: true});
-    doc.moveDown();
-
-    orderData.items.forEach((item) => {
-      doc.text(
-          `${item.productName} - Qty: ${item.quantity} - Price:
-         ₹${item.priceAtTimeOfOrder}`,
-      );
+  // --- Invoice Header with Logo ---
+  const logoPath = path.join(__dirname,
+      "src/assets/WhatsApp Image 2025-09-12 at 00.31.52_50c66845.jpg");
+  if (fs.existsSync(logoPath)) {
+    doc.image(logoPath, 50, 45, {
+      width: 50,
     });
-    doc.moveDown();
+  }
 
-    doc.fontSize(12).text(`Subtotal: ₹${orderData.subtotal.toFixed(2)}`);
-    doc.text(`Shipping: ₹${orderData.shippingFee.toFixed(2)}`);
+  doc
+      .fontSize(25)
+      .fillColor("#444444")
+      .text("INVOICE", 400, 50, {
+        align: "right",
+      });
+  doc
+      .fontSize(10)
+      .text(`Order ID: #${orderData.orderId}`, 400, 75, {
+        align: "right",
+      });
+  doc
+      .fontSize(10)
+      .text(`Date: ${new Date().toLocaleDateString()}`, 400, 90, {
+        align: "right",
+      });
+
+  // --- Separator Line ---
+  doc
+      .strokeColor("#aaaaaa")
+      .lineWidth(1)
+      .moveTo(50, 120)
+      .lineTo(550, 120)
+      .stroke();
+
+  // --- From / To Information ---
+  const customerInfoY = 140;
+  const businessInfoY = 140;
+
+  // "Invoice To" section
+  doc.fontSize(12).fillColor("#000000").text("Invoice To:", 50, customerInfoY);
+  doc
+      .fontSize(10)
+      .text(orderData.billingInfo.fullName, 50, customerInfoY + 15)
+      .text(
+          `${orderData.billingInfo.addressLine1},${orderData.billingInfo.city}`,
+          50,
+          customerInfoY + 30,
+      )
+      .text(`${orderData.billingInfo.pincode}`, 50, customerInfoY + 45);
+  doc
+      .fillColor("#000000")
+      .text(`Email: ${orderData.billingInfo.email}`, 50, customerInfoY + 60)
+      .text(`Phone: ${orderData.billingInfo.phoneNumber}`
+          , 50, customerInfoY + 75);
+
+  // "Invoice From" (Your Business Info)
+  doc
+      .fontSize(12)
+      .text("Invoice For:", 350, businessInfoY, {
+        align: "right",
+      });
+  doc
+      .fontSize(10)
+      .text("Your Company Name", 350, businessInfoY + 15, {
+        align: "right",
+      })
+      .text("Your Address Line 1", 350, businessInfoY + 30, {
+        align: "right",
+      })
+      .text("City, State, Pincode", 350, businessInfoY + 45, {
+        align: "right",
+      })
+      .text("Email: your_email@example.com", 350, businessInfoY + 60, {
+        align: "right",
+      })
+      .text("Phone: Your Phone Number", 350, businessInfoY + 75, {
+        align: "right",
+      });
+
+  // --- Order Summary / Items Table Header ---
+  doc
+      .moveDown()
+      .moveDown()
+      .moveDown()
+      .moveDown()
+      .fillColor("#aaaaaa")
+      .fontSize(10)
+      .text("ITEM", 100, 250) // Adjust position for image
+      .text("QTY", 300, 250, {
+        width: 100,
+        align: "right",
+      })
+      .text("PRICE", 400, 250, {
+        width: 100,
+        align: "right",
+      })
+      .text("TOTAL", 500, 250, {
+        width: 50,
+        align: "right",
+      });
+  doc
+      .strokeColor("#aaaaaa")
+      .lineWidth(1)
+      .moveTo(50, 265)
+      .lineTo(550, 265)
+      .stroke();
+
+  // --- Items List with Images ---
+  let itemsY = 280;
+  doc.fillColor("#000000");
+
+  const imagePromises = orderData.items.map(async (item) => {
+    let imageBuffer = null;
+    try {
+      const response = await axios.get(item.image, {
+        responseType: "arraybuffer",
+      });
+      imageBuffer = response.data;
+    } catch (err) {
+      console.error(`Failed to download image for item ${item.productName}:`,
+          err.message);
+      // Continue without image if download fails
+    }
+
+    const itemTotal = item.quantity * item.priceAtTimeOfOrder;
+    const imageSize = 30; // 30x30 pixels
+    const imageX = 50;
+    const textX = 100;
+
+    if (imageBuffer) {
+      doc.image(imageBuffer, imageX, itemsY, {
+        width: imageSize,
+        height: imageSize,
+      });
+    }
+
     doc
-        .fontSize(15)
-        .text(`Total Amount: ₹${orderData.totalAmount.toFixed(2)}`, {
+        .fontSize(10)
+        .text(item.productName, textX, itemsY + imageSize / 4)
+        .text(item.quantity, 300, itemsY + imageSize / 4, {
+          width: 100,
+          align: "right",
+        })
+        .text(`₹${item.priceAtTimeOfOrder.toFixed(2)}`,
+            400, itemsY + imageSize / 4, {
+              width: 100,
+              align: "right",
+            })
+        .text(`₹${itemTotal.toFixed(2)}`, 500, itemsY + imageSize / 4, {
+          width: 50,
           align: "right",
         });
 
-    doc.end();
+    itemsY += imageSize + 15; // Move down for the next item
+  });
 
+  // Wait for all image processing to complete before writing totals
+  await Promise.all(imagePromises);
+
+  // --- Totals Section ---
+  const totalsY = itemsY + 30;
+  doc
+      .strokeColor("#aaaaaa")
+      .lineWidth(1)
+      .moveTo(350, totalsY)
+      .lineTo(550, totalsY)
+      .stroke();
+
+  doc
+      .fontSize(10)
+      .text("Subtotal:", 400, totalsY + 10, {
+        align: "right",
+      })
+      .text(`₹${orderData.subtotal.toFixed(2)}`, 500, totalsY + 10, {
+        align: "right",
+      });
+  doc
+      .text("Shipping:", 400, totalsY + 25, {
+        align: "right",
+      })
+      .text(`₹${orderData.shippingFee.toFixed(2)}`, 500, totalsY + 25, {
+        align: "right",
+      });
+
+  // Final Total
+  doc
+      .moveDown()
+      .moveDown()
+      .fontSize(15)
+      .text("Total Amount:", 400, totalsY + 50, {
+        align: "right",
+      })
+      .text(`₹${orderData.totalAmount.toFixed(2)}`, 500, totalsY + 50, {
+        align: "right",
+      })
+      .fillColor("#000000");
+
+  // --- Footer ---
+  doc.moveDown().moveDown().moveDown();
+  const footerY = doc.y;
+  doc
+      .fillColor("#aaaaaa")
+      .text("Thank you for your business!", 50, footerY + 50, {
+        align: "center",
+        width: 500,
+      });
+  doc.end();
+
+  // Wait for the PDF to finish writing to the stream
+  await new Promise((resolve, reject) => {
     writeStream.on("finish", resolve);
     writeStream.on("error", reject);
   });
