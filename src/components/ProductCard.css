@@ -10,11 +10,35 @@
   flex-direction: column;
   height: 100%;
   background-color: #fff;
+  position: relative; /* Added for the overlay */
 }
 
 .product-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Out of Stock styles */
+.product-card.out-of-stock {
+  opacity: 0.6; /* Fades the entire card */
+  pointer-events: none; /* Prevents clicks on the card */
+}
+
+.out-of-stock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7); /* White overlay for a blurred effect */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #c0392b; /* A distinct color for the text */
+  text-transform: uppercase;
 }
 
 .product-image-container {
