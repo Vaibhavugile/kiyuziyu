@@ -691,7 +691,26 @@ const getCroppedImage = () => {
         setCompletedCrop(null);
     }, 'image/png');
 };
+// Add this function to your component's logic
+const handleDeleteNewImage = (indexToDelete) => {
+  // Create a new array without the image to be deleted
+  const updatedNewProducts = newProducts.filter((_, index) => index !== indexToDelete);
 
+  // If the deleted image was the last one, reset the form.
+  if (updatedNewProducts.length === 0) {
+    resetProductForm();
+    setShowProductForm(false);
+  } else {
+    // Update the state with the new array
+    setNewProducts(updatedNewProducts);
+    // If we deleted an image and there are still images left,
+    // we need to make sure the current index is valid.
+    // If the last image was deleted, the index should be adjusted.
+    if (currentImageIndex >= updatedNewProducts.length) {
+      setCurrentImageIndex(updatedNewProducts.length - 1);
+    }
+  }
+};
   const handleNextProduct = (e) => {
     e.preventDefault();
     if (!productName || !productCode || !productQuantity) {
@@ -1404,6 +1423,9 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
                             <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
                               <span role="img" aria-label="crop icon">✂️</span> Crop
                             </button>
+                            <button type="button" onClick={() => handleDeleteNewImage(currentImageIndex)} className="delete-button">
+                       <span role="img" aria-label="delete icon">🗑️</span> Delete
+                        </button>
                             <div className="product-details-inputs">
                               <div className="form-group">
                                 <label>Product Name:</label>
