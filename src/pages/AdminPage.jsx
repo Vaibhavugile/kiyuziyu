@@ -1859,6 +1859,7 @@ const AdminPage = () => {
                     {filteredOfflineProducts.map(product => {
                       // Get the current price from the cart state
                       const currentPriceInCart = offlineCart[product.id]?.price;
+                      const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
 
                       return (
                         <div
@@ -1866,8 +1867,11 @@ const AdminPage = () => {
                           className="billing-product-item"
                           onClick={() => handleOfflineAddToCart(product)}
                         >
-                          <img src={product.image} alt={product.productName} />
-                          <span className="product-name">{product.productName}</span>
+<img
+  alt={productName}
+  src={imagesToDisplay[currentImageIndex]}
+  className="product-image"
+/>                          <span className="product-name">{product.productName}</span>
                           <span className="product-code">{product.productCode}</span>
                           <span className="product-quantity">Qty: {product.quantity}</span>
                           {typeof currentPriceInCart === 'number' && (
