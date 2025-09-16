@@ -15,8 +15,8 @@ import {
   getDoc,
   query,
   where,
-   serverTimestamp, 
-     writeBatch,
+  serverTimestamp,
+  writeBatch,
 
 } from '../firebase';
 import CollectionCard from '../components/CollectionCard';
@@ -41,7 +41,7 @@ const AdminPage = () => {
   const [editingMainCollection, setEditingMainCollection] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
-const [imageToCrop, setImageToCrop] = useState(null);
+  const [imageToCrop, setImageToCrop] = useState(null);
   // State for Subcollections
   const [selectedMainCollectionId, setSelectedMainCollectionId] = useState('');
   const [subcollections, setSubcollections] = useState([]);
@@ -69,10 +69,12 @@ const [imageToCrop, setImageToCrop] = useState(null);
   const [isProductUploading, setIsProductUploading] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [selectedSubcollectionData, setSelectedSubcollectionData] = useState(null);
-  
+
   // New state for multi-photo product upload
   const [newProducts, setNewProducts] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [additionalImages, setAdditionalImages] = useState([]);
+
 
   // New states for Orders and Low Stock Alerts
   const [activeTab, setActiveTab] = useState('collections');
@@ -87,40 +89,41 @@ const [imageToCrop, setImageToCrop] = useState(null);
   const [selectedLowStockProduct, setSelectedLowStockProduct] = useState(null);
 
   // NEW: States for order search and date filtering
-const [orderSearchTerm, setOrderSearchTerm] = useState('');
-const [startDate, setStartDate] = useState('');
-const [endDate, setEndDate] = useState('');
-const [statusFilter, setStatusFilter] = useState('All');
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   // New states for User Management
   const [users, setUsers] = useState([]);
   const [isUserLoading, setIsUserLoading] = useState(false);
-  
+
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
 
-   const [orderReports, setOrderReports] = useState([]);
+  const [orderReports, setOrderReports] = useState([]);
   const [paymentReports, setPaymentReports] = useState([]);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
-   const [productReports, setProductReports] = useState([]);
+  const [productReports, setProductReports] = useState([]);
 
-    // State for Offline Billing
- const [offlineCollections, setOfflineCollections] = useState([]);
-const [selectedOfflineCollectionId, setSelectedOfflineCollectionId] = useState('');
-const [offlineSubcollections, setOfflineSubcollections] = useState([]);
-const [selectedOfflineSubcollectionId, setSelectedOfflineSubcollectionId] = useState('');
-const [offlineProducts, setOfflineProducts] = useState([]);
-const [offlineCart, setOfflineCart] = useState({});
-const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
-const [subcollectionsMap, setSubcollectionsMap] = useState({});
-const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
+
+  // State for Offline Billing
+  const [offlineCollections, setOfflineCollections] = useState([]);
+  const [selectedOfflineCollectionId, setSelectedOfflineCollectionId] = useState('');
+  const [offlineSubcollections, setOfflineSubcollections] = useState([]);
+  const [selectedOfflineSubcollectionId, setSelectedOfflineSubcollectionId] = useState('');
+  const [offlineProducts, setOfflineProducts] = useState([]);
+  const [offlineCart, setOfflineCart] = useState({});
+  const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
+  const [subcollectionsMap, setSubcollectionsMap] = useState({});
+  const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // Add this line to your other useState declarations
-const [editedTotal, setEditedTotal] = useState('');
-const [crop, setCrop] = useState();
-const [imageSrc, setImageSrc] = useState(null);
-const [completedCrop, setCompletedCrop] = useState(null);
-const imgRef = useRef(null);
+  const [editedTotal, setEditedTotal] = useState('');
+  const [crop, setCrop] = useState();
+  const [imageSrc, setImageSrc] = useState(null);
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null);
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -129,9 +132,9 @@ const imgRef = useRef(null);
       [type]: [...prevPricing[type], { min_quantity: '', max_quantity: '', price: '' }],
     }));
   };
-const onCropComplete = (crop) => {
+  const onCropComplete = (crop) => {
     setCompletedCrop(crop);
-};
+  };
 
 
   const handleRemoveTier = (type, index) => {
@@ -210,6 +213,14 @@ const onCropComplete = (crop) => {
     setIsSubcollectionLoading(false);
   };
 
+  const handleAdditionalImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setAdditionalImages(files.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    })));
+  };
+
   // --- Fetch Products for Selected Subcollection ---
   const fetchProducts = async () => {
     if (!selectedMainCollectionId || !selectedSubcollectionId) {
@@ -272,26 +283,26 @@ const onCropComplete = (crop) => {
     fetchOrders();
   }, [activeTab]);
   // NEW: Filtered orders based on search and date range
-// Updated: Filtered orders based on search, date, and now status
-const filteredOrders = orders.filter((order) => {
+  // Updated: Filtered orders based on search, date, and now status
+  const filteredOrders = orders.filter((order) => {
     // Search filter logic
     const searchTerm = orderSearchTerm.toLowerCase();
     const matchesSearch =
-        order.id.toLowerCase().includes(searchTerm) ||
-        (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
-        (order.billingInfo?.email || '').toLowerCase().includes(searchTerm) ||
-        (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
+      order.id.toLowerCase().includes(searchTerm) ||
+      (order.billingInfo?.fullName || '').toLowerCase().includes(searchTerm) ||
+      (order.billingInfo?.email || '').toLowerCase().includes(searchTerm) ||
+      (order.billingInfo?.phoneNumber || '').toLowerCase().includes(searchTerm);
 
     // Date filter logic
     const orderDate = order.createdAt?.toDate();
     const isAfterStartDate = startDate ? orderDate >= new Date(startDate) : true;
     const isBeforeEndDate = endDate ? orderDate <= new Date(endDate) : true;
-    
+
     // NEW: Status filter logic
     const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
 
     return matchesSearch && isAfterStartDate && isBeforeEndDate && matchesStatus;
-});
+  });
 
   // New: Fetches low stock products
   useEffect(() => {
@@ -312,12 +323,12 @@ const filteredOrders = orders.filter((order) => {
             const productsSnapshot = await getDocs(q);
 
             productsSnapshot.forEach(productDoc => {
-                allLowStockProducts.push({
-                    ...productDoc.data(),
-                    id: productDoc.id,
-                    mainCollectionName: mainCol.name,
-                    subcollectionName: subCol.data().name,
-                });
+              allLowStockProducts.push({
+                ...productDoc.data(),
+                id: productDoc.id,
+                mainCollectionName: mainCol.name,
+                subcollectionName: subCol.data().name,
+              });
             });
           }
         }
@@ -327,7 +338,7 @@ const filteredOrders = orders.filter((order) => {
     };
     fetchLowStockProducts();
   }, [activeTab, mainCollections]);
-  
+
   // New: Fetches all users for admin management
   const fetchUsers = async () => {
     if (activeTab === 'users') {
@@ -380,28 +391,28 @@ const filteredOrders = orders.filter((order) => {
   const handleDownloadLowStockImages = async () => {
     setIsDownloading(true);
     try {
-        for (const product of lowStockProducts) {
-            if (product.image) {
-                const response = await fetch(product.image);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `low_stock_${product.productCode}.jpg`; // Customize filename
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }
+      for (const product of lowStockProducts) {
+        if (product.image) {
+          const response = await fetch(product.image);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `low_stock_${product.productCode}.jpg`; // Customize filename
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
         }
+      }
     } catch (error) {
-        console.error("Error downloading images:", error);
-        alert("Failed to download one or more images.");
+      console.error("Error downloading images:", error);
+      alert("Failed to download one or more images.");
     } finally {
-        setIsDownloading(false);
+      setIsDownloading(false);
     }
-};
+  };
 
 
   // New: Function to handle updating order status
@@ -411,7 +422,7 @@ const filteredOrders = orders.filter((order) => {
       await updateDoc(orderRef, {
         status: newStatus,
       });
-      setOrders(prevOrders => prevOrders.map(order => 
+      setOrders(prevOrders => prevOrders.map(order =>
         order.id === orderId ? { ...order, status: newStatus } : order
       ));
       alert("Order status updated successfully!");
@@ -614,35 +625,35 @@ const filteredOrders = orders.filter((order) => {
   };
 
   // --- Product Handlers ---
- const handleProductImageChange = (e) => {
+  const handleProductImageChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-        const files = Array.from(e.target.files);
-        const products = files.map(file => {
-            return {
-                productName: '',
-                productCode: '',
-                quantity: '',
-                imageFile: file,
-                previewUrl: URL.createObjectURL(file),
-            };
-        });
-        setNewProducts(products);
-        setCurrentImageIndex(0);
-        setShowProductForm(true); // Directly show the form
+      const files = Array.from(e.target.files);
+      const products = files.map(file => {
+        return {
+          productName: '',
+          productCode: '',
+          quantity: '',
+          imageFile: file,
+          previewUrl: URL.createObjectURL(file),
+        };
+      });
+      setNewProducts(products);
+      setCurrentImageIndex(0);
+      setShowProductForm(true); // Directly show the form
     }
-};
+  };
 
-// Opens the cropper with the selected image
-const startCropping = (imageUrl) => {
+  // Opens the cropper with the selected image
+  const startCropping = (imageUrl) => {
     setImageToCrop(imageUrl);
-     setCrop(undefined); 
+    setCrop(undefined);
     setIsCropping(true);
-};
+  };
 
-// Handles the cropping action and updates the product in state
-const getCroppedImage = () => {
+  // Handles the cropping action and updates the product in state
+  const getCroppedImage = () => {
     if (!imgRef.current || !completedCrop) {
-        return;
+      return;
     }
 
     const image = imgRef.current;
@@ -655,62 +666,62 @@ const getCroppedImage = () => {
     const ctx = canvas.getContext('2d');
 
     ctx.drawImage(
-        image,
-        completedCrop.x * scaleX,
-        completedCrop.y * scaleY,
-        completedCrop.width * scaleX,
-        completedCrop.height * scaleY,
-        0,
-        0,
-        completedCrop.width,
-        completedCrop.height
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      completedCrop.width,
+      completedCrop.height
     );
 
     canvas.toBlob((blob) => {
-        const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' });
+      const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' });
 
-        // Create a new array to update the state immutably
-        const updatedProducts = [...newProducts];
-        
-        // Find the index of the product being edited or the current one being added
-        const indexToUpdate = editingProduct ? newProducts.findIndex(p => p.id === editingProduct.id) : currentImageIndex;
+      // Create a new array to update the state immutably
+      const updatedProducts = [...newProducts];
 
-        // Update the image file and preview URL for the correct product
-        if (indexToUpdate !== -1) {
-            updatedProducts[indexToUpdate] = {
-                ...updatedProducts[indexToUpdate],
-                imageFile: croppedFile,
-                previewUrl: URL.createObjectURL(croppedFile),
-            };
-            setNewProducts(updatedProducts);
-        }
+      // Find the index of the product being edited or the current one being added
+      const indexToUpdate = editingProduct ? newProducts.findIndex(p => p.id === editingProduct.id) : currentImageIndex;
 
-        // Hide the cropper and return to the form
-        setIsCropping(false);
-        setImageToCrop(null);
-        setCompletedCrop(null);
+      // Update the image file and preview URL for the correct product
+      if (indexToUpdate !== -1) {
+        updatedProducts[indexToUpdate] = {
+          ...updatedProducts[indexToUpdate],
+          imageFile: croppedFile,
+          previewUrl: URL.createObjectURL(croppedFile),
+        };
+        setNewProducts(updatedProducts);
+      }
+
+      // Hide the cropper and return to the form
+      setIsCropping(false);
+      setImageToCrop(null);
+      setCompletedCrop(null);
     }, 'image/png');
-};
-// Add this function to your component's logic
-const handleDeleteNewImage = (indexToDelete) => {
-  // Create a new array without the image to be deleted
-  const updatedNewProducts = newProducts.filter((_, index) => index !== indexToDelete);
+  };
+  // Add this function to your component's logic
+  const handleDeleteNewImage = (indexToDelete) => {
+    // Create a new array without the image to be deleted
+    const updatedNewProducts = newProducts.filter((_, index) => index !== indexToDelete);
 
-  // If the deleted image was the last one, reset the form.
-  if (updatedNewProducts.length === 0) {
-    resetProductForm();
-    setShowProductForm(false);
-  } else {
-    // Update the state with the new array
-    setNewProducts(updatedNewProducts);
-    // If we deleted an image and there are still images left,
-    // we need to make sure the current index is valid.
-    // If the last image was deleted, the index should be adjusted.
-    if (currentImageIndex >= updatedNewProducts.length) {
-      setCurrentImageIndex(updatedNewProducts.length - 1);
+    // If the deleted image was the last one, reset the form.
+    if (updatedNewProducts.length === 0) {
+      resetProductForm();
+      setShowProductForm(false);
+    } else {
+      // Update the state with the new array
+      setNewProducts(updatedNewProducts);
+      // If we deleted an image and there are still images left,
+      // we need to make sure the current index is valid.
+      // If the last image was deleted, the index should be adjusted.
+      if (currentImageIndex >= updatedNewProducts.length) {
+        setCurrentImageIndex(updatedNewProducts.length - 1);
+      }
     }
-  }
-};
+  };
   const handleNextProduct = (e) => {
     e.preventDefault();
     if (!productName || !productCode || !productQuantity) {
@@ -718,38 +729,58 @@ const handleDeleteNewImage = (indexToDelete) => {
       return;
     }
     const updatedProducts = [...newProducts];
+    // Create an array of images including the main one and any additional uploads
+    const images = [{
+      file: updatedProducts[currentImageIndex].imageFile,
+      previewUrl: updatedProducts[currentImageIndex].previewUrl,
+    }, ...additionalImages];
+
     updatedProducts[currentImageIndex].productName = productName;
     updatedProducts[currentImageIndex].productCode = productCode;
     updatedProducts[currentImageIndex].quantity = Number(productQuantity);
+    updatedProducts[currentImageIndex].images = images; // Save the array of images
+
     setNewProducts(updatedProducts);
-    setProductName(''); // Reset new field
+    setProductName(''); // Reset fields for the next product
     setProductCode('');
     setProductQuantity('');
+    setAdditionalImages([]); // Reset additional images state
     setCurrentImageIndex(currentImageIndex + 1);
   };
 
   const handleAddAllProducts = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);
-    // Save the last product's details
+
     const finalProducts = [...newProducts];
     if (currentImageIndex < finalProducts.length) {
       finalProducts[currentImageIndex].productName = productName;
       finalProducts[currentImageIndex].productCode = productCode;
       finalProducts[currentImageIndex].quantity = Number(productQuantity);
+      // Include images from the last form
+      finalProducts[currentImageIndex].images = [{
+        file: finalProducts[currentImageIndex].imageFile,
+        previewUrl: finalProducts[currentImageIndex].previewUrl,
+      }, ...additionalImages];
     }
+
     try {
       const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
       const uploadPromises = finalProducts.map(async (product) => {
-        const imageUrl = await uploadImageAndGetURL(product.imageFile);
+        // Upload all images for the product
+        const imageUrls = await Promise.all(
+          product.images.map(img => uploadImageAndGetURL(img.file))
+        );
+
         const productData = {
-          productName: product.productName, // Add new field to Firestore
+          productName: product.productName,
           productCode: product.productCode,
           quantity: product.quantity,
-          image: imageUrl,
+          images: imageUrls, // Save array of URLs
         };
         await addDoc(productCollectionRef, productData);
       });
+
       await Promise.all(uploadPromises);
       console.log("All products added successfully.");
       fetchProducts();
@@ -763,11 +794,13 @@ const handleDeleteNewImage = (indexToDelete) => {
   };
 
   const startEditProduct = (product) => {
-      console.log("Starting edit for product:", product);
+    console.log("Starting edit for product:", product);
     setEditingProduct(product);
-    setProductName(product.productName); // Set new field for editing
+    setProductName(product.productName);
     setProductCode(product.productCode);
     setProductQuantity(product.quantity);
+    // Set images for editing
+    setAdditionalImages(product.images.map(url => ({ previewUrl: url })));
     setShowProductForm(true);
   };
 
@@ -776,11 +809,24 @@ const handleDeleteNewImage = (indexToDelete) => {
     setIsProductUploading(true);
     try {
       const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
+
+      // Filter out existing images from new uploads to avoid re-uploading
+      const newImagesToUpload = additionalImages.filter(img => img.file);
+      const uploadedUrls = await Promise.all(
+        newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
+      );
+
+      // Combine existing image URLs with the new ones
+      const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
+      const allImageUrls = [...existingUrls, ...uploadedUrls];
+
       const productData = {
-        productName: productName, // Update new field
+        productName: productName,
         productCode: productCode,
         quantity: Number(productQuantity),
+        images: allImageUrls,
       };
+
       await updateDoc(productDocRef, productData);
       fetchProducts();
       resetProductForm();
@@ -809,67 +855,67 @@ const handleDeleteNewImage = (indexToDelete) => {
     }
   };
 
-    
+
   // NEW: useEffect to fetch reports data
-useEffect(() => {
-  const fetchReports = async () => {
-    if (activeTab === 'reports') {
-      setIsReportsLoading(true);
-      try {
-        const ordersRef = collection(db, 'orders');
-        const ordersSnapshot = await getDocs(ordersRef);
-        const ordersData = ordersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate().toLocaleDateString(),
-        }));
-        
-        setOrderReports(ordersData);
-        
-        const paymentsData = ordersData.map(order => ({
-          orderId: order.id,
-          totalAmount: order.totalAmount,
-          paymentMethod: order.paymentMethod || 'N/A',
-          status: order.status,
-          date: order.createdAt,
-        }));
-        
-        setPaymentReports(paymentsData);
-        
-        // Fetch all products to generate the product report
-        const productsRef = collection(db, 'products');
-        const productsSnapshot = await getDocs(productsRef);
-        const allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        const productSales = {};
-        ordersData.forEach(order => {
-          order.items.forEach(item => {
-            if (!productSales[item.productCode]) {
-              productSales[item.productCode] = { quantity: 0, revenue: 0 };
-            }
-            productSales[item.productCode].quantity += item.quantity;
-            productSales[item.productCode].revenue += item.quantity * item.price;
+  useEffect(() => {
+    const fetchReports = async () => {
+      if (activeTab === 'reports') {
+        setIsReportsLoading(true);
+        try {
+          const ordersRef = collection(db, 'orders');
+          const ordersSnapshot = await getDocs(ordersRef);
+          const ordersData = ordersSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate().toLocaleDateString(),
+          }));
+
+          setOrderReports(ordersData);
+
+          const paymentsData = ordersData.map(order => ({
+            orderId: order.id,
+            totalAmount: order.totalAmount,
+            paymentMethod: order.paymentMethod || 'N/A',
+            status: order.status,
+            date: order.createdAt,
+          }));
+
+          setPaymentReports(paymentsData);
+
+          // Fetch all products to generate the product report
+          const productsRef = collection(db, 'products');
+          const productsSnapshot = await getDocs(productsRef);
+          const allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          const productSales = {};
+          ordersData.forEach(order => {
+            order.items.forEach(item => {
+              if (!productSales[item.productCode]) {
+                productSales[item.productCode] = { quantity: 0, revenue: 0 };
+              }
+              productSales[item.productCode].quantity += item.quantity;
+              productSales[item.productCode].revenue += item.quantity * item.price;
+            });
           });
-        });
 
-        const reports = allProducts.map(product => ({
-          productName: product.productName,
-          productCode: product.productCode,
-          quantityInStock: product.quantity,
-          totalSales: productSales[product.productCode]?.quantity || 0,
-          totalRevenue: productSales[product.productCode]?.revenue || 0,
-        }));
+          const reports = allProducts.map(product => ({
+            productName: product.productName,
+            productCode: product.productCode,
+            quantityInStock: product.quantity,
+            totalSales: productSales[product.productCode]?.quantity || 0,
+            totalRevenue: productSales[product.productCode]?.revenue || 0,
+          }));
 
-        setProductReports(reports);
-        
-      } catch (error) {
-        console.error("Error fetching reports:", error);
+          setProductReports(reports);
+
+        } catch (error) {
+          console.error("Error fetching reports:", error);
+        }
+        setIsReportsLoading(false);
       }
-      setIsReportsLoading(false);
-    }
-  };
-  fetchReports();
-}, [activeTab]);
+    };
+    fetchReports();
+  }, [activeTab]);
 
   const resetProductForm = () => {
     setProductName(''); // Reset new field
@@ -880,15 +926,15 @@ useEffect(() => {
     setNewProducts([]);
     setCurrentImageIndex(0);
   };
-  
+
   // NEW: Filter products based on search term
   const filteredProducts = products.filter(product => {
-  const searchTerm = productSearchTerm.toLowerCase();
-  const productNameMatch = (product.productName || '').toLowerCase().includes(searchTerm);
-  const productCodeMatch = (product.productCode || '').toLowerCase().includes(searchTerm);
-  return productNameMatch || productCodeMatch;
-});
-const fetchMainCollectionsForOffline = async () => {
+    const searchTerm = productSearchTerm.toLowerCase();
+    const productNameMatch = (product.productName || '').toLowerCase().includes(searchTerm);
+    const productCodeMatch = (product.productCode || '').toLowerCase().includes(searchTerm);
+    return productNameMatch || productCodeMatch;
+  });
+  const fetchMainCollectionsForOffline = async () => {
     setIsOfflineProductsLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'collections'));
@@ -903,211 +949,211 @@ const fetchMainCollectionsForOffline = async () => {
     setIsOfflineProductsLoading(false);
   };
 
-  
-  
 
 
-const recalculateOfflineCartPrices = (currentCart) => {
-  const newCart = { ...currentCart };
-  const pricingGroups = {};
 
-  // Group products in the cart by their unique pricing ID
-  for (const productId in newCart) {
-    const item = newCart[productId];
-    // This is the correct way to get the pricing tiers from the subcollection
-    const itemPricingTiers = item.tieredPricing?.[offlinePricingType];
-    const pricingId = JSON.stringify(itemPricingTiers);
 
-    if (!pricingGroups[pricingId]) {
-      pricingGroups[pricingId] = [];
+  const recalculateOfflineCartPrices = (currentCart) => {
+    const newCart = { ...currentCart };
+    const pricingGroups = {};
+
+    // Group products in the cart by their unique pricing ID
+    for (const productId in newCart) {
+      const item = newCart[productId];
+      // This is the correct way to get the pricing tiers from the subcollection
+      const itemPricingTiers = item.tieredPricing?.[offlinePricingType];
+      const pricingId = JSON.stringify(itemPricingTiers);
+
+      if (!pricingGroups[pricingId]) {
+        pricingGroups[pricingId] = [];
+      }
+      pricingGroups[pricingId].push(item);
     }
-    pricingGroups[pricingId].push(item);
-  }
 
-  // Recalculate and update the price for each group
-  for (const pricingId in pricingGroups) {
-    const groupItems = pricingGroups[pricingId];
-    const totalGroupQuantity = groupItems.reduce((total, item) => total + item.quantity, 0);
-    const tiers = groupItems[0].tieredPricing?.[offlinePricingType];
-    const groupPrice = getPriceForQuantity(tiers, totalGroupQuantity);
+    // Recalculate and update the price for each group
+    for (const pricingId in pricingGroups) {
+      const groupItems = pricingGroups[pricingId];
+      const totalGroupQuantity = groupItems.reduce((total, item) => total + item.quantity, 0);
+      const tiers = groupItems[0].tieredPricing?.[offlinePricingType];
+      const groupPrice = getPriceForQuantity(tiers, totalGroupQuantity);
 
-    groupItems.forEach(item => {
-      newCart[item.id].price = groupPrice;
-    });
-  }
-  return newCart;
-};
+      groupItems.forEach(item => {
+        newCart[item.id].price = groupPrice;
+      });
+    }
+    return newCart;
+  };
 
-const fetchSubcollectionsForOffline = async (mainCollectionId) => {
+  const fetchSubcollectionsForOffline = async (mainCollectionId) => {
     setIsOfflineProductsLoading(true);
     try {
-        const subcollectionsRef = collection(db, 'collections', mainCollectionId, 'subcollections');
-        const querySnapshot = await getDocs(subcollectionsRef);
-        const fetchedSubcollections = [];
-        const newSubcollectionsMap = {};
-        
-        querySnapshot.docs.forEach(doc => {
-            const data = { id: doc.id, ...doc.data() };
-            fetchedSubcollections.push(data);
-            newSubcollectionsMap[doc.id] = data;
-        });
-        
-        setOfflineSubcollections(fetchedSubcollections);
-        setSubcollectionsMap(newSubcollectionsMap);
+      const subcollectionsRef = collection(db, 'collections', mainCollectionId, 'subcollections');
+      const querySnapshot = await getDocs(subcollectionsRef);
+      const fetchedSubcollections = [];
+      const newSubcollectionsMap = {};
+
+      querySnapshot.docs.forEach(doc => {
+        const data = { id: doc.id, ...doc.data() };
+        fetchedSubcollections.push(data);
+        newSubcollectionsMap[doc.id] = data;
+      });
+
+      setOfflineSubcollections(fetchedSubcollections);
+      setSubcollectionsMap(newSubcollectionsMap);
     } catch (error) {
-        console.error('Error fetching subcollections for offline billing:', error);
+      console.error('Error fetching subcollections for offline billing:', error);
     } finally {
-        setIsOfflineProductsLoading(false);
+      setIsOfflineProductsLoading(false);
     }
-};
+  };
 
-const fetchOfflineProducts = async () => {
+  const fetchOfflineProducts = async () => {
     if (selectedOfflineCollectionId && selectedOfflineSubcollectionId && Object.keys(subcollectionsMap).length > 0) {
-        setIsOfflineProductsLoading(true);
-        try {
-            const q = query(
-                collection(db, 'collections', selectedOfflineCollectionId, 'subcollections', selectedOfflineSubcollectionId, 'products')
-            );
-            const querySnapshot = await getDocs(q);
-            const products = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                // IMPORTANT: Attach the subcollection's tiered pricing data to the product object
-                tieredPricing: subcollectionsMap[selectedOfflineSubcollectionId]?.tieredPricing,
-                subcollectionId: selectedOfflineSubcollectionId,
-                collectionId: selectedOfflineCollectionId,
-            }));
-            setOfflineProducts(products);
-        } catch (error) {
-            console.error('Error fetching offline products:', error);
-        } finally {
-            setIsOfflineProductsLoading(false);
-        }
+      setIsOfflineProductsLoading(true);
+      try {
+        const q = query(
+          collection(db, 'collections', selectedOfflineCollectionId, 'subcollections', selectedOfflineSubcollectionId, 'products')
+        );
+        const querySnapshot = await getDocs(q);
+        const products = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          // IMPORTANT: Attach the subcollection's tiered pricing data to the product object
+          tieredPricing: subcollectionsMap[selectedOfflineSubcollectionId]?.tieredPricing,
+          subcollectionId: selectedOfflineSubcollectionId,
+          collectionId: selectedOfflineCollectionId,
+        }));
+        setOfflineProducts(products);
+      } catch (error) {
+        console.error('Error fetching offline products:', error);
+      } finally {
+        setIsOfflineProductsLoading(false);
+      }
     }
-};
+  };
 
-const handleOfflineAddToCart = (product, quantity = 1) => {
-  setOfflineCart(prevCart => {
-    const newCart = { ...prevCart };
-    const currentQuantity = newCart[product.id]?.quantity || 0;
+  const handleOfflineAddToCart = (product, quantity = 1) => {
+    setOfflineCart(prevCart => {
+      const newCart = { ...prevCart };
+      const currentQuantity = newCart[product.id]?.quantity || 0;
 
-    if (currentQuantity + quantity > product.quantity) {
-      alert('Not enough stock available.');
-      return prevCart;
-    }
+      if (currentQuantity + quantity > product.quantity) {
+        alert('Not enough stock available.');
+        return prevCart;
+      }
 
-    const updatedQuantity = currentQuantity + quantity;
-    
-    // Now the product object already has the correct `tieredPricing`
-    newCart[product.id] = {
-      ...product,
-      quantity: updatedQuantity,
-      price: 0, // Placeholder price, will be recalculated
-    };
+      const updatedQuantity = currentQuantity + quantity;
 
-    return recalculateOfflineCartPrices(newCart);
-  });
-};
+      // Now the product object already has the correct `tieredPricing`
+      newCart[product.id] = {
+        ...product,
+        quantity: updatedQuantity,
+        price: 0, // Placeholder price, will be recalculated
+      };
 
-const handleOfflineRemoveFromCart = (productId) => {
-  setOfflineCart(prevCart => {
-    const newCart = { ...prevCart };
-    const newQuantity = (newCart[productId]?.quantity || 0) - 1;
+      return recalculateOfflineCartPrices(newCart);
+    });
+  };
 
-    if (newQuantity <= 0) {
-      delete newCart[productId];
-    } else {
-      newCart[productId].quantity = newQuantity;
-    }
+  const handleOfflineRemoveFromCart = (productId) => {
+    setOfflineCart(prevCart => {
+      const newCart = { ...prevCart };
+      const newQuantity = (newCart[productId]?.quantity || 0) - 1;
 
-    return recalculateOfflineCartPrices(newCart);
-  });
-};
+      if (newQuantity <= 0) {
+        delete newCart[productId];
+      } else {
+        newCart[productId].quantity = newQuantity;
+      }
+
+      return recalculateOfflineCartPrices(newCart);
+    });
+  };
 
   const getOfflineCartTotal = () => {
     return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
   };
-const handleFinalizeSale = async () => {
-  if (Object.keys(offlineCart).length === 0) {
-    alert('The cart is empty. Please add products to finalize the sale.');
-    return;
-  }
+  const handleFinalizeSale = async () => {
+    if (Object.keys(offlineCart).length === 0) {
+      alert('The cart is empty. Please add products to finalize the sale.');
+      return;
+    }
 
-  if (window.confirm('Are you sure you want to finalize this offline sale?')) {
-    try {
-      // Determine the final total amount based on the edited input or the calculated total
-      const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : getOfflineCartTotal();
+    if (window.confirm('Are you sure you want to finalize this offline sale?')) {
+      try {
+        // Determine the final total amount based on the edited input or the calculated total
+        const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : getOfflineCartTotal();
 
-      const orderData = {
-        userId: 'offline-sale',
-        status: 'Delivered',
-        createdAt: serverTimestamp(),
-        items: Object.values(offlineCart).map(item => ({
-          productId: item.id || 'N/A',
-          productName: item.productName || 'N/A',
-          productCode: item.productCode || 'N/A',
-          quantity: item.quantity || 0,
-          price: typeof item.price === 'number' ? item.price : 0,
-          image: item.image || '',
-        })),
-        totalAmount: typeof finalTotal === 'number' ? finalTotal : 0,
-        subtotal: typeof finalTotal === 'number' ? finalTotal : 0,
-        shippingFee: 0,
-      };
+        const orderData = {
+          userId: 'offline-sale',
+          status: 'Delivered',
+          createdAt: serverTimestamp(),
+          items: Object.values(offlineCart).map(item => ({
+            productId: item.id || 'N/A',
+            productName: item.productName || 'N/A',
+            productCode: item.productCode || 'N/A',
+            quantity: item.quantity || 0,
+            price: typeof item.price === 'number' ? item.price : 0,
+            image: item.image || '',
+          })),
+          totalAmount: typeof finalTotal === 'number' ? finalTotal : 0,
+          subtotal: typeof finalTotal === 'number' ? finalTotal : 0,
+          shippingFee: 0,
+        };
 
-      await addDoc(collection(db, 'orders'), orderData);
-      console.log('Order added to Firestore successfully!');
+        await addDoc(collection(db, 'orders'), orderData);
+        console.log('Order added to Firestore successfully!');
 
-      const batch = writeBatch(db);
-      for (const productId in offlineCart) {
-        const item = offlineCart[productId];
-        const productRef = doc(db, 'collections', item.collectionId, 'subcollections', item.subcollectionId, 'products', productId);
-        
-        const productDoc = await getDoc(productRef);
-        if (productDoc.exists()) {
-          const currentQuantity = productDoc.data().quantity || 0;
-          const newQuantity = currentQuantity - item.quantity;
-          batch.update(productRef, { quantity: newQuantity });
+        const batch = writeBatch(db);
+        for (const productId in offlineCart) {
+          const item = offlineCart[productId];
+          const productRef = doc(db, 'collections', item.collectionId, 'subcollections', item.subcollectionId, 'products', productId);
+
+          const productDoc = await getDoc(productRef);
+          if (productDoc.exists()) {
+            const currentQuantity = productDoc.data().quantity || 0;
+            const newQuantity = currentQuantity - item.quantity;
+            batch.update(productRef, { quantity: newQuantity });
+          }
         }
+        await batch.commit();
+        console.log('Stock quantities updated successfully!');
+
+        alert('Offline sale finalized and stock updated successfully!');
+        setOfflineCart({});
+        setEditedTotal(''); // Clear the edited total after sale
+        setSelectedOfflineCollectionId('');
+        setSelectedOfflineSubcollectionId('');
+        setOfflineProducts([]);
+        if (activeTab === 'orders') fetchOrders();
+        if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
+      } catch (error) {
+        console.error('Error finalizing offline sale:', error);
+        alert('Failed to finalize the sale. Please try again.');
       }
-      await batch.commit();
-      console.log('Stock quantities updated successfully!');
-
-      alert('Offline sale finalized and stock updated successfully!');
-      setOfflineCart({});
-      setEditedTotal(''); // Clear the edited total after sale
-      setSelectedOfflineCollectionId('');
-      setSelectedOfflineSubcollectionId('');
-      setOfflineProducts([]);
-      if (activeTab === 'orders') fetchOrders();
-      if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
-    } catch (error) {
-      console.error('Error finalizing offline sale:', error);
-      alert('Failed to finalize the sale. Please try again.');
     }
-  }
-};
-useEffect(() => {
+  };
+  useEffect(() => {
     if (selectedOfflineCollectionId) {
-        fetchSubcollectionsForOffline(selectedOfflineCollectionId);
+      fetchSubcollectionsForOffline(selectedOfflineCollectionId);
     } else {
-        setOfflineSubcollections([]);
-        setSubcollectionsMap({});
+      setOfflineSubcollections([]);
+      setSubcollectionsMap({});
     }
-}, [selectedOfflineCollectionId]);
+  }, [selectedOfflineCollectionId]);
 
-// This useEffect is critical for updating the products whenever the subcollection changes.
-// It ensures that products are loaded with the correct tiered pricing data.
-useEffect(() => {
-  fetchOfflineProducts();
-}, [selectedOfflineSubcollectionId, subcollectionsMap]);
+  // This useEffect is critical for updating the products whenever the subcollection changes.
+  // It ensures that products are loaded with the correct tiered pricing data.
+  useEffect(() => {
+    fetchOfflineProducts();
+  }, [selectedOfflineSubcollectionId, subcollectionsMap]);
 
-const filteredOfflineProducts = offlineProducts.filter(product =>
-  product && (
-    (product.productName && product.productName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.productCode && product.productCode.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-);
+  const filteredOfflineProducts = offlineProducts.filter(product =>
+    product && (
+      (product.productName && product.productName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.productCode && product.productCode.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+  );
   return (
     <div className="admin-page">
       <h1>Admin Dashboard</h1>
@@ -1130,7 +1176,7 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
         >
           Low Stock Alerts ({lowStockProducts.length})
         </button>
-         <button
+        <button
           className={activeTab === 'reports' ? 'active' : ''}
           onClick={() => setActiveTab('reports')}
         >
@@ -1143,13 +1189,13 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
           User Management
         </button>
         <button
-            className={`admin-menu-item ${activeTab === 'offline-billing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('offline-billing')}
-          >
-            Offline Billing
-          </button>
-          
-        
+          className={`admin-menu-item ${activeTab === 'offline-billing' ? 'active' : ''}`}
+          onClick={() => setActiveTab('offline-billing')}
+        >
+          Offline Billing
+        </button>
+
+
 
       </div>
 
@@ -1341,242 +1387,248 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
             )}
 
             {/* --- Products Sub-tab Content --- */}
-           {activeSubTab === 'products' && (
-  <div className="forms-container">
-    <div className="admin-section">
-      <h2>Products</h2>
-      <div className="form-group">
-        <label>Select Main Collection:</label>
-        <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
-          <option value="">-- Select a Collection --</option>
-          {mainCollections.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </select>
-      </div>
+            {activeSubTab === 'products' && (
+              <div className="forms-container">
+                <div className="admin-section">
+                  <h2>Products</h2>
+                  <div className="form-group">
+                    <label>Select Main Collection:</label>
+                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+                      <option value="">-- Select a Collection --</option>
+                      {mainCollections.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-      <div className="form-group">
-        <label>Select Subcollection:</label>
-        <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
-          <option value="">-- Select a Subcollection --</option>
-          {subcollections.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      {selectedSubcollectionId && (
-        <div className="add-collection-form">
-          <h3>Add/Edit Products</h3>
-          {isCropping ? (
-            // This block shows the cropper
-            <div className="cropper-container">
-              <ReactCrop
-                crop={crop}
-                onChange={c => setCrop(c)}
-                onComplete={c => setCompletedCrop(c)}
-              >
-                <img src={imageToCrop} ref={imgRef} alt="Product" />
-              </ReactCrop>
-              <div className="cropper-buttons">
-                <button type="button" onClick={getCroppedImage}>Crop Image</button>
-                <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            // This block shows either the product form or the file input
-            <>
-              {showProductForm ? (
-                <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
-                  {editingProduct ? (
-                    <>
-                      <div className="product-form-item">
-                        <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
-                        <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
-                          <span role="img" aria-label="crop icon">✂️</span> Crop
-                        </button>
-                        <div className="product-details-inputs">
-                          <div className="form-group">
-                            <label>Product Name:</label>
-                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                          </div>
-                          <div className="form-group">
-                            <label>Product Code:</label>
-                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                          </div>
-                          <div className="form-group">
-                            <label>Quantity:</label>
-                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
+                  <div className="form-group">
+                    <label>Select Subcollection:</label>
+                    <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
+                      <option value="">-- Select a Subcollection --</option>
+                      {subcollections.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedSubcollectionId && (
+                    <div className="add-collection-form">
+                      <h3>Add/Edit Products</h3>
+                      {isCropping ? (
+                        // This block shows the cropper
+                        <div className="cropper-container">
+                          <ReactCrop
+                            crop={crop}
+                            onChange={c => setCrop(c)}
+                            onComplete={c => setCompletedCrop(c)}
+                          >
+                            <img src={imageToCrop} ref={imgRef} alt="Product" />
+                          </ReactCrop>
+                          <div className="cropper-buttons">
+                            <button type="button" onClick={getCroppedImage}>Crop Image</button>
+                            <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
                           </div>
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
-                        <>
-                          <div className="product-form-item">
-                            <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
-                            <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
-                              <span role="img" aria-label="crop icon">✂️</span> Crop
-                            </button>
-                            <button type="button" onClick={() => handleDeleteNewImage(currentImageIndex)} className="delete-button">
-                       <span role="img" aria-label="delete icon">🗑️</span> Delete
-                        </button>
-                            <div className="product-details-inputs">
-                              <div className="form-group">
-                                <label>Product Name:</label>
-                                <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                              </div>
-                              <div className="form-group">
-                                <label>Product Code:</label>
-                                <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                              </div>
-                              <div className="form-group">
-                                <label>Quantity:</label>
-                                <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="file-info">
-                            Image {currentImageIndex + 1} of {newProducts.length}
-                          </div>
-                        </>
                       ) : (
-                        <p>All product details filled. Click 'Add All Products' to save.</p>
+                        // This block shows either the product form or the file input
+                        <>
+                          {showProductForm ? (
+                            <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
+                              {editingProduct ? (
+                                <>
+                                  <div className="product-form-item">
+                                    <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
+                                    <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
+                                      <span role="img" aria-label="crop icon">✂️</span> Crop
+                                    </button>
+                                    <div className="product-details-inputs">
+                                      <div className="form-group">
+                                        <label>Product Name:</label>
+                                        <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>Product Code:</label>
+                                        <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                      </div>
+                                      <div className="form-group">
+                                        <label>Quantity:</label>
+                                        <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                                    <>
+                                      <div className="product-form-item">
+                                        <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                                        <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
+                                          <span role="img" aria-label="crop icon">✂️</span> Crop
+                                        </button>
+                                        <button type="button" onClick={() => handleDeleteNewImage(currentImageIndex)} className="delete-button">
+                                          <span role="img" aria-label="delete icon">🗑️</span> Delete
+                                        </button>
+                                        <div className="product-details-inputs">
+                                          <div className="form-group">
+                                            <label>Product Name:</label>
+                                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                                          </div>
+                                          <div className="form-group">
+                                            <label>Product Code:</label>
+                                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                                          </div>
+                                          <div className="form-group">
+                                            <label>Quantity:</label>
+                                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                          </div>
+                                          <div className="form-group">
+                                            <label>Upload Additional Product Photos:</label>
+                                            <input
+                                              type="file"
+                                              onChange={handleAdditionalImageChange}
+                                              multiple
+                                              accept="image/*"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="file-info">
+                                        Image {currentImageIndex + 1} of {newProducts.length}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p>All product details filled. Click 'Add All Products' to save.</p>
+                                  )}
+                                </>
+                              )}
+                              <button type="submit" disabled={isProductUploading} className="submit-all-button">
+                                {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
+                              </button>
+                              <button type="button" onClick={resetProductForm} className="cancel-button">
+                                Cancel
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="form-group">
+                              <label>Upload Product Photos:</label>
+                              <input type="file" onChange={handleProductImageChange} multiple />
+                            </div>
+                          )}
+                        </>
                       )}
-                    </>
+                    </div>
                   )}
-                  <button type="submit" disabled={isProductUploading} className="submit-all-button">
-                    {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
-                  </button>
-                  <button type="button" onClick={resetProductForm} className="cancel-button">
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <div className="form-group">
-                  <label>Upload Product Photos:</label>
-                  <input type="file" onChange={handleProductImageChange} multiple />
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-    <div className="admin-section">
-      <h3>Current Products</h3>
-      {selectedSubcollectionId ? (
-        isProductLoading ? (
-          <p>Loading products...</p>
-        ) : (
-          <>
-            <div className="search-container">
-              <input
-                type="text"
-                placeholder="Search by name or code..."
-                value={productSearchTerm}
-                onChange={(e) => setProductSearchTerm(e.target.value)}
-                className="search-input"
-              />
-            </div>
-            <div className="collections-grid">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                <ProductCard
-  key={product.id}
-  productName={product.productName}
-  productCode={product.productCode}
-  quantity={product.quantity}
-  image={product.image}
-  onEdit={() => startEditProduct(product)}
-  onDelete={() => handleDeleteProduct(product.id, product.image)}
+                <div className="admin-section">
+                  <h3>Current Products</h3>
+                  {selectedSubcollectionId ? (
+                    isProductLoading ? (
+                      <p>Loading products...</p>
+                    ) : (
+                      <>
+                        <div className="search-container">
+                          <input
+                            type="text"
+                            placeholder="Search by name or code..."
+                            value={productSearchTerm}
+                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                            className="search-input"
+                          />
+                        </div>
+                        <div className="collections-grid">
+                          {filteredProducts.length > 0 ? (
+                            filteredProducts.map((product) => (
+                              <ProductCard
+    key={product.id}
+    product={product} // This passes the entire product object
+    onEdit={() => startEditProduct(product)}
+    onDelete={() => handleDeleteProduct(product.id, product.image)}
 />
-                ))
-              ) : (
-                <p>No products found matching your search criteria.</p>
-              )}
-            </div>
-          </>
-        )
-      ) : (
-        <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
-      )}
-    </div>
-  </div>
-)}
+                            ))
+                          ) : (
+                            <p>No products found matching your search criteria.</p>
+                          )}
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-  {/* --- Order Management Section --- */}
-{activeTab === 'orders' && (
-  <div className="admin-section">
-    <h2>Customer Orders</h2>
+        {/* --- Order Management Section --- */}
+        {activeTab === 'orders' && (
+          <div className="admin-section">
+            <h2>Customer Orders</h2>
 
-    {/* NEW: Search and Filter Bar */}
-    <div className="order-filters">
-        <input
-            type="text"
-            placeholder="Search by ID, name, email, or phone"
-            value={orderSearchTerm}
-            onChange={(e) => setOrderSearchTerm(e.target.value)}
-            className="search-input"
-        />
-        <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            title="Start Date"
-        />
-        <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            title="End Date"
-        />
-          <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="status-select"
-        >
-          <option value="All">All Statuse</option>
-          <option value="Pending">Pending</option>
-          <option value="Processing">Processing</option>
-          <option value="Shipped">Shipped</option>
-          <option value="Delivered">Delivered</option>
-        </select>
-    </div>
+            {/* NEW: Search and Filter Bar */}
+            <div className="order-filters">
+              <input
+                type="text"
+                placeholder="Search by ID, name, email, or phone"
+                value={orderSearchTerm}
+                onChange={(e) => setOrderSearchTerm(e.target.value)}
+                className="search-input"
+              />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Start Date"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="End Date"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="status-select"
+              >
+                <option value="All">All Statuse</option>
+                <option value="Pending">Pending</option>
+                <option value="Processing">Processing</option>
+                <option value="Shipped">Shipped</option>
+                <option value="Delivered">Delivered</option>
+              </select>
+            </div>
 
-    {isOrderLoading ? (
-      <p>Loading orders...</p>
-    ) : filteredOrders.length === 0 ? (
-      <p>No orders found with the current filters.</p>
-    ) : (
-      <ul className="orders-list">
-        {filteredOrders.map((order) => (
-          <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-            <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-            <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-            <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-)}
+            {isOrderLoading ? (
+              <p>Loading orders...</p>
+            ) : filteredOrders.length === 0 ? (
+              <p>No orders found with the current filters.</p>
+            ) : (
+              <ul className="orders-list">
+                {filteredOrders.map((order) => (
+                  <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
+                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                    <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-{/* Render Order Details Modal */}
-{selectedOrder && (
-  <OrderDetailsModal
-    order={selectedOrder}
-    onClose={() => setSelectedOrder(null)}
-    onUpdateStatus={handleUpdateOrderStatus}
-  />
-)}
+        {/* Render Order Details Modal */}
+        {selectedOrder && (
+          <OrderDetailsModal
+            order={selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            onUpdateStatus={handleUpdateOrderStatus}
+          />
+        )}
         {/* --- Low Stock Tab --- */}
         {activeTab === 'lowStock' && (
           <div className="admin-section">
@@ -1601,113 +1653,113 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
           </div>
         )}
 
-{activeTab === 'reports' && (
-  <div className="admin-section">
-    <h2>Financial Reports</h2>
-    {isReportsLoading ? (
-      <p>Loading reports...</p>
-    ) : (
-      <div className="reports-container">
-        
-        <div className="report-table-container">
-          <h3>Order Report</h3>
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Date</th>
-                <th>Total Amount</th>
-                <th>Status</th>
-                <th>Customer Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orderReports.length > 0 ? (
-                orderReports.map(report => (
-                  <tr key={report.id}>
-                    <td>{report.id.substring(0, 8)}...</td>
-                    <td>{report.createdAt}</td>
-                    <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
-                    <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
-                    <td>{report.userEmail || 'N/A'}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">No order data found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {activeTab === 'reports' && (
+          <div className="admin-section">
+            <h2>Financial Reports</h2>
+            {isReportsLoading ? (
+              <p>Loading reports...</p>
+            ) : (
+              <div className="reports-container">
 
-        <div className="report-table-container">
-          <h3>Payment Report</h3>
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Date</th>
-                <th>Total Amount</th>
-                <th>Payment Method</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paymentReports.length > 0 ? (
-                paymentReports.map((report, index) => (
-                  <tr key={index}>
-                    <td>{report.orderId.substring(0, 8)}...</td>
-                    <td>{report.date}</td>
-                    <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
-                    <td>{report.paymentMethod}</td>
-                    <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">No payment data found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        <div className="report-table-container">
-          <h3>Product Report</h3>
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Product Code</th>
-                <th>Product Name</th>
-                <th>Quantity in Stock</th>
-                <th>Total Sales</th>
-                <th>Total Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productReports.length > 0 ? (
-                productReports.map((report, index) => (
-                  <tr key={index}>
-                    <td>{report.productCode}</td>
-                    <td>{report.productName}</td>
-                    <td>{report.quantityInStock}</td>
-                    <td>{report.totalSales}</td>
-                    <td>₹{report.totalRevenue.toFixed(2)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">No product data found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+                <div className="report-table-container">
+                  <h3>Order Report</h3>
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Date</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Customer Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orderReports.length > 0 ? (
+                        orderReports.map(report => (
+                          <tr key={report.id}>
+                            <td>{report.id.substring(0, 8)}...</td>
+                            <td>{report.createdAt}</td>
+                            <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
+                            <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
+                            <td>{report.userEmail || 'N/A'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5">No order data found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="report-table-container">
+                  <h3>Payment Report</h3>
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Date</th>
+                        <th>Total Amount</th>
+                        <th>Payment Method</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentReports.length > 0 ? (
+                        paymentReports.map((report, index) => (
+                          <tr key={index}>
+                            <td>{report.orderId.substring(0, 8)}...</td>
+                            <td>{report.date}</td>
+                            <td>₹{report.totalAmount?.toFixed(2) || '0.00'}</td>
+                            <td>{report.paymentMethod}</td>
+                            <td><span className={`order-status status-${report.status?.toLowerCase() || 'unknown'}`}>{report.status || 'N/A'}</span></td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5">No payment data found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="report-table-container">
+                  <h3>Product Report</h3>
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Product Code</th>
+                        <th>Product Name</th>
+                        <th>Quantity in Stock</th>
+                        <th>Total Sales</th>
+                        <th>Total Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productReports.length > 0 ? (
+                        productReports.map((report, index) => (
+                          <tr key={index}>
+                            <td>{report.productCode}</td>
+                            <td>{report.productName}</td>
+                            <td>{report.quantityInStock}</td>
+                            <td>{report.totalSales}</td>
+                            <td>₹{report.totalRevenue.toFixed(2)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5">No product data found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {/* --- User Management Tab --- */}
         {activeTab === 'users' && (
           <div className="admin-section">
@@ -1749,144 +1801,144 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
             )}
           </div>
         )}
-    {activeTab === 'offline-billing' && (
-  <div className="offline-billing-section">
-    <h2>Offline Billing</h2>
-    <div className="billing-container">
-      <div className="product-selection-panel">
-        <h4>Select Products</h4>
-        <div className="dropdown-group">
-          <select
-            className="billing-select"
-            value={offlinePricingType}
-            onChange={(e) => setOfflinePricingType(e.target.value)}
-          >
-            <option value="retail">Retail Pricing</option>
-            <option value="wholesale">Wholesale Pricing</option>
-          </select>
-          <select
-            className="billing-select"
-            value={selectedOfflineCollectionId}
-            onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
-          >
-            <option value="">Select Collection</option>
-            {mainCollections.map((collection) => (
-              <option key={collection.id} value={collection.id}>
-                {collection.title}
-              </option>
-            ))}
-          </select>
-          <select
-            className="billing-select"
-            value={selectedOfflineSubcollectionId}
-            onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
-            disabled={!selectedOfflineCollectionId}
-          >
-            <option value="">Select Subcollection</option>
-            {offlineSubcollections.map((subcollection) => (
-              <option key={subcollection.id} value={subcollection.id}>
-                {subcollection.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search products by name or code..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="product-search-bar"
-        />
-
-        {isOfflineProductsLoading ? (
-          <p className="loading-message">Loading products...</p>
-        ) : filteredOfflineProducts.length > 0 ? (
-          <div className="billing-product-list">
-            {filteredOfflineProducts.map(product => {
-              // Get the current price from the cart state
-              const currentPriceInCart = offlineCart[product.id]?.price;
-
-              return (
-                <div
-                  key={product.id}
-                  className="billing-product-item"
-                  onClick={() => handleOfflineAddToCart(product)}
-                >
-                  <img src={product.image} alt={product.productName} />
-                  <span className="product-name">{product.productName}</span>
-                  <span className="product-code">{product.productCode}</span>
-                  <span className="product-quantity">Qty: {product.quantity}</span>
-                  {typeof currentPriceInCart === 'number' && (
-                    <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
-                  )}
+        {activeTab === 'offline-billing' && (
+          <div className="offline-billing-section">
+            <h2>Offline Billing</h2>
+            <div className="billing-container">
+              <div className="product-selection-panel">
+                <h4>Select Products</h4>
+                <div className="dropdown-group">
+                  <select
+                    className="billing-select"
+                    value={offlinePricingType}
+                    onChange={(e) => setOfflinePricingType(e.target.value)}
+                  >
+                    <option value="retail">Retail Pricing</option>
+                    <option value="wholesale">Wholesale Pricing</option>
+                  </select>
+                  <select
+                    className="billing-select"
+                    value={selectedOfflineCollectionId}
+                    onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+                  >
+                    <option value="">Select Collection</option>
+                    {mainCollections.map((collection) => (
+                      <option key={collection.id} value={collection.id}>
+                        {collection.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="billing-select"
+                    value={selectedOfflineSubcollectionId}
+                    onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+                    disabled={!selectedOfflineCollectionId}
+                  >
+                    <option value="">Select Subcollection</option>
+                    {offlineSubcollections.map((subcollection) => (
+                      <option key={subcollection.id} value={subcollection.id}>
+                        {subcollection.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              );
-            })}
+
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search products by name or code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="product-search-bar"
+                />
+
+                {isOfflineProductsLoading ? (
+                  <p className="loading-message">Loading products...</p>
+                ) : filteredOfflineProducts.length > 0 ? (
+                  <div className="billing-product-list">
+                    {filteredOfflineProducts.map(product => {
+                      // Get the current price from the cart state
+                      const currentPriceInCart = offlineCart[product.id]?.price;
+
+                      return (
+                        <div
+                          key={product.id}
+                          className="billing-product-item"
+                          onClick={() => handleOfflineAddToCart(product)}
+                        >
+                          <img src={product.image} alt={product.productName} />
+                          <span className="product-name">{product.productName}</span>
+                          <span className="product-code">{product.productCode}</span>
+                          <span className="product-quantity">Qty: {product.quantity}</span>
+                          {typeof currentPriceInCart === 'number' && (
+                            <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="no-products-found">
+                    {selectedOfflineSubcollectionId
+                      ? 'No products found for your search.'
+                      : 'Please select a collection and subcollection to view products.'}
+                  </p>
+                )}
+              </div>
+              <div className="billing-cart-panel">
+                <h4>Billing Cart</h4>
+                {Object.keys(offlineCart).length > 0 ? (
+                  <>
+                    <ul className="cart-list">
+                      {Object.values(offlineCart).map((item) => (
+                        <li key={item.id} className="cart-item">
+                          <div className="cart-item-details">
+                            <span className="cart-item-name">{item.productName}</span>
+                            <span className="cart-item-name">{item.productCode}</span>
+
+                            <span className="cart-item-info">
+                              {item.quantity} x ₹
+                              {typeof item.price === 'number'
+                                ? item.price.toFixed(2)
+                                : item.price !== undefined && item.price !== null
+                                  ? parseFloat(item.price).toFixed(2)
+                                  : '0.00'}
+                            </span>
+                          </div>
+                          <div className="cart-item-controls">
+                            <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+                            <span className="cart-quantity">{item.quantity}</span>
+                            <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* NEW: Editable Total Input */}
+                    <div className="cart-total-info">
+                      <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
+                      <label htmlFor="edited-total-input">Final Total:</label>
+                      <input
+                        id="edited-total-input"
+                        type="number"
+                        value={editedTotal}
+                        onChange={(e) => setEditedTotal(e.target.value)}
+                        placeholder="Enter final total"
+                        className="editable-total-input"
+                      />
+                    </div>
+
+                    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+                      Finalize Sale
+                    </button>
+                  </>
+                ) : (
+                  <p>Cart is empty. Add products to start billing.</p>
+                )}
+              </div>
+            </div>
           </div>
-        ) : (
-          <p className="no-products-found">
-            {selectedOfflineSubcollectionId
-              ? 'No products found for your search.'
-              : 'Please select a collection and subcollection to view products.'}
-          </p>
         )}
-      </div>
-      <div className="billing-cart-panel">
-  <h4>Billing Cart</h4>
-  {Object.keys(offlineCart).length > 0 ? (
-    <>
-      <ul className="cart-list">
-        {Object.values(offlineCart).map((item) => (
-          <li key={item.id} className="cart-item">
-            <div className="cart-item-details">
-              <span className="cart-item-name">{item.productName}</span>
-              <span className="cart-item-name">{item.productCode}</span>
-
-              <span className="cart-item-info">
-                {item.quantity} x ₹
-                {typeof item.price === 'number'
-                  ? item.price.toFixed(2)
-                  : item.price !== undefined && item.price !== null
-                    ? parseFloat(item.price).toFixed(2)
-                    : '0.00'}
-              </span>
-            </div>
-            <div className="cart-item-controls">
-              <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-              <span className="cart-quantity">{item.quantity}</span>
-              <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      
-      {/* NEW: Editable Total Input */}
-      <div className="cart-total-info">
-        <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
-        <label htmlFor="edited-total-input">Final Total:</label>
-        <input
-          id="edited-total-input"
-          type="number"
-          value={editedTotal}
-          onChange={(e) => setEditedTotal(e.target.value)}
-          placeholder="Enter final total"
-          className="editable-total-input"
-        />
-      </div>
-
-      <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-        Finalize Sale
-      </button>
-    </>
-  ) : (
-    <p>Cart is empty. Add products to start billing.</p>
-  )}
-</div>
-    </div>
-  </div>
-)}
       </div>
     </div>
   );

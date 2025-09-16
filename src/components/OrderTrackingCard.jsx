@@ -38,8 +38,12 @@ const OrderTrackingCard = ({ order }) => {
       <div className="order-items-summary">
         {order.items.map((item, index) => (
           <div key={index} className="order-item">
-            <img src={item.image} alt={item.productName} className="item-image" />
             <div className="item-details">
+                  <img
+                  src={item.images && item.images.length > 0 ? item.images[0] : item.image}
+                  alt={item.productName}
+                  className="cart-item-image"
+                />
               <h5 className="item-name">{item.productName}</h5>
               <p className="item-code">{item.productCode}</p>
               <p className="item-quantity">Qty: {item.quantity}</p>

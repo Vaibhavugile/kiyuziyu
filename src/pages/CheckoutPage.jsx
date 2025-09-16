@@ -49,7 +49,8 @@ const CheckoutPage = () => {
     }
 
     const validatedItems = Object.values(cart).map(item => {
-      if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName || !item.image) {
+      // You should also update this section to include the 'images' property
+      if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName) {
         console.error("Skipping item due to missing data:", item);
         return null;
       }
@@ -58,6 +59,7 @@ const CheckoutPage = () => {
         productName: item.productName,
         productCode: item.productCode,
         image: item.image,
+        images: item.images, // ADDED THIS LINE
         quantity: Number(item.quantity),
         priceAtTimeOfOrder: Number(item.price),
         subcollectionId: item.subcollectionId,
@@ -121,7 +123,11 @@ const CheckoutPage = () => {
             <div className="cart-items-list">
               {Object.values(cart).map((item) => (
                 <div key={item.id} className="cart-item">
-                  <img src={item.image} alt={item.productName} className="cart-item-image" />
+                  <img
+                    src={item.images && item.images.length > 0 ? item.images[0] : item.image}
+                    alt={item.productName}
+                    className="cart-item-image"
+                  />
                   <div className="cart-item-details">
                     <h4 className="cart-item-name">{item.productName}</h4>
                     <p className="cart-item-code">Code: {item.productCode}</p>

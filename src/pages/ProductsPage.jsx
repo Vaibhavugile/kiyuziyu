@@ -179,6 +179,7 @@ const ProductsPage = () => {
         productName: product.productName,
         productCode: product.productCode,
         image: product.image,
+        images: product.images, // ADD THIS LINE
         maxQuantity: product.quantity,
         tieredPricing: tieredPricingData,
         subcollectionId: product.subcollectionId,
@@ -257,18 +258,16 @@ const ProductsPage = () => {
 
               return (
                <ProductCard
-                key={product.id}
-                productName={product.productName}
-                productCode={product.productCode}
-                quantity={product.quantity}
-                image={product.image}
-                price={price}
-                cartQuantity={cartQuantity}
-                tieredPricing={tieredPricing}
-                onIncrement={() => handleAddToCart(product)}
-                onDecrement={() => removeFromCart(product.id)}
-                onQuickView={() => setQuickViewProduct(product)}
-               />
+  key={product.id}
+  product={product}
+  price={price}
+  cartQuantity={cartQuantity}
+  tieredPricing={tieredPricing}
+  onIncrement={() => handleAddToCart(product)}
+  onDecrement={() => removeFromCart(product.id)}
+  onQuickView={() => setQuickViewProduct(product)}
+   isCart={true} 
+/>
               );
             })}
           </div>

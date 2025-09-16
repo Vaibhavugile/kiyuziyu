@@ -122,6 +122,7 @@ export const CartProvider = ({ children }) => {
           ...productData,
           quantity: currentQuantity + 1,
           price: 0, 
+          images: productData.images || (productData.image ? [productData.image] : []), // This line is updated
           pricingId: pricingId, // Store the stable pricing ID
         },
       };

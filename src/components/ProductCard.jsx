@@ -1,12 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './ProductCard.css';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
 
-const ProductCard = ({ productName, productCode, quantity, price, image, cartQuantity, onIncrement, onDecrement, tieredPricing, onEdit, onDelete, isCart = false }) => {
+const ProductCard = ({ product, cartQuantity, onIncrement, onDecrement, onEdit, onDelete, isCart = false }) => {
+  const { productName, productCode, quantity, images, tieredPricing } = product;
   const isOutOfStock = quantity === 0;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // The rendering logic for the main store page vs. the admin page
+  // Determine the correct image source to use
+  const imagesToDisplay = images && images.length > 0 ? images : (product.image ? [product.image] : []);
+
+  // Auto-scroll the image carousel
+  useEffect(() => {
+    if (imagesToDisplay.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
+      }, 2000); // Change image every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [imagesToDisplay]);
+
+  // Handle manual navigation for the carousel
+  const handlePrevImage = (e) => {
+    e.stopPropagation(); // Prevent clicks from bubbling up
+    setCurrentImageIndex(prevIndex => (prevIndex - 1 + imagesToDisplay.length) % imagesToDisplay.length);
+  };
+
+  const handleNextImage = (e) => {
+    e.stopPropagation(); // Prevent clicks from bubbling up
+    setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
+  };
+
   const renderActions = () => {
     if (isCart) {
       return (
@@ -25,7 +50,7 @@ const ProductCard = ({ productName, productCode, quantity, price, image, cartQua
         </div>
       );
     } else {
-      // Admin actions should never be disabled by stock status
+      // Admin actions
       return (
         <div className="admin-actions">
           <button onClick={onEdit}>Edit</button>
@@ -39,13 +64,19 @@ const ProductCard = ({ productName, productCode, quantity, price, image, cartQua
     <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
       {isOutOfStock && <div className="out-of-stock-overlay">Out of Stock</div>}
       <div className="product-image-container">
+        {imagesToDisplay.length > 1 && (
+          <button onClick={handlePrevImage} className="carousel-btn prev">&#10094;</button>
+        )}
         <Zoom>
           <img
             alt={productName}
-            src={image}
+            src={imagesToDisplay[currentImageIndex]}
             className="product-image"
           />
         </Zoom>
+        {imagesToDisplay.length > 1 && (
+          <button onClick={handleNextImage} className="carousel-btn next">&#10095;</button>
+        )}
       </div>
 
       <div className="product-info">
