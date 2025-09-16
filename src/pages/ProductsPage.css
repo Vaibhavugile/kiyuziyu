@@ -172,4 +172,7 @@ select, input[type="text"] {
 .back-to-collections:hover {
   color: var(--secondary-color);
 }
+.products-page-container .admin-actions {
+  display: none;
+}
 

@@ -744,6 +744,7 @@ const getCroppedImage = () => {
   };
 
   const startEditProduct = (product) => {
+      console.log("Starting edit for product:", product);
     setEditingProduct(product);
     setProductName(product.productName); // Set new field for editing
     setProductCode(product.productCode);
@@ -1321,169 +1322,171 @@ const filteredOfflineProducts = offlineProducts.filter(product =>
             )}
 
             {/* --- Products Sub-tab Content --- */}
-            {activeSubTab === 'products' && (
-              <div className="forms-container">
-                <div className="admin-section">
-                  <h2>Products</h2>
-                  <div className="form-group">
-                    <label>Select Main Collection:</label>
-                    <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
-                      <option value="">-- Select a Collection --</option>
-                      {mainCollections.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+           {activeSubTab === 'products' && (
+  <div className="forms-container">
+    <div className="admin-section">
+      <h2>Products</h2>
+      <div className="form-group">
+        <label>Select Main Collection:</label>
+        <select onChange={(e) => setSelectedMainCollectionId(e.target.value)} value={selectedMainCollectionId}>
+          <option value="">-- Select a Collection --</option>
+          {mainCollections.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title}
+            </option>
+          ))}
+        </select>
+      </div>
 
-                  <div className="form-group">
-                    <label>Select Subcollection:</label>
-                    <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
-                      <option value="">-- Select a Subcollection --</option>
-                      {subcollections.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedSubcollectionId && (
-                    <div className="add-collection-form">
-                      <h3>Add/Edit Products</h3>
-                      {isCropping ? (
-                        // This block shows the cropper
-                        <div className="cropper-container">
-                          <ReactCrop
-                            crop={crop}
-                            onChange={c => setCrop(c)}
-                            onComplete={c => setCompletedCrop(c)}
-                          >
-                            <img src={imageToCrop} ref={imgRef} alt="Product" />
-                          </ReactCrop>
-                          <div className="cropper-buttons">
-                            <button type="button" onClick={getCroppedImage}>Crop Image</button>
-                            <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
+      <div className="form-group">
+        <label>Select Subcollection:</label>
+        <select onChange={(e) => setSelectedSubcollectionId(e.target.value)} value={selectedSubcollectionId}>
+          <option value="">-- Select a Subcollection --</option>
+          {subcollections.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {selectedSubcollectionId && (
+        <div className="add-collection-form">
+          <h3>Add/Edit Products</h3>
+          {isCropping ? (
+            // This block shows the cropper
+            <div className="cropper-container">
+              <ReactCrop
+                crop={crop}
+                onChange={c => setCrop(c)}
+                onComplete={c => setCompletedCrop(c)}
+              >
+                <img src={imageToCrop} ref={imgRef} alt="Product" />
+              </ReactCrop>
+              <div className="cropper-buttons">
+                <button type="button" onClick={getCroppedImage}>Crop Image</button>
+                <button type="button" onClick={() => setIsCropping(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            // This block shows either the product form or the file input
+            <>
+              {showProductForm ? (
+                <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
+                  {editingProduct ? (
+                    <>
+                      <div className="product-form-item">
+                        <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
+                        <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
+                          <span role="img" aria-label="crop icon">✂️</span> Crop
+                        </button>
+                        <div className="product-details-inputs">
+                          <div className="form-group">
+                            <label>Product Name:</label>
+                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                          </div>
+                          <div className="form-group">
+                            <label>Product Code:</label>
+                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                          </div>
+                          <div className="form-group">
+                            <label>Quantity:</label>
+                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
                           </div>
                         </div>
-                      ) : (
-                        // This block shows either the product form or the file input
-                        <>
-                          {showProductForm ? (
-                            <form onSubmit={editingProduct ? handleUpdateProduct : (currentImageIndex < newProducts.length ? handleNextProduct : handleAddAllProducts)} className="bulk-upload-form">
-                              {editingProduct ? (
-                                <>
-                                  <div className="product-form-item">
-                                    <img src={editingProduct.image} alt="Product Preview" className="product-preview-image" />
-                                    <button type="button" onClick={() => startCropping(editingProduct.image)} className="crop-button">
-                                      <span role="img" aria-label="crop icon">✂️</span> Crop
-                                    </button>
-                                    <div className="product-details-inputs">
-                                      <div className="form-group">
-                                        <label>Product Name:</label>
-                                        <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Product Code:</label>
-                                        <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Quantity:</label>
-                                        <input type="text" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)}   onWheel={(e) => e.preventDefault()}  required  />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
-                                    <>
-                                      <div className="product-form-item">
-                                        <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
-                                        <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
-                                          <span role="img" aria-label="crop icon">✂️</span> Crop
-                                        </button>
-                                        <div className="product-details-inputs">
-                                          <div className="form-group">
-                                            <label>Product Name:</label>
-                                            <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
-                                          </div>
-                                          <div className="form-group">
-                                            <label>Product Code:</label>
-                                            <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
-                                          </div>
-                                          <div className="form-group">
-                                            <label>Quantity:</label>
-                                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="file-info">
-                                        Image {currentImageIndex + 1} of {newProducts.length}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <p>All product details filled. Click 'Add All Products' to save.</p>
-                                  )}
-                                </>
-                              )}
-                              <button type="submit" disabled={isProductUploading} className="submit-all-button">
-                                {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
-                              </button>
-                              <button type="button" onClick={resetProductForm} className="cancel-button">
-                                Cancel
-                              </button>
-                            </form>
-                          ) : (
-                            <div className="form-group">
-                              <label>Upload Product Photos:</label>
-                              <input type="file" onChange={handleProductImageChange} multiple />
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="admin-section">
-                  <h3>Current Products</h3>
-                  {selectedSubcollectionId ? (
-                    isProductLoading ? (
-                      <p>Loading products...</p>
-                    ) : (
-                      <>
-                        <div className="search-container">
-                          <input
-                            type="text"
-                            placeholder="Search by name or code..."
-                            value={productSearchTerm}
-                            onChange={(e) => setProductSearchTerm(e.target.value)}
-                            className="search-input"
-                          />
-                        </div>
-                        <div className="collections-grid">
-                          {filteredProducts.length > 0 ? (
-                            filteredProducts.map((product) => (
-                              <ProductCard key={product.id} productName={product.productName} productCode={product.productCode} quantity={product.quantity} image={product.image}>
-                                <div className="admin-actions">
-                                  <button onClick={() => startEditProduct(product)}>Edit</button>
-                                  <button onClick={() => handleDeleteProduct(product.id, product.image)}>Delete</button>
-                                </div>
-                              </ProductCard>
-                            ))
-                          ) : (
-                            <p>No products found matching your search criteria.</p>
-                          )}
-                        </div>
-                      </>
-                    )
+                      </div>
+                    </>
                   ) : (
-                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+                    <>
+                      {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
+                        <>
+                          <div className="product-form-item">
+                            <img src={newProducts[currentImageIndex].previewUrl} alt="Product Preview" className="product-preview-image" />
+                            <button type="button" onClick={() => startCropping(newProducts[currentImageIndex].previewUrl)} className="crop-button">
+                              <span role="img" aria-label="crop icon">✂️</span> Crop
+                            </button>
+                            <div className="product-details-inputs">
+                              <div className="form-group">
+                                <label>Product Name:</label>
+                                <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
+                              </div>
+                              <div className="form-group">
+                                <label>Product Code:</label>
+                                <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
+                              </div>
+                              <div className="form-group">
+                                <label>Quantity:</label>
+                                <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="file-info">
+                            Image {currentImageIndex + 1} of {newProducts.length}
+                          </div>
+                        </>
+                      ) : (
+                        <p>All product details filled. Click 'Add All Products' to save.</p>
+                      )}
+                    </>
                   )}
+                  <button type="submit" disabled={isProductUploading} className="submit-all-button">
+                    {isProductUploading ? 'Uploading...' : editingProduct ? 'Update Product' : currentImageIndex < newProducts.length - 1 ? 'Next' : 'Add All Products'}
+                  </button>
+                  <button type="button" onClick={resetProductForm} className="cancel-button">
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div className="form-group">
+                  <label>Upload Product Photos:</label>
+                  <input type="file" onChange={handleProductImageChange} multiple />
                 </div>
-              </div>
-            )}
-            
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+    <div className="admin-section">
+      <h3>Current Products</h3>
+      {selectedSubcollectionId ? (
+        isProductLoading ? (
+          <p>Loading products...</p>
+        ) : (
+          <>
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search by name or code..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <div className="collections-grid">
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                <ProductCard
+  key={product.id}
+  productName={product.productName}
+  productCode={product.productCode}
+  quantity={product.quantity}
+  image={product.image}
+  onEdit={() => startEditProduct(product)}
+  onDelete={() => handleDeleteProduct(product.id, product.image)}
+/>
+                ))
+              ) : (
+                <p>No products found matching your search criteria.</p>
+              )}
+            </div>
+          </>
+        )
+      ) : (
+        <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+      )}
+    </div>
+  </div>
+)}
           </div>
         )}
 

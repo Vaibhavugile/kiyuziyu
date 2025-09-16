@@ -39,6 +39,11 @@
   font-weight: bold;
   color: #c0392b; /* A distinct color for the text */
   text-transform: uppercase;
+   pointer-events: none; 
+}
+.out-of-stock .admin-actions {
+  pointer-events: all; /* This will make sure the buttons are clickable again */
+  z-index: 1; /* Make sure the buttons are on top of the overlay */
 }
 
 .product-image-container {
@@ -159,4 +164,37 @@
 
 .add-to-cart-btn:hover {
   background-color: #2980b9;
+}
+/* src/components/ProductCard.css */
+
+.admin-actions {
+  margin-top: auto; /* Pushes the buttons to the bottom */
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.admin-actions button {
+  padding: 8px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+}
+
+.admin-actions button:hover {
+  background-color: #e2e6ea;
+}
+
+.admin-actions button:last-child {
+  background-color: #d84343; /* A distinct color for 'Delete' */
+  color: white;
+  border-color: #c0392b;
+}
+
+.admin-actions button:last-child:hover {
+  background-color: #c0392b;
 }

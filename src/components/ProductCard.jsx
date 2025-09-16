@@ -3,8 +3,37 @@ import './ProductCard.css';
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
 
-const ProductCard = ({ productName, productCode, quantity, price, image, cartQuantity, onIncrement, onDecrement, tieredPricing }) => {
+const ProductCard = ({ productName, productCode, quantity, price, image, cartQuantity, onIncrement, onDecrement, tieredPricing, onEdit, onDelete, isCart = false }) => {
   const isOutOfStock = quantity === 0;
+
+  // The rendering logic for the main store page vs. the admin page
+  const renderActions = () => {
+    if (isCart) {
+      return (
+        <div className="cart-actions">
+          {cartQuantity > 0 ? (
+            <div className="quantity-controls">
+              <button onClick={onDecrement} className="quantity-btn">-</button>
+              <span className="cart-quantity">{cartQuantity}</span>
+              <button onClick={onIncrement} className="quantity-btn">+</button>
+            </div>
+          ) : (
+            <button onClick={onIncrement} className="add-to-cart-btn" disabled={isOutOfStock}>
+              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            </button>
+          )}
+        </div>
+      );
+    } else {
+      // Admin actions should never be disabled by stock status
+      return (
+        <div className="admin-actions">
+          <button onClick={onEdit}>Edit</button>
+          <button onClick={onDelete}>Delete</button>
+        </div>
+      );
+    }
+  };
 
   return (
     <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
@@ -44,19 +73,7 @@ const ProductCard = ({ productName, productCode, quantity, price, image, cartQua
           </div>
         )}
 
-        <div className="cart-actions">
-          {cartQuantity > 0 ? (
-            <div className="quantity-controls">
-              <button onClick={onDecrement} className="quantity-btn">-</button>
-              <span className="cart-quantity">{cartQuantity}</span>
-              <button onClick={onIncrement} className="quantity-btn">+</button>
-            </div>
-          ) : (
-            <button onClick={onIncrement} className="add-to-cart-btn" disabled={isOutOfStock}>
-              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-            </button>
-          )}
-        </div>
+        {renderActions()}
       </div>
     </div>
   );
