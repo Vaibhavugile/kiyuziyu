@@ -4,39 +4,29 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db, collection, getDocs, doc, getDoc } from '../firebase';
 import ProductCard from '../components/ProductCard';
-import { useCart, getPriceForQuantity, createStablePricingId } from '../components/CartContext';
+import { useCart, getPriceForQuantity, createStablePricingId, getCartItemId } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import Footer from '../components/Footer';
 import './ProductsPage.css';
 import { FaShoppingCart, FaArrowLeft } from 'react-icons/fa';
 
-// The getProductPrice function now calculates the total quantity from relevant products in the cart
 const getProductPrice = (product, subcollectionsMap, userRole, cart) => {
   const subcollection = subcollectionsMap[product.subcollectionId];
-  
   if (!subcollection?.tieredPricing) {
     return null;
   }
-
   const pricingTiers = userRole === 'wholesaler'
     ? subcollection.tieredPricing.wholesale
     : subcollection.tieredPricing.retail;
-  
-  // Create a unique ID by sorting the tiers before stringifying them
   const sortedTiers = [...pricingTiers].sort((a, b) => a.min_quantity - b.min_quantity);
    const pricingId = createStablePricingId(pricingTiers);
-  // Calculate the total quantity for all products in the cart that share this pricing ID
   const totalRelevantQuantity = Object.values(cart).reduce((total, item) => {
-    // We can now directly compare the item's stored pricingId
     if (item.pricingId === pricingId) {
       return total + item.quantity;
     }
     return total;
   }, 0);
-  
-  // Log the quantity used for price calculation
   console.log(`Product "${product.productName}": Total relevant quantity in cart is ${totalRelevantQuantity}`);
-
   return getPriceForQuantity(pricingTiers, totalRelevantQuantity);
 };
 
@@ -71,22 +61,18 @@ const ProductsPage = () => {
           setIsLoading(false);
           return;
         }
-
         const subcollectionRef = collection(db, "collections", collectionId, "subcollections");
         const subcollectionSnapshot = await getDocs(subcollectionRef);
         const fetchedSubcollections = subcollectionSnapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id
         })).sort((a, b) => a.showNumber - b.showNumber);
-        
         setSubcollections(fetchedSubcollections);
-        
         const subcollectionsMap = fetchedSubcollections.reduce((map, sub) => {
           map[sub.id] = sub;
           return map;
         }, {});
         setSubcollectionsMap(subcollectionsMap);
-
         const productPromises = fetchedSubcollections.map(async (sub) => {
           const productsRef = collection(db, "collections", collectionId, "subcollections", sub.id, "products");
           const querySnapshot = await getDocs(productsRef);
@@ -96,11 +82,9 @@ const ProductsPage = () => {
             subcollectionId: sub.id,
           }));
         });
-
         const productsBySubcollection = await Promise.all(productPromises);
         const allFetchedProducts = productsBySubcollection.flat();
         setAllProducts(allFetchedProducts);
-
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Failed to load products.");
@@ -108,7 +92,6 @@ const ProductsPage = () => {
         setIsLoading(false);
       }
     };
-
     if (collectionId) {
       fetchAllData();
     } else {
@@ -116,15 +99,12 @@ const ProductsPage = () => {
       setIsLoading(false);
     }
   }, [collectionId]);
-
   const filteredProducts = useMemo(() => {
     console.log("Filtering and Sorting Products...");
     let currentProducts = [...allProducts];
-
     if (selectedSubcollectionId !== 'all') {
       currentProducts = currentProducts.filter(p => p.subcollectionId === selectedSubcollectionId);
     }
-
     if (searchTerm) {
       currentProducts = currentProducts.filter(p =>
         p && p.productName && p.productCode && (
@@ -133,7 +113,6 @@ const ProductsPage = () => {
         )
       );
     }
-    
     if (sortBy === 'price-asc') {
         currentProducts.sort((a, b) => {
             const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
@@ -147,51 +126,42 @@ const ProductsPage = () => {
             return (priceB || -Infinity) - (priceA || -Infinity);
         });
     }
-
     return currentProducts;
   }, [allProducts, selectedSubcollectionId, searchTerm, sortBy, subcollectionsMap, userRole, cart]);
 
-  const handleAddToCart = (product) => {
-    // Check if a user is logged in
+  const handleAddToCart = (product, variation) => {
     if (!currentUser) {
       alert("You must be logged in to add products to your cart.");
       navigate('/login');
       return;
     }
-    
-    // Retrieve the tiered pricing data for the current product's subcollection.
     const subcollection = subcollectionsMap[product.subcollectionId];
     if (!subcollection || !subcollection.tieredPricing) {
         console.error('Pricing information is missing for this product.');
         return;
     }
     const tieredPricingData = subcollection.tieredPricing;
-
-    // Select the correct pricing tiers based on the user's role.
     const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
-    
-    // Use the new helper function to create a stable pricing ID
     const pricingId = createStablePricingId(roleBasedTiers);
-
-    // Call addToCart with the correct product data, including the new pricingId.
-    addToCart(product.id, {
+    const productData = {
         id: product.id,
         productName: product.productName,
         productCode: product.productCode,
         image: product.image,
-        images: product.images, // ADD THIS LINE
-        maxQuantity: product.quantity,
+        images: product.images,
+        quantity: product.quantity,
+        variations: product.variations,
         tieredPricing: tieredPricingData,
         subcollectionId: product.subcollectionId,
         collectionId: collectionId,
-        pricingId: pricingId, // Pass the new unique pricing ID
-    }, product.quantity);
+        pricingId: pricingId,
+        variation: variation
+    };
+    addToCart(productData);
   };
-
   if (isLoading) {
     return <div className="products-page-container"><p>Loading products...</p></div>;
   }
-
   if (error) {
     return <div className="products-page-container"><p className="error-message">{error}</p></div>;
   }
@@ -205,7 +175,6 @@ const ProductsPage = () => {
         <h2 className="page-title">
           {mainCollection?.title || 'Unknown Collection'} Products
         </h2>
-
         <div className="product-controls">
           <div className="filter-group">
             <label htmlFor="subcollection-select">Filter by Subcollection:</label>
@@ -222,7 +191,6 @@ const ProductsPage = () => {
               ))}
             </select>
           </div>
-          
           <div className="filter-group">
             <label htmlFor="sort-by">Sort by:</label>
             <select
@@ -235,7 +203,6 @@ const ProductsPage = () => {
               <option value="price-desc">Price: High to Low</option>
             </select>
           </div>
-
           <div className="search-group">
             <input
               type="text"
@@ -246,33 +213,33 @@ const ProductsPage = () => {
             />
           </div>
         </div>
-        
         {filteredProducts.length === 0 ? (
           <p className="no-products-message">No products found for this selection.</p>
         ) : (
           <div className="products-grid collections-grid">
             {filteredProducts.map((product) => {
-              const cartQuantity = cart[product.id]?.quantity || 0;
+              const defaultVariation = product.variations && product.variations.length > 0 ? product.variations[0] : null;
+              const cartItemId = getCartItemId({ ...product, variation: defaultVariation });
+              const cartQuantity = cart[cartItemId]?.quantity || 0;
               const price = getProductPrice(product, subcollectionsMap, userRole, cart);
               const tieredPricing = subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
 
               return (
                <ProductCard
-  key={product.id}
-  product={product}
-  price={price}
-  cartQuantity={cartQuantity}
-  tieredPricing={tieredPricing}
-  onIncrement={() => handleAddToCart(product)}
-  onDecrement={() => removeFromCart(product.id)}
-  onQuickView={() => setQuickViewProduct(product)}
-   isCart={true} 
-/>
+                key={product.id}
+                product={product}
+                price={price}
+                cartQuantity={cartQuantity}
+                tieredPricing={tieredPricing}
+                onIncrement={(productData) => handleAddToCart(productData, productData.variation)}
+                onDecrement={(cartItemId) => removeFromCart(cartItemId)}
+                onQuickView={() => setQuickViewProduct(product)}
+                isCart={false} 
+                />
               );
             })}
           </div>
         )}
-
         {cartItemsCount > 0 && (
           <div className="view-cart-fixed-container">
             <Link to="/cart" className="view-cart-btn-overlay">
@@ -289,11 +256,8 @@ const ProductsPage = () => {
             </Link>
           </div>
         )}
-
       </div>
-      
     </>
   );
 };
-
 export default ProductsPage;

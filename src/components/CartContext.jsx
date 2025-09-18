@@ -5,32 +5,23 @@ import { useAuth } from './AuthContext';
 // Utility function to get the price from tiered pricing based on total quantity
 export const getPriceForQuantity = (tiers, totalQuantity) => {
   if (!tiers || tiers.length === 0) return null;
-
-  // Sort the tiers in descending order of quantity to find the highest tier first
   const sortedTiers = [...tiers].sort((a, b) => b.min_quantity - a.min_quantity);
-
   for (const tier of sortedTiers) {
     if (totalQuantity >= tier.min_quantity) {
       return tier.price;
     }
   }
-
-  // Fallback to the price of the lowest tier if no tier matches
   return sortedTiers[sortedTiers.length - 1]?.price || null;
 };
 
 // Helper function to create a stable, unique pricing ID
 export const createStablePricingId = (tiers) => {
   if (!tiers) return null;
-
-  // Sort the tiers array by a key like min_quantity
   const sortedTiers = [...tiers].sort((a, b) => {
     const minA = parseInt(a.min_quantity, 10);
     const minB = parseInt(b.min_quantity, 10);
     return minA - minB;
   });
-
-  // Then, create a consistent string representation by also sorting object keys
   const stableString = sortedTiers.map(tier => {
     const sortedKeys = Object.keys(tier).sort();
     const sortedTier = {};
@@ -39,8 +30,15 @@ export const createStablePricingId = (tiers) => {
     });
     return sortedTier;
   });
-
   return JSON.stringify(stableString);
+};
+
+// New helper function to create a unique ID for a cart item, including its variation
+export const getCartItemId = (product) => {
+  if (product.variation && product.variation.color && product.variation.size) {
+    return `${product.id}_${product.variation.color.replace(/\s+/g, '-')}_${product.variation.size.replace(/\s+/g, '-')}`;
+  }
+  return product.id;
 };
 
 // Create the context
@@ -49,8 +47,6 @@ export const CartContext = createContext();
 // Create the provider component
 export const CartProvider = ({ children }) => {
   const { userRole } = useAuth();
-
-  // Initialize state by trying to load from localStorage
   const [cart, setCart] = useState(() => {
     try {
       const storedCart = localStorage.getItem('cart');
@@ -61,7 +57,6 @@ export const CartProvider = ({ children }) => {
     }
   });
   
-  // Save the cart to localStorage whenever it changes
   useEffect(() => {
     try {
       localStorage.setItem('cart', JSON.stringify(cart));
@@ -70,69 +65,59 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart]);
 
-  // New helper function to recalculate all prices in the cart based on collective quantity
   const recalculateCartPrices = useCallback((currentCart) => {
     console.log("--- Starting Cart Price Recalculation ---");
     const newCart = { ...currentCart };
     const pricingGroups = {};
-
-    // Group products in the cart by their unique pricing ID
-    for (const productId in newCart) {
-      const item = newCart[productId];
-
-      // Add null check for tieredPricing here
+    for (const cartItemId in newCart) {
+      const item = newCart[cartItemId];
       if (!item.tieredPricing) {
         console.warn(`Product ${item.productName} is missing tieredPricing data. Skipping price recalculation for this item.`);
-        continue; // Skip to the next item
+        continue;
       }
-
       const pricingId = item.pricingId; 
-
       if (!pricingGroups[pricingId]) {
         pricingGroups[pricingId] = {
           totalQuantity: 0,
-          productIds: [],
+          cartItemIds: [],
           tiers: item.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'],
         };
       }
       pricingGroups[pricingId].totalQuantity += item.quantity;
-      pricingGroups[pricingId].productIds.push(productId);
+      pricingGroups[pricingId].cartItemIds.push(cartItemId);
     }
     console.log("Grouped products by pricing tiers:", pricingGroups);
-
-    // Recalculate and apply the new price for each group
     for (const key in pricingGroups) {
       const group = pricingGroups[key];
       const newPrice = getPriceForQuantity(group.tiers, group.totalQuantity);
-      for (const productId of group.productIds) {
-        newCart[productId].price = newPrice;
+      for (const cartItemId of group.cartItemIds) {
+        newCart[cartItemId].price = newPrice;
       }
     }
     console.log("--- Finished Cart Price Recalculation ---");
     console.log("New Cart State:", newCart);
     return newCart;
-  }, [userRole]); // Dependency on userRole
+  }, [userRole]);
 
-  const addToCart = useCallback((productId, productData, maxQuantity) => {
+  const addToCart = useCallback((productData) => {
     setCart((prevCart) => {
-      const currentQuantity = prevCart[productId]?.quantity || 0;
+      const cartItemId = getCartItemId(productData);
+      const currentQuantity = prevCart[cartItemId]?.quantity || 0;
+      const maxQuantity = productData.variation ? Number(productData.variation.quantity) : Number(productData.quantity);
       if (currentQuantity >= maxQuantity) {
         return prevCart;
       }
-      
       const roleBasedTiers = productData.tieredPricing
         ? productData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']
         : null;
-      
       const pricingId = roleBasedTiers ? createStablePricingId(roleBasedTiers) : null;
-
       const newCart = {
         ...prevCart,
-        [productId]: {
+        [cartItemId]: {
           ...productData,
           quantity: currentQuantity + 1,
           price: 0, 
-          images: productData.images || (productData.image ? [productData.image] : []),
+          images: productData.images || (productData.image ? [{ url: productData.image }] : []),
           pricingId: pricingId, 
         },
       };
@@ -140,15 +125,14 @@ export const CartProvider = ({ children }) => {
     });
   }, [userRole, recalculateCartPrices]);
 
-  const removeFromCart = useCallback((productId) => {
+  const removeFromCart = useCallback((cartItemId) => {
     setCart(prevCart => {
       const newCart = { ...prevCart };
-      const newQuantity = (newCart[productId]?.quantity || 0) - 1;
-
+      const newQuantity = (newCart[cartItemId]?.quantity || 0) - 1;
       if (newQuantity <= 0) {
-        delete newCart[productId];
+        delete newCart[cartItemId];
       } else {
-        newCart[productId].quantity = newQuantity;
+        newCart[cartItemId].quantity = newQuantity;
       }
       return recalculateCartPrices(newCart);
     });
@@ -176,6 +160,4 @@ export const CartProvider = ({ children }) => {
     </CartContext.Provider>
   );
 };
-
-// Custom hook to use the cart context
 export const useCart = () => useContext(CartContext);
