@@ -5,10 +5,32 @@ import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from './CartContext';
 
 
-const ProductCard = ({ product, cartQuantity, onIncrement, onDecrement, onEdit, onDelete, isCart = false }) => {
+const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart }) => {
   const { productName, productCode, image, variations, quantity, tieredPricing } = product;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [{ url: product.image }] : []);
+  const [selectedVariation, setSelectedVariation] = useState(null);
+  const [cartQuantity, setCartQuantity] = useState(0);
+  
+  // Set the default variation on component mount
+  useEffect(() => {
+    if (variations && variations.length > 0) {
+      setSelectedVariation(variations[0]);
+    }
+  }, [variations]);
+
+  // Update cartQuantity whenever the selected variation or the cart changes
+  useEffect(() => {
+    if (selectedVariation) {
+      const productWithVariation = { ...product, variation: selectedVariation };
+      const cartItemId = getCartItemId(productWithVariation);
+      setCartQuantity(cart[cartItemId]?.quantity || 0);
+    } else {
+      const cartItemId = getCartItemId(product);
+      setCartQuantity(cart[cartItemId]?.quantity || 0);
+    }
+  }, [selectedVariation, cart, product]);
+  
   useEffect(() => {
     if (imagesToDisplay.length > 1) {
       const interval = setInterval(() => {
@@ -17,6 +39,7 @@ const ProductCard = ({ product, cartQuantity, onIncrement, onDecrement, onEdit, 
       return () => clearInterval(interval);
     }
   }, [imagesToDisplay]);
+  
   const handlePrevImage = (e) => {
     e.stopPropagation();
     setCurrentImageIndex(prevIndex => (prevIndex - 1 + imagesToDisplay.length) % imagesToDisplay.length);
@@ -25,16 +48,12 @@ const ProductCard = ({ product, cartQuantity, onIncrement, onDecrement, onEdit, 
     e.stopPropagation();
     setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
   };
-  const [selectedVariation, setSelectedVariation] = useState(null);
-  useEffect(() => {
-    if (variations && variations.length > 0) {
-      setSelectedVariation(variations[0]);
-    }
-  }, [variations]);
+
   const totalQuantity = variations ? variations.reduce((sum, v) => sum + Number(v.quantity), 0) : Number(quantity || 0);
   const quantityToDisplay = selectedVariation ? Number(selectedVariation.quantity) : totalQuantity;
   const isOutOfStock = totalQuantity === 0;
   const isVariationOutOfStock = selectedVariation?.quantity === 0;
+  
   const renderActions = () => {
     if (isCart) {
       return (
@@ -141,5 +160,4 @@ const ProductCard = ({ product, cartQuantity, onIncrement, onDecrement, onEdit, 
     </div>
   );
 };
-
 export default ProductCard;

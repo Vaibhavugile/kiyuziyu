@@ -218,9 +218,6 @@ const ProductsPage = () => {
         ) : (
           <div className="products-grid collections-grid">
             {filteredProducts.map((product) => {
-              const defaultVariation = product.variations && product.variations.length > 0 ? product.variations[0] : null;
-              const cartItemId = getCartItemId({ ...product, variation: defaultVariation });
-              const cartQuantity = cart[cartItemId]?.quantity || 0;
               const price = getProductPrice(product, subcollectionsMap, userRole, cart);
               const tieredPricing = subcollectionsMap[product.subcollectionId]?.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
 
@@ -229,12 +226,11 @@ const ProductsPage = () => {
                 key={product.id}
                 product={product}
                 price={price}
-                cartQuantity={cartQuantity}
                 tieredPricing={tieredPricing}
                 onIncrement={(productData) => handleAddToCart(productData, productData.variation)}
                 onDecrement={(cartItemId) => removeFromCart(cartItemId)}
                 onQuickView={() => setQuickViewProduct(product)}
-                isCart={false} 
+                cart={cart}
                 />
               );
             })}
