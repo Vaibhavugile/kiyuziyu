@@ -74,6 +74,8 @@ const AdminPage = () => {
   const [newProducts, setNewProducts] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [additionalImages, setAdditionalImages] = useState([]);
+  const [productVariations, setProductVariations] = useState([]);
+  const [newVariation, setNewVariation] = useState({ color: '', size: '', quantity: '' });
 
 
   // New states for Orders and Low Stock Alerts
@@ -722,76 +724,146 @@ const AdminPage = () => {
       }
     }
   };
-  const handleNextProduct = (e) => {
-    e.preventDefault();
-    if (!productName || !productCode || !productQuantity) {
-      alert("Please fill out product name, product code, and quantity.");
-      return;
-    }
-    const updatedProducts = [...newProducts];
-    // Create an array of images including the main one and any additional uploads
-    const images = [{
-      file: updatedProducts[currentImageIndex].imageFile,
-      previewUrl: updatedProducts[currentImageIndex].previewUrl,
-    }, ...additionalImages];
 
-    updatedProducts[currentImageIndex].productName = productName;
-    updatedProducts[currentImageIndex].productCode = productCode;
-    updatedProducts[currentImageIndex].quantity = Number(productQuantity);
-    updatedProducts[currentImageIndex].images = images; // Save the array of images
-
-    setNewProducts(updatedProducts);
-    setProductName(''); // Reset fields for the next product
-    setProductCode('');
-    setProductQuantity('');
-    setAdditionalImages([]); // Reset additional images state
-    setCurrentImageIndex(currentImageIndex + 1);
+  // Handler for new variation input
+  const handleNewVariationChange = (e) => {
+    const { name, value } = e.target;
+    setNewVariation(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddAllProducts = async (e) => {
+  // Handler for adding a variation to the list
+  const handleAddVariation = () => {
+    // Ensure at least one field has data before adding
+    if (newVariation.color || newVariation.size || newVariation.quantity) {
+      setProductVariations(prev => [...prev, newVariation]);
+      setNewVariation({ color: '', size: '', quantity: '' }); // Reset the input fields
+    }
+  };
+
+  // Handler for removing a variation
+  const handleRemoveVariation = (indexToRemove) => {
+    setProductVariations(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+  const handleNextProduct = (e) => {
+  e.preventDefault();
+  
+  // Check for product name and code
+  if (!productName || !productCode) {
+    alert("Please fill out product name and product code.");
+    return;
+  }
+
+  // Check if either a single quantity or at least one variation has been added
+  if (productVariations.length === 0 && productQuantity === '') {
+      alert("Please enter a quantity or add at least one variation.");
+      return;
+  }
+  
+  const updatedProducts = [...newProducts];
+  
+  // Create an array of images including the main one and any additional uploads
+  const images = [{
+    file: updatedProducts[currentImageIndex].imageFile,
+    previewUrl: updatedProducts[currentImageIndex].previewUrl,
+  }, ...additionalImages];
+
+  updatedProducts[currentImageIndex].productName = productName;
+  updatedProducts[currentImageIndex].productCode = productCode;
+  
+  // Store either the single quantity or the variations
+  if (productVariations.length > 0) {
+      updatedProducts[currentImageIndex].variations = productVariations;
+  } else {
+      updatedProducts[currentImageIndex].quantity = Number(productQuantity);
+  }
+  
+  updatedProducts[currentImageIndex].images = images; // Save the array of images
+  
+  setNewProducts(updatedProducts);
+  
+  // Reset fields for the next product
+  setProductName(''); 
+  setProductCode('');
+  setProductQuantity('');
+  setAdditionalImages([]); 
+  
+  // Reset the variation-specific states
+  setProductVariations([]);
+  setNewVariation({ color: '', size: '', quantity: '' });
+
+  setCurrentImageIndex(currentImageIndex + 1);
+};
+const handleAddAllProducts = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);
 
-    const finalProducts = [...newProducts];
-    if (currentImageIndex < finalProducts.length) {
-      finalProducts[currentImageIndex].productName = productName;
-      finalProducts[currentImageIndex].productCode = productCode;
-      finalProducts[currentImageIndex].quantity = Number(productQuantity);
-      // Include images from the last form
-      finalProducts[currentImageIndex].images = [{
-        file: finalProducts[currentImageIndex].imageFile,
-        previewUrl: finalProducts[currentImageIndex].previewUrl,
-      }, ...additionalImages];
-    }
-
     try {
-      const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
-      const uploadPromises = finalProducts.map(async (product) => {
-        // Upload all images for the product
-        const imageUrls = await Promise.all(
-          product.images.map(img => uploadImageAndGetURL(img.file))
-        );
+        const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
 
-        const productData = {
-          productName: product.productName,
-          productCode: product.productCode,
-          quantity: product.quantity,
-          images: imageUrls, // Save array of URLs
-        };
-        await addDoc(productCollectionRef, productData);
-      });
+        // Use a batch write for efficiency when saving multiple documents
+        const batch = writeBatch(db);
 
-      await Promise.all(uploadPromises);
-      console.log("All products added successfully.");
-      fetchProducts();
-      resetProductForm();
+        // Iterate over the `newProducts` array, which holds all the product data
+        for (const product of newProducts) {
+            // Check if product has necessary details before trying to save
+            if (!product.productName || !product.productCode) {
+                console.error("Skipping product with missing name or code:", product);
+                continue; // Move to the next product if this one is incomplete
+            }
+
+            // Step 1: Upload the main product image for the current product in the loop
+            let mainImageUrl = '';
+            // Make sure the image is available for the current product
+            const mainImageFile = product.images.length > 0 ? product.images[0].file : null;
+            
+            if (mainImageFile) {
+                mainImageUrl = await uploadImageAndGetURL(mainImageFile);
+            }
+
+            // Step 2: Prepare the variations array
+            // Check if the `variations` property exists on the product object
+            const finalVariations = product.variations
+                ? product.variations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }))
+                : [{ color: '', size: '', quantity: Number(product.quantity) }];
+
+            // Calculate the total quantity from the final variations array
+            const totalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
+
+            // Step 3: Prepare the data object for the current product
+            const productData = {
+                productName: product.productName,
+                productCode: product.productCode,
+                quantity: totalQuantity,
+                image: mainImageUrl,
+                variations: finalVariations,
+                mainCollection: selectedMainCollectionId,
+                timestamp: serverTimestamp(),
+            };
+            
+            console.log("Saving the following product data:", productData);
+
+            // Add the new document to the batch
+            const newDocRef = doc(productCollectionRef);
+            batch.set(newDocRef, productData);
+        }
+
+        // Commit the batch to save all products at once
+        await batch.commit();
+
+        console.log("All products added successfully.");
+        alert("All products added successfully!");
+        fetchProducts();
+        resetProductForm();
+        setNewProducts([]); // Reset the array after a successful upload
+        setProductVariations([]);
+        setNewVariation({ color: '', size: '', quantity: '' });
     } catch (err) {
-      console.error("Error adding products:", err);
-      alert("Failed to save products.");
+        console.error("Error adding all products:", err);
+        alert("Failed to save products.");
     } finally {
-      setIsProductUploading(false);
+        setIsProductUploading(false);
     }
-  };
+};
 
   const startEditProduct = (product) => {
     console.log("Starting edit for product:", product);
@@ -1416,7 +1488,9 @@ const AdminPage = () => {
                   </div>
                   {selectedSubcollectionId && (
                     <div className="add-collection-form">
+
                       <h3>Add/Edit Products</h3>
+
                       {isCropping ? (
                         // This block shows the cropper
                         <div className="cropper-container">
@@ -1473,6 +1547,7 @@ const AdminPage = () => {
                                           <span role="img" aria-label="delete icon">🗑️</span> Delete
                                         </button>
                                         <div className="product-details-inputs">
+                                          {/* Product Name and Code remain here */}
                                           <div className="form-group">
                                             <label>Product Name:</label>
                                             <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} required />
@@ -1481,10 +1556,60 @@ const AdminPage = () => {
                                             <label>Product Code:</label>
                                             <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
                                           </div>
-                                          <div className="form-group">
-                                            <label>Quantity:</label>
-                                            <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+
+                                          {/* Conditional Rendering: Show Quantity OR Variations */}
+                                          {productVariations.length === 0 ? (
+                                            // Show the single Quantity input if no variations are added
+                                            <div className="form-group">
+                                              <label>Quantity:</label>
+                                              <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} required />
+                                            </div>
+                                          ) : (
+                                            // Show the variations list if variations are present
+                                            <div className="variation-input-container">
+                                              <h4>Add More Variations</h4>
+                                              <ul className="variations-list">
+                                                {productVariations.map((v, index) => (
+                                                  <li key={index} className="variation-item">
+                                                    <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
+                                                    <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
+                                                      &times;
+                                                    </button>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {/* NEW: Always show the variation input fields regardless of whether variations exist or not */}
+                                          <div className="variation-input">
+                                            <input
+                                              type="text"
+                                              name="color"
+                                              value={newVariation.color}
+                                              onChange={handleNewVariationChange}
+                                              placeholder="Color (e.g., Red)"
+                                            />
+                                            <input
+                                              type="text"
+                                              name="size"
+                                              value={newVariation.size}
+                                              onChange={handleNewVariationChange}
+                                              placeholder="Size (e.g., L)"
+                                            />
+                                            <input
+                                              type="number"
+                                              name="quantity"
+                                              value={newVariation.quantity}
+                                              onChange={handleNewVariationChange}
+                                              placeholder="Quantity"
+                                            />
+                                            <button type="button" onClick={handleAddVariation} className="add-variation-btn">
+                                              Add Variation
+                                            </button>
                                           </div>
+
+                                          {/* The Upload Additional Product Photos section remains here */}
                                           <div className="form-group">
                                             <label>Upload Additional Product Photos:</label>
                                             <input
@@ -1499,6 +1624,7 @@ const AdminPage = () => {
                                       <div className="file-info">
                                         Image {currentImageIndex + 1} of {newProducts.length}
                                       </div>
+
                                     </>
                                   ) : (
                                     <p>All product details filled. Click 'Add All Products' to save.</p>
@@ -1543,11 +1669,11 @@ const AdminPage = () => {
                           {filteredProducts.length > 0 ? (
                             filteredProducts.map((product) => (
                               <ProductCard
-    key={product.id}
-    product={product} // This passes the entire product object
-    onEdit={() => startEditProduct(product)}
-    onDelete={() => handleDeleteProduct(product.id, product.image)}
-/>
+                                key={product.id}
+                                product={product} // This passes the entire product object
+                                onEdit={() => startEditProduct(product)}
+                                onDelete={() => handleDeleteProduct(product.id, product.image)}
+                              />
                             ))
                           ) : (
                             <p>No products found matching your search criteria.</p>
@@ -1867,11 +1993,11 @@ const AdminPage = () => {
                           className="billing-product-item"
                           onClick={() => handleOfflineAddToCart(product)}
                         >
-<img
-  alt={productName}
-  src={imagesToDisplay[currentImageIndex]}
-  className="product-image"
-/>                          <span className="product-name">{product.productName}</span>
+                          <img
+                            alt={productName}
+                            src={imagesToDisplay[currentImageIndex]}
+                            className="product-image"
+                          />                          <span className="product-name">{product.productName}</span>
                           <span className="product-code">{product.productCode}</span>
                           <span className="product-quantity">Qty: {product.quantity}</span>
                           {typeof currentPriceInCart === 'number' && (
