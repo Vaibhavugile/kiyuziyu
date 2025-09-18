@@ -79,6 +79,13 @@ export const CartProvider = ({ children }) => {
     // Group products in the cart by their unique pricing ID
     for (const productId in newCart) {
       const item = newCart[productId];
+
+      // Add null check for tieredPricing here
+      if (!item.tieredPricing) {
+        console.warn(`Product ${item.productName} is missing tieredPricing data. Skipping price recalculation for this item.`);
+        continue; // Skip to the next item
+      }
+
       const pricingId = item.pricingId; 
 
       if (!pricingGroups[pricingId]) {
@@ -113,8 +120,11 @@ export const CartProvider = ({ children }) => {
         return prevCart;
       }
       
-      const roleBasedTiers = productData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
-      const pricingId = createStablePricingId(roleBasedTiers);
+      const roleBasedTiers = productData.tieredPricing
+        ? productData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']
+        : null;
+      
+      const pricingId = roleBasedTiers ? createStablePricingId(roleBasedTiers) : null;
 
       const newCart = {
         ...prevCart,
@@ -122,13 +132,13 @@ export const CartProvider = ({ children }) => {
           ...productData,
           quantity: currentQuantity + 1,
           price: 0, 
-          images: productData.images || (productData.image ? [productData.image] : []), // This line is updated
-          pricingId: pricingId, // Store the stable pricing ID
+          images: productData.images || (productData.image ? [productData.image] : []),
+          pricingId: pricingId, 
         },
       };
       return recalculateCartPrices(newCart);
     });
-  }, [userRole, recalculateCartPrices]); // Dependencies on userRole and recalculateCartPrices
+  }, [userRole, recalculateCartPrices]);
 
   const removeFromCart = useCallback((productId) => {
     setCart(prevCart => {
@@ -142,11 +152,11 @@ export const CartProvider = ({ children }) => {
       }
       return recalculateCartPrices(newCart);
     });
-  }, [recalculateCartPrices]); // Dependency on recalculateCartPrices
+  }, [recalculateCartPrices]);
 
   const getCartTotal = useCallback(() => {
     return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
-  }, [cart]); // Dependency on cart
+  }, [cart]);
 
   const clearCart = useCallback(() => {
     setCart({});
