@@ -5,12 +5,16 @@ import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from './CartContext';
 
 
-const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart }) => {
-  const { productName, productCode, image, variations, quantity, tieredPricing } = product;
+const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart, tieredPricing }) => {
+  // Now destructure tieredPricing from the product object as a fallback
+  const { productName, productCode, image, variations, quantity, tieredPricing: productTieredPricing } = product;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [{ url: product.image }] : []);
   const [selectedVariation, setSelectedVariation] = useState(null);
   const [cartQuantity, setCartQuantity] = useState(0);
+  
+  // Use the tieredPricing prop if it exists, otherwise fall back to the one on the product object
+  const pricingData = tieredPricing || productTieredPricing;
   
   // Set the default variation on component mount
   useEffect(() => {
@@ -103,6 +107,10 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
       </div>
     );
   };
+  
+  // Sort the tiers by min_quantity
+  const sortedTiers = pricingData ? [...pricingData].sort((a, b) => a.min_quantity - b.min_quantity) : null;
+  
   return (
     <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
       {isOutOfStock && <div className="out-of-stock-overlay">Out of Stock</div>}
@@ -124,6 +132,22 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
       <div className="product-info">
         <h4 className="product-title">{productName}</h4>
         <p className="product-code">{productCode}</p>
+
+        {/* Use the correct tieredPricing prop passed from the parent component */}
+        {sortedTiers && sortedTiers.length > 1 ? (
+          <div className="tiered-pricing-container">
+            <h4>Tiered Pricing</h4>
+            {sortedTiers.map((tier, index) => (
+              <div key={index} className="pricing-tier">
+                <span>{`Buy ${tier.min_quantity}${tier.max_quantity ? ` to ${tier.max_quantity}` : '+'}`}</span>
+                <span> @ ₹{tier.price} each</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="product-price">Price: ₹{sortedTiers && sortedTiers.length > 0 ? sortedTiers[0].price : 'N/A'}</p>
+        )}
+        
         <p className="product-quantity">In Stock: {quantityToDisplay}</p>
         {variations && variations.length > 1 && (
           <div className="variations-selector">
@@ -137,23 +161,6 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
                 {v.color} {v.size}
               </button>
             ))}
-          </div>
-        )}
-        {tieredPricing && (
-          <div className="tiered-pricing-container">
-            {tieredPricing.map((tier, index) => {
-              const quantityDisplay = tier.min_quantity === tier.max_quantity
-                ? `Buy 1`
-                : `Buy ${tier.min_quantity}+`;
-              const priceDisplay = tier.min_quantity === tier.max_quantity
-                ? `₹${tier.price}`
-                : `₹${tier.price} each`;
-              return (
-                <span key={index} className="pricing-badge">
-                  {quantityDisplay} @<span className="pricing-price">{priceDisplay}</span>
-                </span>
-              );
-            })}
           </div>
         )}
       </div>
