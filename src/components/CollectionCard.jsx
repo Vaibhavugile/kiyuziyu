@@ -1,4 +1,5 @@
 import React from 'react';
+import './CollectionCard.css'; // <-- Import the new CSS file
 
 const CollectionCard = ({ title, description, image, tieredPricing, children }) => {
   // Find the lowest retail price

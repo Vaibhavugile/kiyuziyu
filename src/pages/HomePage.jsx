@@ -1,9 +1,12 @@
+// src/pages/HomePage.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db, collection, getDocs } from '../firebase';
 import CollectionCard from '../components/CollectionCard';
 import BrowseCollectionSection from '../components/BrowseCollectionSection';
 import HeroSection from '../components/HeroSection';
+import BestSellersSection from '../components/BestSellersSection'; // <-- Import the new component
+import './HomePage.css';
 
 const HomePage = () => {
   const [collections, setCollections] = useState([]);
@@ -38,14 +41,17 @@ const HomePage = () => {
         ) : (
           <div className="collections-grid">
             {collections.map((item) => (
-              // This is the updated Link component to a new URL
-              <Link to={`/collections/${item.id}/all-products`} key={item.id}>
+              <Link to={`/collections/${item.id}/all-products`} key={item.id} style={{ display: 'contents' }}>
                 <CollectionCard title={item.title} image={item.image} />
               </Link>
             ))}
           </div>
         )}
       </div>
+
+      {/* This is the new section */}
+      <BestSellersSection />
+
       <BrowseCollectionSection />
     </>
   );
