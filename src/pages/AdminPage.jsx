@@ -22,7 +22,7 @@ import {
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
-import { getPriceForQuantity } from '../components/CartContext';
+import { getPriceForQuantity,getCartItemId} from '../components/CartContext';
 import './AdminPage.css';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -102,6 +102,8 @@ const AdminPage = () => {
 
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
+ const [groupedOrders, setGroupedOrders] = useState({});
+ const [groupedOrdersFromFiltered, setGroupedOrdersFromFiltered] = useState({});
 
   const [orderReports, setOrderReports] = useState([]);
   const [paymentReports, setPaymentReports] = useState([]);
@@ -126,6 +128,32 @@ const AdminPage = () => {
   const [imageSrc, setImageSrc] = useState(null);
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
+const [sortedDateKeys, setSortedDateKeys] = useState([]);
+
+  const formatOrderDate = (timestamp) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const orderDate = timestamp.toDate();
+    
+    // Normalize dates to remove time part for comparison
+    const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const yesterdayDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
+    if (orderDay.getTime() === todayDay.getTime()) {
+        return "Today";
+    }
+    if (orderDay.getTime() === yesterdayDay.getTime()) {
+        return "Yesterday";
+    }
+    return orderDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+};
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -145,6 +173,56 @@ const AdminPage = () => {
       [type]: prevPricing[type].filter((_, i) => i !== index),
     }));
   };
+
+ const fetchOrders = async () => {
+        try {
+            const ordersSnapshot = await getDocs(collection(db, "orders"));
+            const ordersList = ordersSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // Ensure timestamps are handled correctly for sorting
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+            }));
+            
+            // Sort orders by creation date, descending
+            ordersList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            
+            // Group orders by formatted date
+            const groups = ordersList.reduce((acc, order) => {
+                const dateKey = formatOrderDate(order.createdAt);
+                if (!acc[dateKey]) {
+                    acc[dateKey] = [];
+                }
+                acc[dateKey].push(order);
+                return acc;
+            }, {});
+            
+            setGroupedOrders(groups);
+            setOrders(ordersList);
+        } catch (error) {
+            console.error("Error fetching orders: ", error);
+        }
+    };
+
+     useEffect(() => {
+        const fetchData = async () => {
+            await fetchMainCollections();
+            await fetchSubcollections();
+            await fetchProducts();
+            await fetchOrders();
+        };
+        fetchData();
+    }, []);
+   
+   const openOrderModal = (order) => {
+        setSelectedOrder(order);
+        setShowOrderModal(true);
+    };
+
+    const closeOrderModal = () => {
+        setShowOrderModal(false);
+        setSelectedOrder(null);
+    };
 
   const handleTierChange = (type, index, field, value) => {
     setSubcollectionTieredPricing((prevPricing) => {
@@ -305,6 +383,33 @@ const AdminPage = () => {
 
     return matchesSearch && isAfterStartDate && isBeforeEndDate && matchesStatus;
   });
+  useEffect(() => {
+    const groups = filteredOrders.reduce((acc, order) => {
+        const dateKey = formatOrderDate(order.createdAt);
+        if (!acc[dateKey]) {
+            acc[dateKey] = [];
+        }
+        acc[dateKey].push(order);
+        return acc;
+    }, {});
+    setGroupedOrdersFromFiltered(groups);
+}, [filteredOrders]);
+useEffect(() => {
+    // Sort the keys to ensure "Today", "Yesterday", and then other dates
+    const keys = Object.keys(groupedOrdersFromFiltered);
+    
+    keys.sort((a, b) => {
+        if (a === "Today") return -1;
+        if (b === "Today") return 1;
+        if (a === "Yesterday") return -1;
+        if (b === "Yesterday") return 1;
+
+        // For all other dates, sort in descending order
+        return new Date(b) - new Date(a);
+    });
+
+    setSortedDateKeys(keys);
+}, [groupedOrdersFromFiltered]);
 
   // New: Fetches low stock products
   useEffect(() => {
@@ -1104,43 +1209,34 @@ const handleAddAllProducts = async (e) => {
     }
   };
 
-  const handleOfflineAddToCart = (product, quantity = 1) => {
-    setOfflineCart(prevCart => {
-      const newCart = { ...prevCart };
-      const currentQuantity = newCart[product.id]?.quantity || 0;
-
-      if (currentQuantity + quantity > product.quantity) {
-        alert('Not enough stock available.');
-        return prevCart;
-      }
-
-      const updatedQuantity = currentQuantity + quantity;
-
-      // Now the product object already has the correct `tieredPricing`
-      newCart[product.id] = {
-        ...product,
-        quantity: updatedQuantity,
-        price: 0, // Placeholder price, will be recalculated
+ const handleOfflineAddToCart = (product, quantity) => {
+  setOfflineCart(prevCart => {
+      // Use the new getCartItemId to create a unique ID for the product and its variation
+      const cartItemId = getCartItemId(product);
+      const currentQuantity = prevCart[cartItemId]?.quantity || 0;
+      const newCart = {
+          ...prevCart,
+          [cartItemId]: {
+              ...product,
+              quantity: currentQuantity + quantity,
+          },
       };
+      return newCart;
+  });
+};
 
-      return recalculateOfflineCartPrices(newCart);
-    });
-  };
-
-  const handleOfflineRemoveFromCart = (productId) => {
+  const handleOfflineRemoveFromCart = (cartItemId) => {
     setOfflineCart(prevCart => {
-      const newCart = { ...prevCart };
-      const newQuantity = (newCart[productId]?.quantity || 0) - 1;
-
-      if (newQuantity <= 0) {
-        delete newCart[productId];
-      } else {
-        newCart[productId].quantity = newQuantity;
-      }
-
-      return recalculateOfflineCartPrices(newCart);
+        const newCart = { ...prevCart };
+        const newQuantity = (newCart[cartItemId]?.quantity || 0) - 1;
+        if (newQuantity <= 0) {
+            delete newCart[cartItemId];
+        } else {
+            newCart[cartItemId].quantity = newQuantity;
+        }
+        return newCart;
     });
-  };
+};
 
   const getOfflineCartTotal = () => {
     return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -1691,61 +1787,71 @@ const handleAddAllProducts = async (e) => {
         )}
 
         {/* --- Order Management Section --- */}
-        {activeTab === 'orders' && (
-          <div className="admin-section">
-            <h2>Customer Orders</h2>
+   {activeTab === 'orders' && (
+    <div className="admin-section">
+        <h2>Customer Orders</h2>
 
-            {/* NEW: Search and Filter Bar */}
-            <div className="order-filters">
-              <input
+        {/* Search and Filter Bar */}
+        <div className="order-filters">
+            <input
                 type="text"
                 placeholder="Search by ID, name, email, or phone"
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
                 className="search-input"
-              />
-              <input
+            />
+            <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 title="Start Date"
-              />
-              <input
+            />
+            <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 title="End Date"
-              />
-              <select
+            />
+            <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="status-select"
-              >
-                <option value="All">All Statuse</option>
+            >
+                <option value="All">All Statuses</option>
                 <option value="Pending">Pending</option>
                 <option value="Processing">Processing</option>
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
-              </select>
-            </div>
+            </select>
+        </div>
 
-            {isOrderLoading ? (
-              <p>Loading orders...</p>
-            ) : filteredOrders.length === 0 ? (
-              <p>No orders found with the current filters.</p>
+        {isOrderLoading ? (
+            <p>Loading orders...</p>
+        ) : filteredOrders.length === 0 ? (
+            <p>No orders found with the current filters.</p>
+        ) : (
+            // Now we map over the sortedDateKeys
+            sortedDateKeys.length > 0 ? (
+                sortedDateKeys.map(dateKey => (
+                    <div key={dateKey} className="order-date-group">
+                        <h3>{dateKey}</h3>
+                        <ul className="orders-list">
+                            {groupedOrdersFromFiltered[dateKey].map((order) => (
+                                <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
+                                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                                    <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))
             ) : (
-              <ul className="orders-list">
-                {filteredOrders.map((order) => (
-                  <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                    <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                <p>No orders found with the current filters.</p>
+            )
         )}
+    </div>
+)}
 
         {/* Render Order Details Modal */}
         {selectedOrder && (

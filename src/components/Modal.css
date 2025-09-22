@@ -185,4 +185,41 @@ body {
   border: none;
   background-color: var(--secondary-color);
   color: white;
+}/* Hide the entire modal backdrop and other non-printable elements */
+@media print {
+  .modal-backdrop, .modal-footer, .modal-header {
+    display: none !important;
+  }
+
+  /* Make the modal content visible and full-screen for printing */
+  .modal-content {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: static !important;
+  }
+
+  /* By default, hide the groups we don't need for the shipping label */
+  .shipping-info-group,
+  .billing-info-group,
+  .order-info-group h4,
+  .order-items-list {
+    display: none;
+  }
+
+  /* Print only the shipping label content */
+  #printable-order-content.print-type-shipping .shipping-info-group {
+    display: block;
+  }
+
+  /* Print all content for the full order details */
+  #printable-order-content.print-type-order .shipping-info-group,
+  #printable-order-content.print-type-order .billing-info-group,
+  #printable-order-content.print-type-order .order-info-group h4,
+  #printable-order-content.print-type-order .order-items-list {
+    display: block;
+  }
 }

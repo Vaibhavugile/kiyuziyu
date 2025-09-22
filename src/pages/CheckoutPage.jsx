@@ -49,7 +49,7 @@ const CheckoutPage = () => {
     }
 
     const validatedItems = Object.values(cart).map(item => {
-      // You should also update this section to include the 'images' property
+      // Correctly map all necessary product data, including variation
       if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName) {
         console.error("Skipping item due to missing data:", item);
         return null;
@@ -59,12 +59,13 @@ const CheckoutPage = () => {
         productName: item.productName,
         productCode: item.productCode,
         image: item.image,
-        images: item.images, // ADDED THIS LINE
+        images: item.images,
         quantity: Number(item.quantity),
         priceAtTimeOfOrder: Number(item.price),
         subcollectionId: item.subcollectionId,
         collectionId: item.collectionId,
-        maxQuantity: Number(item.maxQuantity)
+        // Pass the variation data to the server for stock updates
+        variation: item.variation,
       };
     }).filter(Boolean);
 
@@ -73,13 +74,13 @@ const CheckoutPage = () => {
       setIsProcessing(false);
       return;
     }
-    
+
     const subtotal = getCartTotal();
     const totalWithShipping = subtotal + SHIPPING_FEE;
 
     const orderData = {
       userId: currentUser?.uid || 'guest',
-      items: validatedItems.map(({ maxQuantity, ...rest }) => rest),
+      items: validatedItems,
       totalAmount: totalWithShipping,
       subtotal: subtotal,
       shippingFee: SHIPPING_FEE,
@@ -115,23 +116,30 @@ const CheckoutPage = () => {
     <div className="checkout-page-container">
       <h2>Complete Your Order</h2>
       {error && <p className="error-message">{error}</p>}
-      
+
       {Object.values(cart).length > 0 ? (
         <div className="checkout-content">
           <div className="cart-summary">
             <h3>Order Summary</h3>
             <div className="cart-items-list">
-              {Object.values(cart).map((item) => (
-                <div key={item.id} className="cart-item">
+              {Object.values(cart).map((item, index) => (
+                <div key={item.id + (item.variation ? item.variation.color + item.variation.size : '')} className="cart-item">
                   <img
-                    src={item.images && item.images.length > 0 ? item.images[0] : item.image}
+                    // Correctly display the first image from the 'images' array or fallback to 'image'
+                    src={item.images && item.images.length > 0 ? item.images[0].url : item.image}
                     alt={item.productName}
                     className="cart-item-image"
                   />
                   <div className="cart-item-details">
                     <h4 className="cart-item-name">{item.productName}</h4>
                     <p className="cart-item-code">Code: {item.productCode}</p>
+                    {item.variation && (
+                      <p className="cart-item-variation">
+                        Variation: {item.variation.color} {item.variation.size}
+                      </p>
+                    )}
                     <p className="cart-item-price">Price: ₹{item.price}</p>
+                    <p className="cart-item-quantity">Quantity: {item.quantity}</p>
                   </div>
                 </div>
               ))}
@@ -156,7 +164,7 @@ const CheckoutPage = () => {
               <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
               <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleInputChange} required />
               <input type="tel" name="phoneNumber" placeholder="Phone Number *" value={formData.phoneNumber} onChange={handleInputChange} required />
-              
+
               <div className="address-fields">
                 <input type="text" name="addressLine1" placeholder="Address Line 1 *" value={formData.addressLine1} onChange={handleInputChange} required />
                 <input type="text" name="addressLine2" placeholder="Address Line 2 (Optional)" value={formData.addressLine2} onChange={handleInputChange} />

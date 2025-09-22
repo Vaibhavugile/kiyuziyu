@@ -20,14 +20,17 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
   }, [variations]);
 
   // Update cartQuantity whenever the selected variation or the cart changes
-  useEffect(() => {
-    if (selectedVariation) {
-      const productWithVariation = { ...product, variation: selectedVariation };
-      const cartItemId = getCartItemId(productWithVariation);
-      setCartQuantity(cart[cartItemId]?.quantity || 0);
-    } else {
-      const cartItemId = getCartItemId(product);
-      setCartQuantity(cart[cartItemId]?.quantity || 0);
+ useEffect(() => {
+    // Only update cartQuantity if the cart prop is provided
+    if (cart) {
+      if (selectedVariation) {
+        const productWithVariation = { ...product, variation: selectedVariation };
+        const cartItemId = getCartItemId(productWithVariation);
+        setCartQuantity(cart[cartItemId]?.quantity || 0);
+      } else {
+        const cartItemId = getCartItemId(product);
+        setCartQuantity(cart[cartItemId]?.quantity || 0);
+      }
     }
   }, [selectedVariation, cart, product]);
   
