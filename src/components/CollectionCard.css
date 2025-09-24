@@ -48,6 +48,7 @@
 .collection-card:hover .collection-image {
   transform: scale(1.1);
 }
+
 /* Info Section with a Soft Gradient Overlay */
 .collection-info {
   position: absolute;
@@ -55,36 +56,66 @@
   left: 0;
   width: 100%;
   padding: 1.5rem;
-  background: linear-gradient(to top, rgba(50, 50, 50, 0.9), transparent);
+  background: linear-gradient(to top, rgba(50, 50, 50, 0.8), rgba(50, 50, 50, 0.2));
   color: #fff;
   transform: translateY(100%);
   transition: transform 0.4s ease-out;
-  text-align: left;
-  z-index: 2;
 }
 
-/* Slide-up Animation on hover */
+/* Info Section slides up on hover */
 .collection-card:hover .collection-info {
   transform: translateY(0);
 }
 
-.collection-info .title {
+.title {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: bold;
   margin-bottom: 0.5rem;
-  color: #fff;
 }
 
-.collection-info .description,
-.collection-info .price {
+.description {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.price {
   font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.4;
-  margin-top: 0;
-  color: #ccc;
+  font-weight: 500;
 }
 
-.collection-info .price {
-  font-weight: 600;
+/* Styles for the new admin actions container */
+.admin-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  gap: 5px;
+}
+
+.admin-actions button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.admin-actions button:first-child {
+  background-color: #3498db; /* Blue for Edit */
   color: #fff;
+}
+
+.admin-actions button:first-child:hover {
+  background-color: #2980b9;
+}
+
+.admin-actions button:last-child {
+  background-color: #e74c3c; /* Red for Delete */
+  color: #fff;
+}
+
+.admin-actions button:last-child:hover {
+  background-color: #c0392b;
 }

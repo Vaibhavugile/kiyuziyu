@@ -5,11 +5,8 @@ import {
   db,
   doc,
   setDoc,
-  onAuthStateChanged,
-  RecaptchaVerifier,
   getDoc,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  RecaptchaVerifier,
 } from '../firebase';
 import '../styles/LoginPage.css';
 
@@ -21,108 +18,155 @@ const countryCodes = [
 ];
 
 const LoginPage = () => {
-  // State for login form
-  const [loginCountryCode, setLoginCountryCode] = useState('+91');
-  const [loginMobile, setLoginMobile] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // State for signup form
-  const [signupCountryCode, setSignupCountryCode] = useState('+91');
-  const [signupMobile, setSignupMobile] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-
-  const [isLogin, setIsLogin] = useState(true);
+  const [countryCode, setCountryCode] = useState('+91');
+  const [mobile, setMobile] = useState('');
+  const [otp, setOtp] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState(null);
+  const [isOtpSent, setIsOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // This part handles the reCAPTCHA for the signup form.
-    if (!isLogin) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-      });
-    }
-  }, [isLogin]);
+    // Initialize the invisible reCAPTCHA verifier
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      'size': 'invisible',
+    });
+  }, []);
 
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setInfo('Logging in...');
-    try {
-      const email = `${loginCountryCode.replace('+', '')}${loginMobile}@example.com`;
-      await signInWithEmailAndPassword(auth, email, loginPassword);
-      setInfo('Login successful! Redirecting...');
-      setTimeout(() => navigate('/'), 1000);
-    } catch (err) {
-      console.error('Error logging in:', err);
-      setError('Login failed. Please check your mobile number and password.');
-      setInfo('');
-    }
+  const generateRandomOtp = () => {
+    // Generate a random 6-digit number
+    return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const handleSignupSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
-    setInfo('Signing up...');
+    setInfo('');
+    setIsProcessing(true);
 
-    const email = `${signupCountryCode.replace('+', '')}${signupMobile}@example.com`;
-    const password = signupPassword;
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      setInfo('');
+    if (!mobile) {
+      setError('Please enter your mobile number.');
+      setIsProcessing(false);
       return;
     }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+    const fullMobileNumber = `${countryCode}${mobile}`;
+    const otpValue = generateRandomOtp();
 
-      // Save user role to Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        mobile: `${signupCountryCode}${signupMobile}`,
-        role: 'retailer', // Set a default role
+    try {
+      setGeneratedOtp(otpValue);
+      setInfo(`Sending OTP to ${fullMobileNumber}...`);
+
+      const myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+      myHeaders.append("authkey", "468116AwggRESvY68bf021bP1"); // REPLACE WITH YOUR AUTH KEY
+
+      const raw = JSON.stringify({
+        "integrated_number": "15558299861", // The WhatsApp business number from your MSG91 account
+        "content_type": "template",
+        "payload": {
+          "messaging_product": "whatsapp",
+          "type": "template",
+          "template": {
+            "name": "kiyuotp",
+            "language": { "code": "en", "policy": "deterministic" },
+            "namespace": "60cbb046_c34d_4f04_8c62_2cb720ccf00d",
+            "to_and_components": [{
+              "to": [fullMobileNumber.replace('+', '')],
+              "components": {
+                "body_1": { "type": "text", "value": otpValue },
+                "button_1": { "subtype": "url", "type": "text", "value": "Go to Kiyuziyu" }
+              }
+            }]
+          }
+        }
       });
 
-      setInfo('Account created successfully! Redirecting...');
-      setTimeout(() => navigate('/'), 1000);
+      const requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      // Changed to a relative path to use the proxy
+      const response = await fetch("/api/v5/whatsapp/whatsapp-outbound-message/bulk/", requestOptions);
+      const result = await response.json();
+      
+      if (result.type === "success") {
+        setIsOtpSent(true);
+        setInfo('OTP sent successfully. Please check your WhatsApp.');
+      } else {
+        setError(result.message || 'Failed to send OTP. Please try again.');
+        console.error('MSG91 API error:', result);
+      }
     } catch (err) {
-      console.error('Error signing up:', err);
-      setError(`Signup failed: ${err.message}`);
-      setInfo('');
+      console.error('Error sending OTP:', err);
+      setError('Failed to send OTP. Network error or invalid number.');
+    } finally {
+      setIsProcessing(false);
     }
   };
-
-  const handleToggleForm = () => {
-    setIsLogin(!isLogin);
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
     setError('');
     setInfo('');
+    setIsProcessing(true);
+    
+    if (otp === generatedOtp) {
+      try {
+        setInfo('OTP verified! Logging in...');
+        const userRef = doc(db, 'users', mobile); // Use mobile as the document ID
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          // This is a new user, create their document
+          await setDoc(userRef, {
+            mobile: `${countryCode}${mobile}`,
+            role: 'retailer', // Default role for new users
+            createdAt: new Date(),
+          });
+        }
+
+        setInfo('Login successful! Redirecting...');
+        setTimeout(() => navigate('/'), 1000);
+      } catch (err) {
+        console.error('Error during login:', err);
+        setError('An error occurred. Please try again.');
+      } finally {
+        setIsProcessing(false);
+      }
+    } else {
+      setError('Invalid OTP. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   return (
     <div className="login-page-container">
       <div className="login-image-section">
-          {/* You can add a logo or an image here */}
-          <div className="logo">Your Logo Here</div>
-          <p className="welcome-text">Welcome to your dashboard. We're happy to have you back!</p>
+        <div className="logo">Your Logo Here</div>
+        <p className="welcome-text">Welcome to your dashboard. We're happy to have you back!</p>
       </div>
       <div className="login-form-section">
         <div className="login-container">
-          <h1>Login Page</h1>
+          <h1>Welcome</h1>
           {error && <p className="error-message">{error}</p>}
           {info && <p className="info-message">{info}</p>}
 
-          {isLogin ? (
-            // Login Form
-            <form onSubmit={handleLoginSubmit}>
-              <h2>Login</h2>
+          {!isOtpSent ? (
+            // Form to get mobile number and send OTP
+            <form onSubmit={handleSendOtp}>
+              <h2>Login or Sign Up</h2>
               <div className="form-group">
-                <label htmlFor="login-country-code">Country</label>
+                <label htmlFor="country-code">Country</label>
                 <select
-                  id="login-country-code"
-                  value={loginCountryCode}
-                  onChange={(e) => setLoginCountryCode(e.target.value)}
+                  id="country-code"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  disabled={isProcessing}
                 >
                   {countryCodes.map((cc) => (
                     <option key={cc.code} value={cc.code}>
@@ -132,94 +176,44 @@ const LoginPage = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label htmlFor="login-mobile">Mobile Number</label>
+                <label htmlFor="mobile">Mobile Number</label>
                 <input
                   type="tel"
-                  id="login-mobile"
-                  value={loginMobile}
-                  onChange={(e) => setLoginMobile(e.target.value)}
+                  id="mobile"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
                   placeholder="Enter mobile number"
                   required
-                  autoComplete="username" 
+                  disabled={isProcessing}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="login-password">Password</label>
-                <input
-                  type="password"
-                  id="login-password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                  autoComplete="new-password" 
-                />
-              </div>
-              <button type="submit" className="login-button">
-                Login
+              <button type="submit" className="login-button" disabled={isProcessing}>
+                {isProcessing ? 'Sending OTP...' : 'Send OTP'}
               </button>
             </form>
           ) : (
-            // Sign Up Form
-            <form onSubmit={handleSignupSubmit}>
-              <h2>Sign Up</h2>
+            // Form to verify OTP
+            <form onSubmit={handleVerifyOtp}>
+              <h2>Verify OTP</h2>
+              <p>An OTP has been sent to {mobile}. Please enter it below.</p>
               <div className="form-group">
-                <label htmlFor="signup-country-code">Country</label>
-                <select
-                  id="signup-country-code"
-                  value={signupCountryCode}
-                  onChange={(e) => setSignupCountryCode(e.target.value)}
-                >
-                  {countryCodes.map((cc) => (
-                    <option key={cc.code} value={cc.code}>
-                      {cc.name} ({cc.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="signup-mobile">Mobile Number</label>
+                <label htmlFor="otp">OTP</label>
                 <input
-                  type="tel"
-                  id="signup-mobile"
-                  value={signupMobile}
-                  onChange={(e) => setSignupMobile(e.target.value)}
-                  placeholder="Enter mobile number"
+                  type="text"
+                  id="otp"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Enter 6-digit OTP"
                   required
-                  autoComplete="username" 
+                  disabled={isProcessing}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="signup-password">Password</label>
-                <input
-                  type="password"
-                  id="signup-password"
-                  value={signupPassword}
-                  onChange={(e) => setSignupPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  required
-                  autoComplete="new-password" 
-                />
-              </div>
-              <button type="submit" className="login-button">
-                Sign Up
+              <button type="submit" className="login-button" disabled={isProcessing}>
+                {isProcessing ? 'Verifying...' : 'Verify & Login'}
               </button>
             </form>
           )}
           <div id="recaptcha-container"></div>
-          <p className="toggle-text">
-            {isLogin ? (
-              <>
-                Don't have an account?{' '}
-                <span onClick={handleToggleForm}>Sign Up</span>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <span onClick={handleToggleForm}>Login</span>
-              </>
-            )}
-          </p>
         </div>
       </div>
     </div>

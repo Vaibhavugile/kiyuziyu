@@ -970,17 +970,16 @@ const handleAddAllProducts = async (e) => {
     }
 };
 
-  const startEditProduct = (product) => {
-    console.log("Starting edit for product:", product);
-    setEditingProduct(product);
-    setProductName(product.productName);
-    setProductCode(product.productCode);
-    setProductQuantity(product.quantity);
-    // Set images for editing
-    setAdditionalImages(product.images.map(url => ({ previewUrl: url })));
-    setShowProductForm(true);
-  };
-
+const startEditProduct = (product) => {
+  console.log("Starting edit for product:", product);
+  setEditingProduct(product);
+  setProductName(product.productName);
+  setProductCode(product.productCode);
+  setProductQuantity(product.quantity);
+  // Set images for editing, using an empty array if product.images is undefined
+  setAdditionalImages((product.images || []).map(url => ({ previewUrl: url })));
+  setShowProductForm(true);
+};
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);

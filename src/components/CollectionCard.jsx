@@ -1,8 +1,7 @@
 import React from 'react';
-import './CollectionCard.css'; // <-- Import the new CSS file
+import './CollectionCard.css';
 
 const CollectionCard = ({ title, description, image, tieredPricing, children }) => {
-  // Find the lowest retail price
   const getStartingPrice = (tiers) => {
     if (!tiers || tiers.length === 0) return null;
     const sortedTiers = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
