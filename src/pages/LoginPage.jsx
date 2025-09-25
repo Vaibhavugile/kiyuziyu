@@ -17,6 +17,9 @@ const countryCodes = [
   { code: "+61", name: "Australia" },
 ];
 
+// 🔑 IMPORTANT: Using the direct Function URL since hosting is not deployed
+const FIREBASE_FUNCTION_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/sendWhatsappOtp";
+
 const LoginPage = () => {
   const [countryCode, setCountryCode] = useState('+91');
   const [mobile, setMobile] = useState('');
@@ -61,10 +64,11 @@ const LoginPage = () => {
 
       const myHeaders = new Headers();
       myHeaders.append("Content-Type", "application/json");
-      myHeaders.append("authkey", "468116AwggRESvY68bf021bP1"); // REPLACE WITH YOUR AUTH KEY
+      
+      // 🔥 API KEY REMOVED (Handled by Firebase Function)
 
       const raw = JSON.stringify({
-        "integrated_number": "15558299861", // The WhatsApp business number from your MSG91 account
+        "integrated_number": "15558299861", // The WhatsApp business number
         "content_type": "template",
         "payload": {
           "messaging_product": "whatsapp",
@@ -76,8 +80,15 @@ const LoginPage = () => {
             "to_and_components": [{
               "to": [fullMobileNumber.replace('+', '')],
               "components": {
+                // Body Component for the verification code (replaces {{1}})
                 "body_1": { "type": "text", "value": otpValue },
-                "button_1": { "subtype": "url", "type": "text", "value": "Go to Kiyuziyu" }
+                
+                // ✅ FIX: Added the required "subtype" property 
+                "button_1": { 
+                    "subtype": "url", // FIX for "Missing parameter sub_type" error
+                    "type": "text", 
+                    "value": otpValue // The dynamic value for the URL button parameter
+                }
               }
             }]
           }
@@ -91,24 +102,25 @@ const LoginPage = () => {
         redirect: 'follow'
       };
 
-      // Changed to a relative path to use the proxy
-      const response = await fetch("/api/v5/whatsapp/whatsapp-outbound-message/bulk/", requestOptions);
+      // 🚀 Using the direct Function URL
+      const response = await fetch(FIREBASE_FUNCTION_URL, requestOptions);
       const result = await response.json();
       
-      if (result.type === "success") {
+      if (response.ok && result.status === "success") { 
         setIsOtpSent(true);
         setInfo('OTP sent successfully. Please check your WhatsApp.');
       } else {
-        setError(result.message || 'Failed to send OTP. Please try again.');
-        console.error('MSG91 API error:', result);
+        setError(result.message || 'Failed to send OTP. Please check server logs.');
+        console.error('API Error:', result);
       }
     } catch (err) {
       console.error('Error sending OTP:', err);
-      setError('Failed to send OTP. Network error or invalid number.');
+      setError('Failed to send OTP. Network error or function not accessible.');
     } finally {
       setIsProcessing(false);
     }
   };
+  
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
