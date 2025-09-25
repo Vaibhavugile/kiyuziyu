@@ -7,6 +7,7 @@ import {
   setDoc,
   getDoc,
   RecaptchaVerifier,
+  signInAnonymously,
 } from '../firebase';
 import '../styles/LoginPage.css';
 
@@ -121,41 +122,52 @@ const LoginPage = () => {
     }
   };
   
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    setIsProcessing(true);
-    
-    if (otp === generatedOtp) {
-      try {
-        setInfo('OTP verified! Logging in...');
-        const userRef = doc(db, 'users', mobile); // Use mobile as the document ID
-        const userDoc = await getDoc(userRef);
+  // In LoginPage.jsx, replace the existing handleVerifyOtp function:
 
-        if (!userDoc.exists()) {
-          // This is a new user, create their document
-          await setDoc(userRef, {
-            mobile: `${countryCode}${mobile}`,
-            role: 'retailer', // Default role for new users
-            createdAt: new Date(),
-          });
-        }
+const handleVerifyOtp = async (e) => {
+  e.preventDefault();
+  setError('');
+  setInfo('');
+  setIsProcessing(true);
+  
+  if (otp === generatedOtp) {
+    try {
+      setInfo('OTP verified! Logging in...');
 
-        setInfo('Login successful! Redirecting...');
-        setTimeout(() => navigate('/'), 1000);
-      } catch (err) {
-        console.error('Error during login:', err);
-        setError('An error occurred. Please try again.');
-      } finally {
-        setIsProcessing(false);
+      // 1. SIGN THE USER INTO FIREBASE AUTH (Anonymous Auth)
+      // This step makes AuthContext detect the logged-in user.
+      const userCredential = await signInAnonymously(auth);
+      const firebaseUser = userCredential.user;
+      
+      // 2. USE FIREBASE USER ID (UID) TO CREATE/FETCH FIRESTORE DOCUMENT
+      // This aligns the Firestore document ID with AuthContext's lookup logic.
+      const userRef = doc(db, 'users', firebaseUser.uid); 
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        // Create user profile in Firestore
+        await setDoc(userRef, {
+          uid: firebaseUser.uid, // Store the Firebase UID
+          mobile: `${countryCode}${mobile}`, // Store the verified mobile number
+          role: 'retailer', 
+          createdAt: new Date(),
+        });
       }
-    } else {
-      setError('Invalid OTP. Please try again.');
+      // AuthContext will now detect the login and fetch the role from Firestore.
+
+      setInfo('Login successful! Redirecting...');
+      setTimeout(() => navigate('/'), 1000);
+    } catch (err) {
+      console.error('Error during login:', err);
+      setError('An error occurred during sign-in. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
-  };
-
+  } else {
+    setError('Invalid OTP. Please try again.');
+    setIsProcessing(false);
+  }
+};
   return (
     <div className="login-page-container">
       <div className="login-image-section">

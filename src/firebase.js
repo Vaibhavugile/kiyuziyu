@@ -24,6 +24,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  signInAnonymously,
 } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -72,4 +73,5 @@ export {
   orderBy,
    serverTimestamp,
    signOut,  // Exporting the newly added function
+   signInAnonymously,
 };
