@@ -1299,6 +1299,26 @@ input[type=number] {
   border-radius: 4px;
 }
 
+.cancel-order-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #e74c3c; /* Red for cancel */
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.cancel-order-btn:hover:not(:disabled) {
+    background-color: #c0392b;
+}
+
+.cancel-order-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
 /* Styles for the Add and Remove buttons for variations */
 .add-variation-btn,
 .remove-variation-btn {

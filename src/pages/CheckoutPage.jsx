@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCart } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import './CartPage.css';
+import './CheckoutPage.css';
 
 const SHIPPING_FEE = 199;
 
@@ -119,17 +119,60 @@ const CheckoutPage = () => {
 
       {Object.values(cart).length > 0 ? (
         <div className="checkout-content">
-          <div className="cart-summary">
+          
+          {/* Billing & Shipping Section - Left side on Desktop */}
+          <div className="billing-section">
+            <h3>Billing & Shipping Information</h3>
+            <form onSubmit={handleSubmitOrder}>
+              <div className="form-field-group">
+                <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
+              </div>
+              <div className="form-field-group">
+                <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleInputChange} required />
+              </div>
+              <div className="form-field-group">
+                <input type="tel" name="phoneNumber" placeholder="Phone Number *" value={formData.phoneNumber} onChange={handleInputChange} required />
+              </div>
+
+              <div className="address-fields">
+                <div className="form-field-group">
+                    <input type="text" name="addressLine1" placeholder="Address Line 1 *" value={formData.addressLine1} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="addressLine2" placeholder="Address Line 2 (Optional)" value={formData.addressLine2} onChange={handleInputChange} />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="state" placeholder="State/Province/Region *" value={formData.state} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
+                </div>
+              </div>
+
+              <button type="submit" className="checkout-btn" disabled={isProcessing}>
+                {isProcessing ? 'Processing...' : 'Place Order'}
+              </button>
+            </form>
+          </div>
+
+          {/* Order Summary Section - Right side on Desktop */}
+          {/* Renamed from 'cart-summary' to 'order-details' to match your CSS setup for flex layout */}
+          <div className="order-details">
             <h3>Order Summary</h3>
             <div className="cart-items-list">
               {Object.values(cart).map((item, index) => (
                 <div key={item.id + (item.variation ? item.variation.color + item.variation.size : '')} className="cart-item">
-                  <img
-                    // Correctly display the first image from the 'images' array or fallback to 'image'
-                    src={item.images && item.images.length > 0 ? item.images[0].url : item.image}
-                    alt={item.productName}
-                    className="cart-item-image"
-                  />
+                  <div className="cart-item-image-wrapper">
+                    {/* Correctly display the first image from the 'images' array or fallback to 'image' */}
+                    <img
+                      src={item.images && item.images.length > 0 ? item.images[0].url : item.image}
+                      alt={item.productName}
+                      className="cart-item-image"
+                    />
+                  </div>
                   <div className="cart-item-details">
                     <h4 className="cart-item-name">{item.productName}</h4>
                     <p className="cart-item-code">Code: {item.productCode}</p>
@@ -144,6 +187,8 @@ const CheckoutPage = () => {
                 </div>
               ))}
             </div>
+            
+            {/* Totals Calculation */}
             <div className="cart-total-section">
               <p>Subtotal:</p>
               <p>₹{getCartTotal().toFixed(2)}</p>
@@ -156,27 +201,6 @@ const CheckoutPage = () => {
               <p>Total:</p>
               <p>₹{(getCartTotal() + SHIPPING_FEE).toFixed(2)}</p>
             </div>
-          </div>
-
-          <div className="billing-section">
-            <h4>Billing & Shipping Information</h4>
-            <form onSubmit={handleSubmitOrder}>
-              <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
-              <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleInputChange} required />
-              <input type="tel" name="phoneNumber" placeholder="Phone Number *" value={formData.phoneNumber} onChange={handleInputChange} required />
-
-              <div className="address-fields">
-                <input type="text" name="addressLine1" placeholder="Address Line 1 *" value={formData.addressLine1} onChange={handleInputChange} required />
-                <input type="text" name="addressLine2" placeholder="Address Line 2 (Optional)" value={formData.addressLine2} onChange={handleInputChange} />
-                <input type="text" name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
-                <input type="text" name="state" placeholder="State/Province/Region *" value={formData.state} onChange={handleInputChange} required />
-                <input type="text" name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
-              </div>
-
-              <button type="submit" className="checkout-btn" disabled={isProcessing}>
-                {isProcessing ? 'Processing...' : 'Place Order'}
-              </button>
-            </form>
           </div>
         </div>
       ) : (

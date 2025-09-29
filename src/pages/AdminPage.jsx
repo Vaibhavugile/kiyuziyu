@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import {
   db,
   collection,
@@ -174,6 +174,130 @@ const [sortedDateKeys, setSortedDateKeys] = useState([]);
     }));
   };
 
+  
+  
+// Inside AdminPage.jsx
+
+// New: Function to handle cancelling an order and restoring stock
+  const handleCancelOrder = async (order) => {
+    // ... (Initial checks for status and confirmation remain the same) ...
+    if (order.status === 'Cancelled' || order.status === 'Delivered') {
+        alert(`Cannot cancel an order that is already ${order.status}.`);
+        return;
+    }
+
+    if (!window.confirm(`Are you sure you want to cancel Order ID: ${order.id}? This action will permanently restore all item quantities to your inventory.`)) {
+        return;
+    }
+
+    const batch = writeBatch(db);
+
+    try {
+        // 1. Update the order status in the batch
+        const orderRef = doc(db, 'orders', order.id);
+        batch.update(orderRef, {
+            status: 'Cancelled',
+            cancelledAt: serverTimestamp(),
+        });
+
+        console.log(`--- Starting stock restoration for Order ID: ${order.id} ---`);
+
+        // 2. Restore stock for each item
+        for (const item of order.items) {
+            
+            if (!item.mainCollectionId || !item.subcollectionId || !item.id) {
+                console.warn(`[SKIP] Item ID ${item.id}. Missing required collection IDs in order data.`);
+                continue; 
+            }
+            
+            // Construct the product reference
+            const productRef = doc(
+                db, 
+                'collections', 
+                item.mainCollectionId, 
+                'subcollections', 
+                item.subcollectionId, 
+                'products', 
+                item.id
+            );
+
+            const productSnap = await getDoc(productRef);
+
+            if (!productSnap.exists()) {
+                console.error(`[ERROR] Product not found in Firestore: ${item.id} (Path: ${productRef.path})`);
+                continue; 
+            }
+
+            const productData = productSnap.data();
+            const quantityToRestore = Number(item.quantity) || 0; 
+            
+            if (quantityToRestore === 0) {
+                 console.warn(`[SKIP] Item ${item.id} has quantity 0 in order. Skipping stock restoration.`);
+                 continue;
+            }
+
+            // --- Case 1: Product with Variations ---
+            if (item.variation && productData.variations && Array.isArray(productData.variations)) {
+                
+                let variationFound = false;
+                const updatedVariations = productData.variations.map(v => {
+                    // Match variation by color and size
+                    if (v.color === item.variation.color && v.size === item.variation.size) {
+                        const currentQuantity = Number(v.quantity) || 0;
+                        const newQuantity = currentQuantity + quantityToRestore;
+                        
+                        // ⭐️ CONSOLE LOG FOR VARIATION
+                        console.log(`[VARIATION] Product: ${item.productName}, Color: ${v.color}, Size: ${v.size}`);
+                        console.log(`   - Existing Stock: ${currentQuantity}`);
+                        console.log(`   - Quantity to Restore: ${quantityToRestore}`);
+                        console.log(`   - New Stock: ${newQuantity}`);
+                        
+                        variationFound = true;
+                        return { ...v, quantity: newQuantity }; 
+                    }
+                    return v;
+                });
+                
+                if (variationFound) {
+                    batch.update(productRef, { variations: updatedVariations });
+                } else {
+                     console.error(`[ERROR] Variation not found in database for item ${item.id} (Color: ${item.variation.color}, Size: ${item.variation.size}).`);
+                }
+                
+            // --- Case 2: Simple Product (No Variations) ---
+            } else {
+                const currentQuantity = Number(productData.quantity) || 0;
+                const newQuantity = currentQuantity + quantityToRestore;
+                
+                // ⭐️ CONSOLE LOG FOR SIMPLE PRODUCT
+                console.log(`[SIMPLE] Product: ${item.productName}`);
+                console.log(`   - Existing Stock: ${currentQuantity}`);
+                console.log(`   - Quantity to Restore: ${quantityToRestore}`);
+                console.log(`   - New Stock: ${newQuantity}`);
+
+                batch.update(productRef, { quantity: newQuantity });
+            }
+        }
+        
+        console.log("--- All updates batched. Committing now. ---");
+
+        // 3. Commit the atomic update
+        await batch.commit();
+        
+        console.log("--- Batch commit successful. ---");
+
+        // 4. Update the local state
+        setOrders(prevOrders => prevOrders.map(o =>
+            o.id === order.id ? { ...o, status: 'Cancelled', cancelledAt: serverTimestamp() } : o
+        ));
+        
+        alert(`Order ID ${order.id} has been successfully cancelled and stock has been restored.`);
+
+    } catch (error) {
+        console.error("Critical Error during order cancellation/stock restoration:", error);
+        alert("A critical error occurred. Please check the console for details.");
+    } 
+};
  const fetchOrders = async () => {
         try {
             const ordersSnapshot = await getDocs(collection(db, "orders"));
@@ -1786,7 +1910,7 @@ const startEditProduct = (product) => {
         )}
 
         {/* --- Order Management Section --- */}
-   {activeTab === 'orders' && (
+  {activeTab === 'orders' && (
     <div className="admin-section">
         <h2>Customer Orders</h2>
 
@@ -1821,7 +1945,9 @@ const startEditProduct = (product) => {
                 <option value="Processing">Processing</option>
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
+                <option value="Cancelled">Cancelled</option>
             </select>
+            
         </div>
 
         {isOrderLoading ? (
@@ -1836,10 +1962,45 @@ const startEditProduct = (product) => {
                         <h3>{dateKey}</h3>
                         <ul className="orders-list">
                             {groupedOrdersFromFiltered[dateKey].map((order) => (
-                                <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-                                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                                    <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                                <li key={order.id} className="order-list-item">
+                                    {/* Order Details (Click to open modal) */}
+                                    <div className="order-details-summary" onClick={() => setSelectedOrder(order)}>
+                                        <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                                        <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                                        <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                                    </div>
+
+                                    {/* Order Actions (Must stop propagation to prevent modal from opening) */}
+                                    <div className="order-actions-summary">
+                                        
+                                        {/* 1. Status Dropdown */}
+                                        <select
+                                            value={order.status}
+                                            onClick={(e) => e.stopPropagation()} // Prevent modal from opening
+                                            onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                            className="status-update-select"
+                                            disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
+                                        >
+                                            <option value="Pending">Pending</option>
+                                            <option value="Processing">Processing</option>
+                                            <option value="Shipped">Shipped</option>
+                                            <option value="Delivered">Delivered</option>
+                                            <option value="Cancelled" disabled>Cancelled</option>
+                                        </select>
+
+                                        {/* 2. Cancel Button (Calls the stock-restoring function) */}
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Prevent modal from opening
+                                                handleCancelOrder(order);
+                                            }} 
+                                            className="action-btn cancel-order-btn"
+                                            disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
+                                            title={order.status === 'Cancelled' || order.status === 'Delivered' ? `Cannot cancel a ${order.status} order` : "Cancel this order and restore stock"}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -1851,15 +2012,13 @@ const startEditProduct = (product) => {
         )}
     </div>
 )}
-
-        {/* Render Order Details Modal */}
-        {selectedOrder && (
-          <OrderDetailsModal
-            order={selectedOrder}
-            onClose={() => setSelectedOrder(null)}
-            onUpdateStatus={handleUpdateOrderStatus}
-          />
-        )}
+{selectedOrder && (
+  <OrderDetailsModal
+    order={selectedOrder}
+    onClose={() => setSelectedOrder(null)}
+    onUpdateStatus={handleUpdateOrderStatus}
+  />
+)}
         {/* --- Low Stock Tab --- */}
         {activeTab === 'lowStock' && (
           <div className="admin-section">

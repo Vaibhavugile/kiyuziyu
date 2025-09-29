@@ -49,17 +49,24 @@
   transform: scale(1.1);
 }
 
-/* Info Section with a Soft Gradient Overlay */
+/* * UPDATED INFO SECTION: 
+ * - Stronger gradient for better text contrast.
+ * - Added `padding-top` to prevent content clipping on slide up.
+ * - Added `pointer-events: none` to ensure the click handler on the card itself works.
+ */
 .collection-info {
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   padding: 1.5rem;
-  background: linear-gradient(to top, rgba(50, 50, 50, 0.8), rgba(50, 50, 50, 0.2));
+  /* Strengthened gradient: Darker black (0, 0, 0) and extends further up */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
   color: #fff;
   transform: translateY(100%);
   transition: transform 0.4s ease-out;
+  padding-top: 50%; /* Ensures the top content isn't clipped */
+  pointer-events: none; /* Allows clicks to pass through to the underlying card */
 }
 
 /* Info Section slides up on hover */
@@ -67,20 +74,26 @@
   transform: translateY(0);
 }
 
+/* * UPDATED TEXT STYLES: 
+ * - Explicitly set color to white to ensure contrast against the dark overlay.
+ */
 .title {
   font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
+  color: #fff; /* Explicitly set text color */
 }
 
 .description {
   font-size: 0.9rem;
   margin-bottom: 1rem;
+  color: #fff; /* Explicitly set text color */
 }
 
 .price {
   font-size: 1rem;
   font-weight: 500;
+  color: #fff; /* Explicitly set text color */
 }
 
 /* Styles for the new admin actions container */

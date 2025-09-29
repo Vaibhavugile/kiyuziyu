@@ -1,27 +1,44 @@
-/* src/components/ProductCard.css */
+/* src/components/ProductCard.css - FINAL COMPACT DESIGN WITH PROMINENT TIERED PRICING BUTTON */
 
+/* --- CSS Variables for Easy Theming (MATCHING ProductsPage.css) --- */
+:root {
+  --primary-brand-color: #3498db; /* A vibrant blue for branding */
+  --secondary-color: #2ecc71; /* A friendly green for accents/buttons */
+  --text-dark: #2c3e50;
+  --text-light: #7f8c8d;
+  --bg-card: #ffffff;
+  --bg-light: #f4f7f6; /* Use page background color for subtle differentiation */
+  --shadow-base: 0 4px 15px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 15px 30px rgba(0, 0, 0, 0.2);
+  --border-color: #e0e0e0; 
+  --deal-tag-color: #e74c3c; 
+}
+
+/* --- Base Card Styling: Clean and Animated --- */
 .product-card {
-  border: 1px solid #eee;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #f0f0f0; 
+  border-radius: 16px;
+  overflow: hidden; /* **CRITICAL: Ensures all content including button stays within rounded border** */
+  box-shadow: var(--shadow-base);
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #fff;
-  position: relative; /* Added for the overlay */
+  background-color: var(--bg-card);
+  position: relative;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
 }
 
 .product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px); 
+  box-shadow: var(--shadow-hover);
 }
 
-/* Out of Stock styles */
+/* --- Out of Stock Styles --- */
 .product-card.out-of-stock {
-  opacity: 0.6; /* Fades the entire card */
-  pointer-events: none; /* Prevents clicks on the card */
+  opacity: 0.6; 
+  pointer-events: none; 
 }
 
 .out-of-stock-overlay {
@@ -30,209 +47,66 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.7); /* White overlay for a blurred effect */
+  background-color: rgba(255, 255, 255, 0.95);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #c0392b; /* A distinct color for the text */
+  font-size: 1.6rem; 
+  font-weight: 800;
+  color: #e74c3c; 
   text-transform: uppercase;
-   pointer-events: none; 
+  letter-spacing: 2px;
+  pointer-events: none; 
+  border-radius: 16px;
 }
 .out-of-stock .admin-actions {
-  pointer-events: all; /* This will make sure the buttons are clickable again */
-  z-index: 1; /* Make sure the buttons are on top of the overlay */
+  pointer-events: all; 
+  z-index: 11;
 }
 
+/* --- Image Section (COMPACT) --- */
 .product-image-container {
-  width: 100%;
-  height: 200px;
+  position: relative;
   overflow: hidden;
+  width: 100%;
+  height: 200px; /* Reduced image height */
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f8f8f8;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .product-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: contain; 
+  transition: transform 0.5s ease;
 }
 
-.product-info {
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  flex-grow: 1;
+.product-card:hover .product-image {
+  transform: scale(1.03); 
 }
 
-.product-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0 0 5px;
-  color: #333;
-}
-
-.product-code, .product-quantity {
-  font-size: 0.85rem;
-  color: #666;
-  margin: 0 0 5px;
-}
-
-.product-price {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #2c3e50;
-  margin-top: 10px;
-}
-
-.tiered-pricing-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin: 10px 0;
-}
-
-.pricing-badge {
-  background-color: #ecf0f1;
-  color: #2c3e50;
-  border-radius: 5px;
-  padding: 5px 10px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.pricing-price {
-  color: #2980b9;
-  font-weight: bold;
-}
-
-.cart-actions {
-  margin-top: auto;
-  padding-top: 10px;
-  width: 100%;
-}
-
-.quantity-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  background-color: #f5f5f5;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.quantity-btn {
-  background-color: #bdc3c7;
-  color: #fff;
-  border: none;
-  width: 35px;
-  height: 35px;
-  font-size: 1.2em;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.quantity-btn:hover {
-  background-color: #95a5a6;
-}
-
-.cart-quantity {
-  font-size: 1em;
-  font-weight: bold;
-}
-
-.add-to-cart-btn {
-  width: 100%;
-  background-color: #3498db;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  padding: 10px;
-  font-size: 1em;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.add-to-cart-btn:hover {
-  background-color: #2980b9;
-}
-/* src/components/ProductCard.css */
-
-.admin-actions {
-  margin-top: auto; /* Pushes the buttons to the bottom */
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  padding-top: 10px;
-}
-
-.admin-actions button {
-  padding: 8px 15px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 1rem;
-}
-
-.admin-actions button:hover {
-  background-color: #e2e6ea;
-}
-
-.admin-actions button:last-child {
-  background-color: #d84343; /* A distinct color for 'Delete' */
-  color: white;
-  border-color: #c0392b;
-}
-
-.admin-actions button:last-child:hover {
-  background-color: #c0392b;
-}
-/* src/components/ProductCard.css */
-
-.product-image-container {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  height: 250px; /* Adjust as needed */
-  display: flex;
-  align-items: center;
-}
-
-.product-image-container .product-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease-in-out;
-}
+/* --- Carousel Buttons (NO CHANGE) --- */
 .carousel-btn {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background-color: rgba(255, 255, 255, 0.3); /* Lighter, subtle background */
-  color: #000; /* Black text for better contrast */
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%; /* Fully rounded */
-  width: 40px; /* Adjusted size */
-  height: 40px; /* Adjusted size */
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #fff; 
+  border: none;
+  border-radius: 50%; 
+  width: 35px;
+  height: 35px; 
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2em;
+  font-size: 1.1em;
   cursor: pointer;
   z-index: 10;
-  transition: background-color 0.3s ease, transform 0.3s ease; /* Smooth animation */
-  backdrop-filter: blur(5px); /* Optional: Frosted glass effect */
+  transition: all 0.2s ease;
 }
 
 .carousel-btn.prev {
@@ -243,38 +117,286 @@
   right: 10px;
 }
 
-/* Animation on hover */
 .carousel-btn:hover {
-  background-color: rgba(0, 0, 0, 0.6); /* Darker on hover */
-  color: #fff;
-  transform: translateY(-50%) scale(1.1); /* Slightly grow on hover */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  background-color: rgba(0, 0, 0, 0.6); 
+  transform: translateY(-50%) scale(1.1); 
 }
-/* NEW: Styles for the Variation Selector */
-/* NEW: Styles for the Variation Selector */
+
+/* --- Product Info Section (COMPACT AND CLEAN) --- */
+.product-info {
+  padding: 12px; 
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  flex-grow: 1; /* Allows this section to fill remaining vertical space */
+}
+
+.product-title {
+  font-size: 1.1rem; 
+  font-weight: 600; 
+  margin: 0 0 2px; 
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+
+.product-code {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin: 0 0 5px; 
+}
+.product-quantity {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin: 5px 0 0; 
+    font-weight: 500;
+}
+
+/* .product-price style removed as only tiered pricing button is requested. */
+
+
+/* --- Tiered Pricing Box (Main Price Button) --- */
+.tiered-pricing-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 15px;
+  padding: 10px; 
+  border-radius: 10px;
+  background-color: var(--primary-brand-color); 
+  border: 1px solid var(--primary-brand-color);
+  cursor: pointer;
+  
+  /* --- COLLAPSE/EXPAND LOGIC --- */
+  max-height: 55px; 
+  overflow: hidden; 
+  position: relative;
+  transition: all 0.3s ease, max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  color: white; 
+  box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
+
+.tiered-pricing-container:hover {
+    background-color: #2980b9; 
+    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+}
+
+.tiered-pricing-container::after {
+  content: 'HOVER FOR BULK PRICES'; 
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 25px;
+  background: linear-gradient(to top, var(--primary-brand-color) 30%, transparent 100%);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  padding-top: 2px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.product-card:hover .tiered-pricing-container {
+  max-height: 180px; 
+  overflow-y: auto; 
+  background-color: #2980b9; 
+}
+
+.product-card:hover .tiered-pricing-container::after {
+  opacity: 0;
+}
+
+
+.tiered-pricing-container h4 {
+    font-size: 1.1rem;
+    color: white; 
+    margin: 0 0 10px;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.5); 
+    padding-bottom: 5px;
+}
+
+.pricing-tier {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: white; 
+  min-height: 20px;
+}
+.pricing-tier span:first-child {
+    font-weight: 500;
+}
+.pricing-tier span:last-child {
+    color: var(--secondary-color); 
+    font-weight: 700;
+    font-size: 1em;
+}
+
+/* --- Variations Selector (NO CHANGE) --- */
 .variations-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+  width: 100%;
 }
 
 .variation-btn {
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 8px 12px;
+  background-color: var(--bg-light);
+  border: 1px solid #dcdcdc;
+  border-radius: 20px; 
+  padding: 8px 14px;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition: all 0.2s ease;
+  flex-grow: 1;
+  min-width: 80px;
 }
 
 .variation-btn.selected {
-  background-color: #007bff;
+  background-color: var(--primary-brand-color);
   color: white;
-  border-color: #007bff;
+  border-color: var(--primary-brand-color);
+  box-shadow: 0 3px 8px rgba(52, 152, 219, 0.4);
 }
 
 .variation-btn:not(.selected):hover {
-  background-color: #e0e0e0;
+  background-color: #dce1e3;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Action Buttons (FIXED OVERFLOW) --- */
+.product-actions {
+  padding: 0 12px 12px; /* **REDUCED PADDING TO PREVENT OVERFLOW** */
+  width: 100%;
+  margin-top: auto; /* Pushes action block to the bottom of the card content */
+}
+
+.add-to-cart-btn {
+  width: 80%;
+  background-color: var(--secondary-color);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 10px; /* **SLIGHTLY REDUCED VERTICAL PADDING** */
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+}
+
+.add-to-cart-btn:hover:not(:disabled) {
+  background-color: #27ae60;
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px rgba(46, 204, 113, 0.5);
+}
+
+.add-to-cart-btn:active:not(:disabled) {
+    transform: scale(0.98);
+    box-shadow: 0 2px 5px rgba(46, 204, 113, 0.5);
+}
+
+.add-to-cart-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+
+/* --- Quantity Controls (NO CHANGE) --- */
+.quantity-controls, .cart-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 80%;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--bg-light);
+}
+
+.quantity-btn {
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+  border: none;
+  width: 40px; 
+  height: 40px; 
+  font-size: 1.5em; 
+  font-weight: 300;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.quantity-btn:hover {
+  background-color: #d0d3d4;
+}
+
+.quantity-btn:active {
+    background-color: #bdbec0;
+    transform: scale(0.95);
+}
+
+.cart-quantity-display, .cart-quantity {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: var(--text-dark);
+  padding: 0 15px;
+}
+
+/* --- Admin Actions (NO CHANGE) --- */
+.admin-actions {
+  margin-top: 15px; 
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-actions button {
+  flex-grow: 1;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  background-color: #f1f1f1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.admin-actions button:hover {
+  background-color: #e2e6ea;
+  transform: translateY(-1px);
+}
+
+.admin-actions button:last-child {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.admin-actions button:last-child:hover {
+  background-color: #c0392b;
+  transform: translateY(-1px);
+}
+
+/* Media query for smaller screens - keeps card sleek */
+@media (max-width: 576px) {
+  .product-image-container {
+    height: 180px;
+  }
+  .product-info {
+    padding: 10px;
+  }
+  .product-title {
+    font-size: 1.0rem;
+  }
+  .product-actions {
+    padding: 0 10px 10px;
+  }
 }

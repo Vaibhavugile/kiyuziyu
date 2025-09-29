@@ -132,59 +132,37 @@
 }
 
 /* Mobile adjustments for cart item */
-/* Mobile adjustments for cart item */
 @media (max-width: 768px) {
-    /* Main Item Layout: Stack items into two rows on mobile */
     .cart-item {
-        /* Revised: Auto width for image and info, controls/subtotal on second line */
-        grid-template-columns: 80px 1fr; /* Image | Info & Controls */
-        grid-template-rows: auto auto; 
-        gap: 10px; /* Reduce gap for tighter mobile view */
-        padding: 10px;
+        grid-template-columns: 60px 1fr 1fr; /* Image | Details/Qty | Subtotal */
+        grid-template-rows: auto auto;
     }
 
-    /* Image Positioning and Size */
-    .cart-item-image {
-        /* Use the class defined in CartPage.jsx for clarity */
+    .cart-item img {
         grid-column: 1 / 2;
-        grid-row: 1 / 2;
-        width: 80px; /* Maintain width for 1st column */
-        height: 80px; /* Increased height for better visibility */
+        grid-row: 1 / 3;
+        width: 100%;
+        height: 60px;
     }
 
-    /* Info Block */
-    .cart-item-info {
+    .cart-item-details {
         grid-column: 2 / 3;
         grid-row: 1 / 2;
-        align-self: start; /* Align to the top */
     }
     
-    .cart-item-name {
-        font-size: 1em; /* Slight reduction for space */
-    }
-
-    /* Quantity Controls & Subtotal on the second row, spanning both columns */
     .cart-quantity-controls {
-        grid-column: 1 / 2;
-        grid-row: 2 / 3;
-        justify-content: flex-start; /* Move controls to the left */
-        gap: 8px; /* Slightly tighter controls */
-    }
-    
-    /* Subtotal - Now next to quantity controls */
-    .cart-item-subtotal {
         grid-column: 2 / 3;
         grid-row: 2 / 3;
-        text-align: right;
-        align-self: center;
-        font-size: 1.1em; /* Slight reduction */
+        justify-content: flex-start;
     }
-    
-    /* Ensure the list wrapper looks good */
-    .cart-items-list {
-        gap: 10px;
+
+    .cart-item-subtotal {
+        grid-column: 3 / 4;
+        grid-row: 1 / 3;
+        text-align: right;
     }
 }
+
 /* ---------------------------------------------------- */
 /* 2. CART SUMMARY (Right Column on Desktop) */
 /* ---------------------------------------------------- */

@@ -6,23 +6,51 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
 
   const orderDate = order.createdAt?.toDate().toLocaleString();
 
-  const handlePrint = (printType) => {
-    // Get the element to be printed
-    const contentToPrint = document.getElementById('printable-order-content');
+  // New function to handle printing the Server-Generated PDF Invoice
+  const handlePrintInvoicePDF = async () => {
+    try {
+      // 🎯 UPDATED: Using the provided Firebase Function URL
+      const functionUrl = 'https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/generateInvoiceForPrint';
+      
+      const response = await fetch(`${functionUrl}?orderId=${order.id}`); //
+
+      if (!response.ok) {
+        throw new Error(`PDF generation failed: ${response.statusText}`);
+      }
+
+      // Open the PDF in a new browser tab for viewing/printing
+      const blob = await response.blob();
+      const pdfUrl = window.URL.createObjectURL(blob);
+      window.open(pdfUrl, '_blank');
+      window.URL.revokeObjectURL(pdfUrl); // Clean up the object URL
+      
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error generating or opening PDF invoice:", error);
+      alert("Could not generate the invoice. Please try again.");
+    }
+  };
+  
+  // 🔄 Existing handlePrint function for client-side printing (e.g., Shipping Label)
+  const handlePrintClientSide = (printType) => {
+    // 1. Get the element to be printed
+    const contentToPrint = document.getElementById('printable-order-content'); //
     if (!contentToPrint) {
+      // eslint-disable-next-line no-console
       console.error("Printable content element not found.");
       return;
     }
 
-    // Add a class to the element to be printed
-    contentToPrint.classList.add(printType);
+    // 2. Add a class to the element (e.g., 'print-type-shipping')
+    contentToPrint.classList.add(printType); //
 
-    // Trigger the print dialog
-    window.print();
+    // 3. Trigger the print dialog
+    window.print(); //
 
-    // Remove the class after printing is done (or the dialog is closed)
-    contentToPrint.classList.remove(printType);
+    // 4. Remove the class after printing is done (or the dialog is closed)
+    contentToPrint.classList.remove(printType); //
   };
+  // The original handlePrint for 'print-type-order' is removed, replaced by PDF function
 
   return (
     <div className="modal-backdrop">
@@ -32,7 +60,7 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
           <button onClick={onClose} className="modal-close-btn">&times;</button>
         </div>
         
-        {/* Add an ID to this div so we can target it for printing */}
+        {/* This div is the target for client-side printing (e.g., shipping label) */}
         <div className="modal-body" id="printable-order-content">
           <div className="order-info-group">
             <p><strong>Order ID:</strong> {order.id}</p>
@@ -82,8 +110,14 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
         </div>
 
         <div className="modal-footer">
-          <button onClick={() => handlePrint('print-type-order')} className="print-btn">Print Order Details</button>
-          <button onClick={() => handlePrint('print-type-shipping')} className="print-btn">Print Shipping Label</button>
+          {/* New button to print the server-generated PDF INVOICE */}
+          <button onClick={handlePrintInvoicePDF} className="print-btn">
+            Print PDF Invoice 📜
+          </button>
+          {/* Calls the existing client-side print function for shipping label */}
+          <button onClick={() => handlePrintClientSide('print-type-shipping')} className="print-btn">
+            Print Shipping Label 🏷️
+          </button>
           <select
             value={order.status}
             onChange={(e) => onUpdateStatus(order.id, e.target.value)}
