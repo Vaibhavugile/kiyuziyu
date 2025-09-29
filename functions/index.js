@@ -242,6 +242,163 @@ const generateInvoice = async (orderData, filePath) => {
     writeStream.on("error", reject);
   });
 };
+// Add this function above or below your exports.placeOrder function in index.js
+
+exports.cancelOrder = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "http://localhost:3000"); // update for frontend origin
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.set("Access-Control-Max-Age", "3600");
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({error: "Method Not Allowed"});
+  }
+
+  const {orderId} = req.body;
+  // Note: The 'db' and 'admin' variables are available globally
+  // because they are initialized at the top of index.js.
+
+  if (!orderId) {
+    return res.status(400).json({error: "Missing orderId."});
+  }
+
+  try {
+    console.log(`Starting cancellation for Order ID: ${orderId}`);
+
+    // Start a transaction to safely reverse stock and update status
+    await db.runTransaction(async (t) => {
+      // --- PHASE 1: ALL READS FIRST ---
+
+      // 1. Read the Order Document
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderDoc = await t.get(orderRef);
+
+      if (!orderDoc.exists) {
+        throw new Error("Order not found.");
+      }
+
+      const orderData = orderDoc.data();
+      const currentStatus = orderData.status;
+
+      // Basic validation checks
+      if (currentStatus === "Cancelled") {
+        throw new Error("Order is already cancelled.");
+      }
+      if (currentStatus === "Delivered") {
+        throw new Error("Cannot cancel a delivered order.");
+      }
+
+      // 2. Read all Product Documents involved in the order
+      const productReadPromises = orderData.items.map((item) => {
+        const productRef = db
+            .collection("collections")
+            .doc(item.collectionId)
+            .collection("subcollections")
+            .doc(item.subcollectionId)
+            .collection("products")
+            .doc(item.productId);
+        return t.get(productRef);
+      });
+
+      const productDocs = await Promise.all(productReadPromises);
+      console.log("All product successfully read for stock reversal.");
+
+      // 3. Prepare updates (Stock reversal logic)
+      const updates = [];
+
+      for (let i = 0; i < orderData.items.length; i++) {
+        const item = orderData.items[i];
+        const productDoc = productDocs[i];
+
+        if (!productDoc.exists) {
+          console.warn(`Product not found for stock,
+             reversal: ${productDoc.ref.path}. Skipping.`);
+          continue; // Skip stock update if product is deleted
+        }
+
+        const productData = productDoc.data();
+        // The quantity to return to stock is the original quantity ordered
+        const quantityToReturn = Number(item.quantity);
+
+        if (item.variation && productData.variations &&
+                    Array.isArray(productData.variations)) {
+          let variationFound = false;
+          const updatedVariations = productData.variations.map((v) => {
+            const isMatch = (v.color === item.variation.color &&
+                            v.size === item.variation.size);
+
+            if (isMatch) {
+              const currentQuantity = Number(v.quantity) || 0;
+              // REVERSE LOGIC: ADD back the cancelled quantity
+              const newQuantity = currentQuantity + quantityToReturn;
+
+              variationFound = true;
+              return {...v, quantity: newQuantity};
+            }
+            return v;
+          });
+
+          if (!variationFound) {
+            console.warn(`Variation not found in product: ${item.productName}.,
+               Cannot fully reverse stock.`);
+          } else {
+            // Store the planned update for variations
+            updates.push({
+              ref: productDoc.ref,
+              data: {variations: updatedVariations},
+            });
+          }
+
+          // Case 2: Simple Product (Stock is held in the 'quantity' field)
+        } else {
+          const currentQuantity = Number(productData.quantity) || 0;
+          // REVERSE LOGIC: ADD back the cancelled quantity
+          const newQuantity = currentQuantity + quantityToReturn;
+
+          // Store the planned update for simple product
+          updates.push({
+            ref: productDoc.ref,
+            data: {quantity: newQuantity},
+          });
+        }
+      }
+
+      // --- PHASE 2: ALL WRITES NOW ---
+
+      // 4. Update the Order Status (First Write)
+      t.update(orderRef, {
+        status: "Cancelled",
+        cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`Order ${orderId} status set to Cancelled.`);
+
+      // 5. Update Product Stock (Remaining Writes)
+      updates.forEach((update) => {
+        t.update(update.ref, update.data);
+      });
+      console.log("Stock successfully reversed in transaction.");
+    });
+    // End of Transaction
+
+    res.status(200).json({message: `Order ${orderId},
+      successfully cancelled and stock updated.`});
+  } catch (err) {
+    console.error("Error cancelling order (Transaction rolled back):",
+        err.message);
+    const statusCode = err.message.includes("Order not found") ||
+        err.message.includes("already cancelled") ||
+        err.message.includes("delivered order") ? 400 : 500;
+
+    const errorMessage = err.message.split(": ")[0] || "Failed to cancel order";
+
+    res.status(statusCode).json({
+      error: errorMessage,
+    });
+  }
+});
 
 exports.placeOrder = functions.https.onRequest(async (req, res) => {
   res.set("Access-Control-Allow-Origin", "http://localhost:3000"); // update for frontend

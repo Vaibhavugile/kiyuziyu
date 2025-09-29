@@ -8,6 +8,11 @@ import {
   getDoc,
   RecaptchaVerifier,
   signInAnonymously,
+  // 👇 REQUIRED NEW FIRESTORE IMPORTS
+  collection, 
+  query, 
+  where, 
+  getDocs,
 } from '../firebase';
 import '../styles/LoginPage.css';
 
@@ -18,7 +23,6 @@ const countryCodes = [
   { code: "+61", name: "Australia" },
 ];
 
-// 🔑 IMPORTANT: Using the direct Function URL since hosting is not deployed
 const FIREBASE_FUNCTION_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/sendWhatsappOtp";
 
 const LoginPage = () => {
@@ -27,10 +31,20 @@ const LoginPage = () => {
   const [otp, setOtp] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState(null);
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // States for Profile Setup
+  const [userName, setUserName] = useState(''); 
+  const [userAddress, setUserAddress] = useState(''); 
+  const [userCountry, setUserCountry] = useState(countryCodes[0].name); 
+
   const navigate = useNavigate();
+  
+  // State to hold the user object after anonymous sign-in, before profile is created
+  const [tempUser, setTempUser] = useState(null); 
 
   useEffect(() => {
     // Initialize the invisible reCAPTCHA verifier
@@ -40,7 +54,6 @@ const LoginPage = () => {
   }, []);
 
   const generateRandomOtp = () => {
-    // Generate a random 6-digit number
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
@@ -65,11 +78,9 @@ const LoginPage = () => {
 
       const myHeaders = new Headers();
       myHeaders.append("Content-Type", "application/json");
-      
-      // 🔥 API KEY REMOVED (Handled by Firebase Function)
 
       const raw = JSON.stringify({
-        "integrated_number": "15558299861", // The WhatsApp business number
+        "integrated_number": "15558299861",
         "content_type": "template",
         "payload": {
           "messaging_product": "whatsapp",
@@ -81,14 +92,11 @@ const LoginPage = () => {
             "to_and_components": [{
               "to": [fullMobileNumber.replace('+', '')],
               "components": {
-                // Body Component for the verification code (replaces {{1}})
                 "body_1": { "type": "text", "value": otpValue },
-                
-                // ✅ FIX: Added the required "subtype" property 
                 "button_1": { 
-                    "subtype": "url", // FIX for "Missing parameter sub_type" error
+                    "subtype": "url", 
                     "type": "text", 
-                    "value": otpValue // The dynamic value for the URL button parameter
+                    "value": otpValue 
                 }
               }
             }]
@@ -103,7 +111,6 @@ const LoginPage = () => {
         redirect: 'follow'
       };
 
-      // 🚀 Using the direct Function URL
       const response = await fetch(FIREBASE_FUNCTION_URL, requestOptions);
       const result = await response.json();
       
@@ -122,52 +129,236 @@ const LoginPage = () => {
     }
   };
   
-  // In LoginPage.jsx, replace the existing handleVerifyOtp function:
+  // 👇 CORRECTED: handleVerifyOtp function checks for profile existence via mobile number
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    setIsProcessing(true);
 
-const handleVerifyOtp = async (e) => {
-  e.preventDefault();
-  setError('');
-  setInfo('');
-  setIsProcessing(true);
-  
-  if (otp === generatedOtp) {
+    if (otp !== generatedOtp) {
+        setError('Invalid OTP. Please try again.');
+        setIsProcessing(false);
+        return;
+    }
+
     try {
-      setInfo('OTP verified! Logging in...');
+      setInfo('OTP verified! Checking user status...');
 
-      // 1. SIGN THE USER INTO FIREBASE AUTH (Anonymous Auth)
-      // This step makes AuthContext detect the logged-in user.
+      const fullMobileNumber = `${countryCode}${mobile}`;
+      
+      // 1. Check if a profile with this mobile number already exists in Firestore
+      const usersCollectionRef = collection(db, 'users');
+      // Create a query to search by the 'mobile' field
+      const q = query(usersCollectionRef, where("mobile", "==", fullMobileNumber));
+      const querySnapshot = await getDocs(q);
+
+      // 2. Sign the user into a *new* anonymous session
+      // This is necessary to satisfy AuthContext and create a current user session.
       const userCredential = await signInAnonymously(auth);
       const firebaseUser = userCredential.user;
-      
-      // 2. USE FIREBASE USER ID (UID) TO CREATE/FETCH FIRESTORE DOCUMENT
-      // This aligns the Firestore document ID with AuthContext's lookup logic.
-      const userRef = doc(db, 'users', firebaseUser.uid); 
-      const userDoc = await getDoc(userRef);
+      setTempUser(firebaseUser);
 
-      if (!userDoc.exists()) {
-        // Create user profile in Firestore
-        await setDoc(userRef, {
-          uid: firebaseUser.uid, // Store the Firebase UID
-          mobile: `${countryCode}${mobile}`, // Store the verified mobile number
-          role: 'retailer', 
-          createdAt: new Date(),
+      if (!querySnapshot.empty) {
+        // --- RETURNING USER (LOGIN) ---
+        // A document with this mobile number already exists.
+        
+        // Update the existing user's document with the *new* anonymous UID.
+        // This is crucial: we update the existing profile with the new UID
+        // so AuthContext uses the right user document next time.
+        const existingDoc = querySnapshot.docs[0];
+        const existingDocRef = doc(db, 'users', existingDoc.id);
+
+        await setDoc(existingDocRef, {
+            uid: firebaseUser.uid, // Update to the current anonymous UID
+            lastLogin: new Date(),
+        }, { merge: true });
+
+        setInfo('Welcome back! Logging in...');
+        setTimeout(() => navigate('/'), 1000); // Redirect immediately
+
+      } else {
+        // --- NEW USER (SIGN UP) ---
+        // No document found with this mobile number.
+        setInfo('Verified! Now, please complete your profile.');
+
+        // Create the initial minimal document using the new anonymous UID
+        const newUserRef = doc(db, 'users', firebaseUser.uid); 
+        await setDoc(newUserRef, {
+            uid: firebaseUser.uid, 
+            mobile: fullMobileNumber, 
+            role: 'retailer', 
+            createdAt: new Date(),
         });
-      }
-      // AuthContext will now detect the login and fetch the role from Firestore.
 
-      setInfo('Login successful! Redirecting...');
-      setTimeout(() => navigate('/'), 1000);
+        setIsOtpVerified(true); // Move to profile setup screen
+      }
+
     } catch (err) {
       console.error('Error during login:', err);
       setError('An error occurred during sign-in. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  } else {
-    setError('Invalid OTP. Please try again.');
-    setIsProcessing(false);
+  };
+
+  // 👇 handleProfileSetup function (unchanged from the working version)
+  const handleProfileSetup = async (e) => {
+      e.preventDefault();
+      setError('');
+      setInfo('');
+      setIsProcessing(true);
+
+      if (!userName || !userAddress || !userCountry) {
+          setError('All profile fields are required.');
+          setIsProcessing(false);
+          return;
+      }
+      
+      if (!tempUser) {
+          setError('Authentication session lost. Please restart the process.');
+          setIsProcessing(false);
+          return;
+      }
+
+      try {
+          setInfo('Saving profile...');
+          // Use the UID from the anonymous session
+          const userRef = doc(db, 'users', tempUser.uid); 
+          
+          // Update the existing document with full profile details
+          await setDoc(userRef, {
+              name: userName, 
+              country: userCountry,
+              address: userAddress,
+          }, { merge: true }); 
+
+          setInfo('Sign up successful! Redirecting...');
+          setTimeout(() => navigate('/'), 1000);
+
+      } catch (err) {
+          console.error('Error during profile setup:', err);
+          setError('An error occurred while saving your profile. Please try again.');
+      } finally {
+          setIsProcessing(false);
+      }
   }
-};
+  
+  // 👇 renderForm function (unchanged from the working version)
+  const renderForm = () => {
+    if (!isOtpSent) {
+      // Form to get mobile number and send OTP
+      return (
+        <form onSubmit={handleSendOtp}>
+          <h2>Login or Sign Up</h2>
+          <div className="form-group">
+            <label htmlFor="country-code">Country</label>
+            <select
+              id="country-code"
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              disabled={isProcessing}
+            >
+              {countryCodes.map((cc) => (
+                <option key={cc.code} value={cc.code}>
+                  {cc.name} ({cc.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="mobile">Mobile Number</label>
+            <input
+              type="tel"
+              id="mobile"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
+              placeholder="Enter mobile number"
+              required
+              disabled={isProcessing}
+            />
+          </div>
+          <button type="submit" className="login-button" disabled={isProcessing}>
+            {isProcessing ? 'Sending OTP...' : 'Send OTP'}
+          </button>
+        </form>
+      );
+    } else if (isOtpSent && !isOtpVerified) {
+      // Form to verify OTP
+      return (
+        <form onSubmit={handleVerifyOtp}>
+          <h2>Verify OTP</h2>
+          <p>An OTP has been sent to {mobile}. Please enter it below.</p>
+          <div className="form-group">
+            <label htmlFor="otp">OTP</label>
+            <input
+              type="text"
+              id="otp"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter 6-digit OTP"
+              required
+              disabled={isProcessing}
+            />
+          </div>
+          <button type="submit" className="login-button" disabled={isProcessing}>
+            {isProcessing ? 'Verifying...' : 'Verify & Proceed'}
+          </button>
+        </form>
+      );
+    } else {
+        // Profile Setup Form
+        return (
+            <form onSubmit={handleProfileSetup}>
+                <h2>Complete Your Profile</h2>
+                <p>One final step to get started!</p>
+                <div className="form-group">
+                    <label htmlFor="name">Full Name</label>
+                    <input
+                        type="text"
+                        id="name"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="Your full name"
+                        required
+                        disabled={isProcessing}
+                    />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="address">Address</label>
+                    <input
+                        type="text"
+                        id="address"
+                        value={userAddress}
+                        onChange={(e) => setUserAddress(e.target.value)}
+                        placeholder="Your full address"
+                        required
+                        disabled={isProcessing}
+                    />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="profile-country">Country</label>
+                    <select
+                        id="profile-country"
+                        value={userCountry}
+                        onChange={(e) => setUserCountry(e.target.value)}
+                        disabled={isProcessing}
+                    >
+                        {countryCodes.map((cc) => (
+                            <option key={cc.code} value={cc.name}>
+                                {cc.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <button type="submit" className="login-button" disabled={isProcessing}>
+                    {isProcessing ? 'Saving...' : 'Finish Sign Up & Login'}
+                </button>
+            </form>
+        );
+    }
+  };
+
   return (
     <div className="login-page-container">
       <div className="login-image-section">
@@ -179,64 +370,9 @@ const handleVerifyOtp = async (e) => {
           <h1>Welcome</h1>
           {error && <p className="error-message">{error}</p>}
           {info && <p className="info-message">{info}</p>}
-
-          {!isOtpSent ? (
-            // Form to get mobile number and send OTP
-            <form onSubmit={handleSendOtp}>
-              <h2>Login or Sign Up</h2>
-              <div className="form-group">
-                <label htmlFor="country-code">Country</label>
-                <select
-                  id="country-code"
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  disabled={isProcessing}
-                >
-                  {countryCodes.map((cc) => (
-                    <option key={cc.code} value={cc.code}>
-                      {cc.name} ({cc.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="mobile">Mobile Number</label>
-                <input
-                  type="tel"
-                  id="mobile"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="Enter mobile number"
-                  required
-                  disabled={isProcessing}
-                />
-              </div>
-              <button type="submit" className="login-button" disabled={isProcessing}>
-                {isProcessing ? 'Sending OTP...' : 'Send OTP'}
-              </button>
-            </form>
-          ) : (
-            // Form to verify OTP
-            <form onSubmit={handleVerifyOtp}>
-              <h2>Verify OTP</h2>
-              <p>An OTP has been sent to {mobile}. Please enter it below.</p>
-              <div className="form-group">
-                <label htmlFor="otp">OTP</label>
-                <input
-                  type="text"
-                  id="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter 6-digit OTP"
-                  required
-                  disabled={isProcessing}
-                />
-              </div>
-              <button type="submit" className="login-button" disabled={isProcessing}>
-                {isProcessing ? 'Verifying...' : 'Verify & Login'}
-              </button>
-            </form>
-          )}
+          
+          {renderForm()}
+          
           <div id="recaptcha-container"></div>
         </div>
       </div>

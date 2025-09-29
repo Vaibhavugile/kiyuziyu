@@ -1,15 +1,21 @@
 import React from 'react';
 import './Modal.css';
 
-const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
+// 1. Accept the new prop: onCancelOrder
+const OrderDetailsModal = ({ order, onClose, onUpdateStatus, onCancelOrder }) => {
   if (!order) return null;
 
   const orderDate = order.createdAt?.toDate().toLocaleString();
 
+  // Logic to determine if cancellation is possible
+  // You should NOT be able to cancel an order that is already 'Delivered' or 'Cancelled'
+  const isCancellable = order.status !== 'Delivered' && order.status !== 'Cancelled';
+
+
   // New function to handle printing the Server-Generated PDF Invoice
   const handlePrintInvoicePDF = async () => {
     try {
-      // 🎯 UPDATED: Using the provided Firebase Function URL
+      // 🎯 Using the provided Firebase Function URL
       const functionUrl = 'https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/generateInvoiceForPrint';
       
       const response = await fetch(`${functionUrl}?orderId=${order.id}`); //
@@ -31,7 +37,7 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
     }
   };
   
-  // 🔄 Existing handlePrint function for client-side printing (e.g., Shipping Label)
+  // 🏷️ Existing handlePrint function for client-side printing (e.g., Shipping Label)
   const handlePrintClientSide = (printType) => {
     // 1. Get the element to be printed
     const contentToPrint = document.getElementById('printable-order-content'); //
@@ -50,7 +56,6 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
     // 4. Remove the class after printing is done (or the dialog is closed)
     contentToPrint.classList.remove(printType); //
   };
-  // The original handlePrint for 'print-type-order' is removed, replaced by PDF function
 
   return (
     <div className="modal-backdrop">
@@ -66,7 +71,8 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
             <p><strong>Order ID:</strong> {order.id}</p>
             <p><strong>Order Date:</strong> {orderDate}</p>
             <p><strong>Status:</strong> {order.status}</p>
-            <p><strong>Total Amount:</strong> ₹{order.totalAmount.toFixed(2)}</p>
+            {/* Using the correct Rupee symbol entity */}
+            <p><strong>Total Amount:</strong> ₹{order.totalAmount.toFixed(2)}</p> 
           </div>
 
           {order.shippingInfo && (
@@ -101,6 +107,7 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
                     <p><strong>Product:</strong> {item.productName}</p>
                     <p><strong>Code:</strong> {item.productCode}</p>
                     <p><strong>Quantity:</strong> {item.quantity}</p>
+                    {/* Using the correct Rupee symbol entity */}
                     <p><strong>Price:</strong> ₹{item.price}</p>
                   </div>
                 </li>
@@ -118,14 +125,38 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus }) => {
           <button onClick={() => handlePrintClientSide('print-type-shipping')} className="print-btn">
             Print Shipping Label 🏷️
           </button>
+          
+          {/* 👇 NEW CANCEL BUTTON: Visible only if cancellable */}
+          {isCancellable && (
+            <button
+              className="cancel-btn"
+              onClick={() => onCancelOrder(order.id)} // Calls the handler passed from parent
+              style={{ 
+                backgroundColor: '#dc3545', // Red color for danger
+                color: 'white', 
+                marginRight: '10px',
+                border: 'none',
+                padding: '10px 15px',
+                cursor: 'pointer'
+              }}
+            >
+              ❌ Cancel Order (Reverse Stock)
+            </button>
+          )}
+
+          {/* Status Update Select */}
           <select
             value={order.status}
             onChange={(e) => onUpdateStatus(order.id, e.target.value)}
           >
+            {/* Standard status options */}
+            <option value="">Select Stautus</option>
             <option value="Pending">Pending</option>
             <option value="Processing">Processing</option>
             <option value="Shipped">Shipped</option>
             <option value="Delivered">Delivered</option>
+            {/* Show Cancelled option if it's the current status, but not as an editable choice */}
+            {order.status === 'Cancelled' && <option value="Cancelled">Cancelled</option>} 
           </select>
         </div>
       </div>
