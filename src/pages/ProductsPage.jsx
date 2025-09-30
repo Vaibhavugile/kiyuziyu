@@ -131,8 +131,7 @@ const ProductsPage = () => {
 
   const handleAddToCart = (product, variation) => {
     if (!currentUser) {
-      alert("You must be logged in to add products to your cart.");
-      navigate('/login');
+      alert("The websiteis under maintenance for order please contact +91 7897897441  ");
       return;
     }
     const subcollection = subcollectionsMap[product.subcollectionId];

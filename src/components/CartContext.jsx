@@ -2,6 +2,9 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
+// --- NEW CONSTANT: Moved outside for better practice ---
+const WHOLESALER_MIN_ORDER_VALUE = 5000;
+
 // Utility functions (kept as is)
 export const getPriceForQuantity = (tiers, totalQuantity) => {
   if (!tiers || tiers.length === 0) return null;
@@ -65,8 +68,8 @@ const recalculateCartPrices = (currentCart, userRole) => {
     }
     // Only proceed if tiers exist for this role
     if (roleTiers) {
-        pricingGroups[pricingId].totalQuantity += item.quantity;
-        pricingGroups[pricingId].cartItemIds.push(cartItemId);
+      pricingGroups[pricingId].totalQuantity += item.quantity;
+      pricingGroups[pricingId].cartItemIds.push(cartItemId);
     }
   }
   
@@ -85,6 +88,7 @@ const recalculateCartPrices = (currentCart, userRole) => {
 // Create the provider component
 export const CartProvider = ({ children }) => {
   const { userRole } = useAuth();
+
   const [cart, setCart] = useState(() => {
     try {
       const storedCart = localStorage.getItem('cart');
@@ -103,6 +107,31 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart]);
 
+  // --- START OF FIXED ORDER FOR FUNCTIONS ---
+  
+  const getCartTotal = useCallback(() => {
+    return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
+  }, [cart]);
+
+  const checkMinOrderValue = useCallback(() => {
+    const total = getCartTotal();
+    const isWholesaler = userRole === 'wholesaler';
+    
+    // Set minimum required amount: 5000 for wholesalers, 0 for others
+    const minimumRequired = isWholesaler ? WHOLESALER_MIN_ORDER_VALUE : 0;
+    
+    // Check if the total meets the minimum
+    const isMinMet = total >= minimumRequired;
+
+    return {
+      isWholesaler,
+      minimumRequired,
+      isMinMet,
+      currentTotal: total
+    };
+  }, [getCartTotal, userRole]); 
+
+  // --- END OF FIXED ORDER FOR FUNCTIONS ---
 
   const addToCart = useCallback((productData) => {
     setCart((prevCart) => {
@@ -112,19 +141,19 @@ export const CartProvider = ({ children }) => {
       // 🎯 FIX: Determine the Stock Limit correctly based on product type and current cart state.
       let stockLimit;
       if (productData.variation) {
-          // Case 1: Product with variation. Stock is always in variation object.
-          stockLimit = Number(productData.variation.quantity);
+        // Case 1: Product with variation. Stock is always in variation object.
+        stockLimit = Number(productData.variation.quantity);
       } else if (prevCart[cartItemId]?.stockLimit) {
-          // Case 2: Simple product already in cart. Stock is stored in cart item's stockLimit property.
-          stockLimit = prevCart[cartItemId].stockLimit;
+        // Case 2: Simple product already in cart. Stock is stored in cart item's stockLimit property.
+        stockLimit = prevCart[cartItemId].stockLimit;
       } else {
-          // Case 3: Simple product first time in cart. Stock is in productData.quantity.
-          stockLimit = Number(productData.quantity);
+        // Case 3: Simple product first time in cart. Stock is in productData.quantity.
+        stockLimit = Number(productData.quantity);
       }
 
       if (currentQuantity >= stockLimit) {
-          console.warn(`Cannot add more of ${productData.productName}. Max stock (${stockLimit}) reached.`);
-          return prevCart;
+        console.warn(`Cannot add more of ${productData.productName}. Max stock (${stockLimit}) reached.`);
+        return prevCart;
       }
 
       // Determine pricing ID
@@ -163,7 +192,7 @@ export const CartProvider = ({ children }) => {
       
       // Check if the item actually exists in the cart before trying to modify it
       if (!newCart[cartItemId]) {
-          return prevCart; 
+        return prevCart; 
       }
       
       const newQuantity = newCart[cartItemId].quantity - 1; // Decrements by 1
@@ -178,10 +207,6 @@ export const CartProvider = ({ children }) => {
       return recalculateCartPrices(newCart, userRole);
     });
   }, [userRole]);
-
-  const getCartTotal = useCallback(() => {
-    return Object.values(cart).reduce((total, item) => total + (item.price * item.quantity), 0);
-  }, [cart]);
 
   const clearCart = useCallback(() => {
     setCart({});
@@ -204,6 +229,7 @@ export const CartProvider = ({ children }) => {
     removeFromCart,
     getCartTotal,
     clearCart,
+    checkMinOrderValue,
   };
 
   return (

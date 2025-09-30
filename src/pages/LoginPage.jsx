@@ -13,9 +13,10 @@ import {
   query, 
   where, 
   getDocs,
+   deleteDoc,
 } from '../firebase';
 import '../styles/LoginPage.css';
-
+import LogoImage from '../assets/logoj.png'; 
 const countryCodes = [
   { code: "+91", name: "India" },
   { code: "+1", name: "United States" },
@@ -130,7 +131,11 @@ const LoginPage = () => {
   };
   
   // 👇 CORRECTED: handleVerifyOtp function checks for profile existence via mobile number
-  const handleVerifyOtp = async (e) => {
+  // src/pages/LoginPage.jsx
+
+// ... (inside the LoginPage component)
+
+const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
     setInfo('');
@@ -143,64 +148,67 @@ const LoginPage = () => {
     }
 
     try {
-      setInfo('OTP verified! Checking user status...');
+        setInfo('OTP verified! Checking user status and logging in...');
 
-      const fullMobileNumber = `${countryCode}${mobile}`;
-      
-      // 1. Check if a profile with this mobile number already exists in Firestore
-      const usersCollectionRef = collection(db, 'users');
-      // Create a query to search by the 'mobile' field
-      const q = query(usersCollectionRef, where("mobile", "==", fullMobileNumber));
-      const querySnapshot = await getDocs(q);
-
-      // 2. Sign the user into a *new* anonymous session
-      // This is necessary to satisfy AuthContext and create a current user session.
-      const userCredential = await signInAnonymously(auth);
-      const firebaseUser = userCredential.user;
-      setTempUser(firebaseUser);
-
-      if (!querySnapshot.empty) {
-        // --- RETURNING USER (LOGIN) ---
-        // A document with this mobile number already exists.
+        const fullMobileNumber = `${countryCode}${mobile}`;
         
-        // Update the existing user's document with the *new* anonymous UID.
-        // This is crucial: we update the existing profile with the new UID
-        // so AuthContext uses the right user document next time.
-        const existingDoc = querySnapshot.docs[0];
-        const existingDocRef = doc(db, 'users', existingDoc.id);
+        // 1. Check if a profile with this mobile number already exists in Firestore
+        const usersCollectionRef = collection(db, 'users');
+        const q = query(usersCollectionRef, where("mobile", "==", fullMobileNumber));
+        const querySnapshot = await getDocs(q);
 
-        await setDoc(existingDocRef, {
-            uid: firebaseUser.uid, // Update to the current anonymous UID
-            lastLogin: new Date(),
-        }, { merge: true });
+        // 2. Sign the user into a *new* anonymous session
+        const userCredential = await signInAnonymously(auth);
+        const firebaseUser = userCredential.user;
+        setTempUser(firebaseUser);
 
-        setInfo('Welcome back! Logging in...');
-        setTimeout(() => navigate('/'), 1000); // Redirect immediately
+        if (!querySnapshot.empty) {
+            // --- RETURNING USER (LOGIN) - MIGRATION LOGIC ---
+            const existingDoc = querySnapshot.docs[0];
+            const oldDocId = existingDoc.id;
+            const oldDocData = existingDoc.data();
+            
+            // This is the fix: We create a NEW document where the Doc ID == new UID
+            const newDocRef = doc(db, 'users', firebaseUser.uid); 
+            await setDoc(newDocRef, {
+                ...oldDocData, // Copy all existing user data (name, address, role, etc.)
+                uid: firebaseUser.uid, // Ensure the uid field is the new one
+                lastLogin: new Date(),
+            });
+            
+            // Delete the OLD document (only if the IDs are different)
+            if (oldDocId !== firebaseUser.uid) {
+                const oldDocRef = doc(db, 'users', oldDocId);
+                await deleteDoc(oldDocRef); 
+                console.log(`Migrated profile from old Doc ID (${oldDocId}) to new UID Doc ID (${firebaseUser.uid}).`);
+            }
 
-      } else {
-        // --- NEW USER (SIGN UP) ---
-        // No document found with this mobile number.
-        setInfo('Verified! Now, please complete your profile.');
+            setInfo('Welcome back! Logging in...');
+            navigate('/'); // Redirect immediately
 
-        // Create the initial minimal document using the new anonymous UID
-        const newUserRef = doc(db, 'users', firebaseUser.uid); 
-        await setDoc(newUserRef, {
-            uid: firebaseUser.uid, 
-            mobile: fullMobileNumber, 
-            role: 'retailer', 
-            createdAt: new Date(),
-        });
+        } else {
+            // --- NEW USER (SIGN UP) ---
+            setInfo('Verified! Now, please complete your profile.');
 
-        setIsOtpVerified(true); // Move to profile setup screen
-      }
+            // Create the initial minimal document using the new anonymous UID (Doc ID == UID)
+            const newUserRef = doc(db, 'users', firebaseUser.uid); 
+            await setDoc(newUserRef, {
+                uid: firebaseUser.uid, 
+                mobile: fullMobileNumber, 
+                role: 'retailer', 
+                createdAt: new Date(),
+            });
+
+            setIsOtpVerified(true); // Move to profile setup screen
+        }
 
     } catch (err) {
-      console.error('Error during login:', err);
-      setError('An error occurred during sign-in. Please try again.');
+        console.error('Error during login/sign-up:', err);
+        setError('An error occurred during sign-in. Please try again.');
     } finally {
-      setIsProcessing(false);
+        setIsProcessing(false);
     }
-  };
+};
 
   // 👇 handleProfileSetup function (unchanged from the working version)
   const handleProfileSetup = async (e) => {
@@ -362,7 +370,16 @@ const LoginPage = () => {
   return (
     <div className="login-page-container">
       <div className="login-image-section">
-        <div className="logo">Your Logo Here</div>
+        {/* 👇 REPLACE THIS DIV CONTENT */}
+        <div className="logo">
+          <img 
+            src={LogoImage} 
+            alt="Your Company Logo" 
+            className="logo-img" // Optional: Add a class for styling
+          />
+        </div>
+        {/* 👆 WITH THIS */}
+        
         <p className="welcome-text">Welcome to your dashboard. We're happy to have you back!</p>
       </div>
       <div className="login-form-section">

@@ -91,19 +91,19 @@ const generateInvoice = async (orderData, filePath) => {
       });
   doc
       .fontSize(10)
-      .text("Your Company Name", 350, businessInfoY + 15, {
+      .text("Kiyu-Ziyu", 350, businessInfoY + 15, {
         align: "right",
       })
-      .text("Your Address Line 1", 350, businessInfoY + 30, {
+      .text("Hinjewadi", 350, businessInfoY + 30, {
         align: "right",
       })
-      .text("City, State, Pincode", 350, businessInfoY + 45, {
+      .text("Pune, Maharashtra, 412101", 350, businessInfoY + 45, {
         align: "right",
       })
-      .text("Email: your_email@example.com", 350, businessInfoY + 60, {
+      .text("Email: kiyuziyujewellery@gmail.com", 350, businessInfoY + 60, {
         align: "right",
       })
-      .text("Phone: Your Phone Number", 350, businessInfoY + 75, {
+      .text("Phone: +917897897441", 350, businessInfoY + 75, {
         align: "right",
       });
 
@@ -198,29 +198,36 @@ const generateInvoice = async (orderData, filePath) => {
 
   doc
       .fontSize(10)
-      .text("Subtotal:", 400, totalsY + 10, {
+      .text("Subtotal:", 300, totalsY + 10, {
+        width: 190,
         align: "right",
       })
       .text(`₹${orderData.subtotal.toFixed(2)}`, 500, totalsY + 10, {
+        width: 50,
         align: "right",
       });
   doc
-      .text("Shipping:", 400, totalsY + 25, {
+      .text("Shipping:", 300, totalsY + 25, {
+        width: 190,
         align: "right",
       })
       .text(`₹${orderData.shippingFee.toFixed(2)}`, 500, totalsY + 25, {
+        width: 50,
         align: "right",
       });
+
 
   // Final Total
   doc
       .moveDown()
       .moveDown()
       .fontSize(15)
-      .text("Total Amount:", 400, totalsY + 50, {
+      .text("Total Amount:", 300, totalsY + 50, {
+        width: 190,
         align: "right",
       })
       .text(`₹${orderData.totalAmount.toFixed(2)}`, 500, totalsY + 50, {
+        width: 50,
         align: "right",
       })
       .fillColor("#000000");
@@ -245,7 +252,7 @@ const generateInvoice = async (orderData, filePath) => {
 // Add this function above or below your exports.placeOrder function in index.js
 
 exports.cancelOrder = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "http://localhost:3000"); // update for frontend origin
+  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com"); // update for frontend origin
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "POST");
     res.set("Access-Control-Allow-Headers", "Content-Type");
@@ -401,7 +408,7 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
 });
 
 exports.placeOrder = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "http://localhost:3000"); // update for frontend
+  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com"); // update for frontend
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "POST");
     res.set("Access-Control-Allow-Headers", "Content-Type");

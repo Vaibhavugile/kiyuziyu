@@ -7,9 +7,15 @@ import './CheckoutPage.css';
 const SHIPPING_FEE = 199;
 
 const CheckoutPage = () => {
-  const { cart, getCartTotal, clearCart } = useCart();
+  // 1. Destructure checkMinOrderValue
+  const { cart, getCartTotal, clearCart, checkMinOrderValue } = useCart();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // 2. Call checkMinOrderValue to get the current min order status
+  const { isWholesaler, isMinMet, minimumRequired } = checkMinOrderValue();
+  const showMinOrderWarning = isWholesaler && !isMinMet;
+  const minimumRemaining = minimumRequired - getCartTotal(); // Use getCartTotal directly here
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -34,6 +40,13 @@ const CheckoutPage = () => {
     e.preventDefault();
     setIsProcessing(true);
     setError(null);
+
+    // 3. NEW: Minimum Order Check
+    if (isWholesaler && !isMinMet) {
+      setError(`Minimum wholesale order of ₹${minimumRequired.toFixed(2)} not met. Please return to cart and increase your order total.`);
+      setIsProcessing(false);
+      return;
+    }
 
     if (Object.values(cart).length === 0) {
       setError("Your cart is empty. Please add items before checking out.");
@@ -152,14 +165,20 @@ const CheckoutPage = () => {
                 </div>
               </div>
 
-              <button type="submit" className="checkout-btn" disabled={isProcessing}>
+              {/* Min Order Warning in Form */}
+              {showMinOrderWarning && (
+                  <p className="error-message min-order-warning-checkout">
+                      ⚠️ Minimum wholesale order of **₹{minimumRequired.toFixed(2)}** not met. Please return to cart to add **₹{minimumRemaining.toFixed(2)}** more.
+                  </p>
+              )}
+
+              <button type="submit" className="checkout-btn" disabled={isProcessing || showMinOrderWarning}>
                 {isProcessing ? 'Processing...' : 'Place Order'}
               </button>
             </form>
           </div>
 
           {/* Order Summary Section - Right side on Desktop */}
-          {/* Renamed from 'cart-summary' to 'order-details' to match your CSS setup for flex layout */}
           <div className="order-details">
             <h3>Order Summary</h3>
             <div className="cart-items-list">
@@ -193,6 +212,15 @@ const CheckoutPage = () => {
               <p>Subtotal:</p>
               <p>₹{getCartTotal().toFixed(2)}</p>
             </div>
+            
+            {/* NEW: Display Minimum Order Requirement for Wholesalers */}
+            {isWholesaler && (
+                <div className={`cart-total-section minimum-order-line ${isMinMet ? 'met' : 'not-met'}`}>
+                    <p>Min. Order (Wholesale):</p>
+                    <p>₹{minimumRequired.toFixed(2)}</p>
+                </div>
+            )}
+            
             <div className="cart-total-section">
               <p>Shipping:</p>
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>

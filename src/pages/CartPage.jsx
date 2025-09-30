@@ -6,7 +6,12 @@ import './CartPage.css';
 import { Link } from 'react-router-dom';
 
 const CartPage = () => {
-    const { cart, addToCart, removeFromCart, getCartTotal, clearCart } = useCart();
+    // 1. Destructure checkMinOrderValue
+    const { cart, addToCart, removeFromCart, getCartTotal, clearCart, checkMinOrderValue } = useCart();
+
+    // 2. Call checkMinOrderValue to get the current min order status
+    const { isWholesaler, isMinMet, minimumRequired, currentTotal } = checkMinOrderValue(); 
+
     // Logic remains unchanged
     const handleDecrement = useCallback((cartItemId) => {
         removeFromCart(cartItemId);
@@ -16,6 +21,11 @@ const CartPage = () => {
     const handleIncrement = useCallback((item) => {
         addToCart(item);
     }, [addToCart]); 
+
+    // Helper for minimum order check display
+    const minimumRemaining = minimumRequired - currentTotal;
+    const showMinOrderWarning = isWholesaler && !isMinMet;
+
 
     return (
         <div className="cart-page-container">
@@ -33,7 +43,7 @@ const CartPage = () => {
                                     <img 
                                         src={item.images && item.images.length > 0 ? item.images[0].url : item.image}
                                         alt={item.productName} 
-                                        className="cart-item-image" 
+                                        className="cart-item-image1" 
                                     />
                                     <div className="cart-item-info">
                                         <h4 className="cart-item-name">
@@ -66,12 +76,34 @@ const CartPage = () => {
                             <span>₹{getCartTotal().toFixed(2)}</span>
                         </div>
                         
+                        {/* 3. Display Minimum Order Requirement for Wholesalers */}
+                        {isWholesaler && (
+                            <div className={`cart-summary-line minimum-order-line ${isMinMet ? 'met' : 'not-met'}`}>
+                                <p>Min. Order (Wholesale):</p>
+                                <span>₹{minimumRequired.toFixed(2)}</span>
+                            </div>
+                        )}
+                        
                         <div className="cart-total final-total">
                             <p>Total:</p>
                             <span>₹{getCartTotal().toFixed(2)}</span>
                         </div>
+
+                        {/* Minimum Order Warning Message */}
+                        {showMinOrderWarning && (
+                            <p className="min-order-warning-message">
+                                ⚠️ Minimum wholesale order of **₹{minimumRequired.toFixed(2)}** not met. Add **₹{minimumRemaining.toFixed(2)}** more to proceed.
+                            </p>
+                        )}
+
                         <div className="cart-actions-buttons">
-                            <Link to="/checkout" className="checkout-btn">Proceed to Checkout</Link>
+                            {/* Conditionally render Checkout button: Link if min met, disabled Button if not */}
+                            {showMinOrderWarning ? (
+                                <button disabled className="checkout-btn disabled">Proceed to Checkout</button>
+                            ) : (
+                                <Link to="/checkout" className="checkout-btn">Proceed to Checkout</Link>
+                            )}
+
                             <button onClick={clearCart} className="clear-cart-btn">Clear Cart</button>
                         </div>
                         <p className="trust-message">🔒 Secure Checkout</p>

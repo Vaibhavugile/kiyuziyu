@@ -45,7 +45,7 @@ const Navbar = () => {
         <li><MiniCart /></li>
         
         {/* Conditional rendering for Login or Profile Icon */}
-        {currentUser ? (
+        {/* {currentUser ? (
           <li className="profile-dropdown-container">
             <button
               className="profile-icon-btn"
@@ -66,7 +66,7 @@ const Navbar = () => {
           <li>
             <Link to="/login">Login</Link>
           </li>
-        )}
+        )} */}
       </ul>
     </nav>
   );

@@ -70,7 +70,7 @@
 
 
 .cart-item img {
-    width: 100%;
+    width: 80px;
     height: 80px;
     object-fit: cover;
     border-radius: 4px;
@@ -144,7 +144,7 @@
     }
 
     /* Image Positioning and Size */
-    .cart-item-image {
+    .cart-item-image1 {
         /* Use the class defined in CartPage.jsx for clarity */
         grid-column: 1 / 2;
         grid-row: 1 / 2;
