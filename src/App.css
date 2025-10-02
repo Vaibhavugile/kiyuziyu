@@ -18,66 +18,6 @@ body {
   color: var(--text-color);
 }
 
-/* Navbar */
-.navbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.2rem 2rem;
-  background-color: var(--white);
-  border-bottom: 1px solid #eee;
-  position: sticky;
-  top: 0;
-  z-index: 999;
-  position: relative;
-}
-
-/* Left */
-.navbar-left {
-  flex: 1;
-}
-
-.logo {
-  height: 100px;
-  width: auto;
-}
-
-/* Center */
-.navbar-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.navbar-title {
-  font-size: 1.6rem;
-  font-weight: 600;
-  color: var(--primary-color);
-  margin: 0;
-}
-
-/* Right */
-.navbar-right {
-  flex: 1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.navbar-right li a {
-  color: var(--nav-text-color);
-  font-size: 1rem;
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-.navbar-right li a:hover {
-  color: var(--primary-color);
-}
-
 
 /* Hero Section */
 .hero {
@@ -226,80 +166,240 @@ body {
   box-shadow: 0 10px 20px rgba(0,0,0,0.15);
 }
 /* src/components/Footer.css */
-
 .footer {
-  display: flex;
-  justify-content: space-between;
-  padding: 60px 10%;
-  background-color: #fff;
-  color: #333;
-  flex-wrap: wrap;
+    display: flex;
+    justify-content: space-between;
+    padding: 60px 10%;
+    background-color: #fff;
+    color: #333;
+    flex-wrap: wrap;
+    /* Added to handle the new mobile wrapper */
+    position: relative; 
 }
 
 .footer-section {
-  flex: 1;
-  margin: 20px;
+    flex: 1;
+    margin: 20px;
+}
+
+/* New wrapper for contact and links - inactive on desktop */
+.footer-details-mobile-grid {
+    display: flex;
+    flex: 2; 
 }
 
 .footer-section.about .logo {
-  height: 60px;
-  margin-bottom: 20px;
+    height: 60px;
+    margin-bottom: 20px;
 }
 
 .footer-section.about p {
-  font-size: 16px;
-  line-height: 1.6;
-  margin-bottom: 20px;
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 20px;
 }
 
 .footer-section.about .social-icons i {
-  margin-right: 15px;
-  font-size: 24px;
-  cursor: pointer;
-  transition: color 0.3s ease;
-  
+    margin-right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.footer-section.about .social-icons a {
+    color: #333; /* Ensure links have color */
 }
 
 .footer-section.about .social-icons i:hover {
-  color: #e84a7a;
+    color: #e84a7a;
 }
 
 .footer-section h4 {
-  font-size: 22px;
-  margin-bottom: 20px;
-  position: relative;
+    font-size: 22px;
+    margin-bottom: 20px;
+    position: relative;
 }
 
 .footer-section h4::after {
-  content: '';
-  width: 50px;
-  height: 3px;
-  background: #e84a7a;
-  position: absolute;
-  left: 0;
-  bottom: -10px;
+    content: '';
+    width: 50px;
+    height: 3px;
+    background: #e84a7a;
+    position: absolute;
+    left: 0;
+    bottom: -10px;
 }
 
 .footer-section p, .footer-section ul {
-  font-size: 16px;
-  line-height: 1.8;
+    font-size: 16px;
+    line-height: 1.8;
 }
 
 .footer-section ul {
-  list-style: none;
-  padding: 0;
+    list-style: none;
+    padding: 0;
 }
 
 .footer-section ul li {
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: color 0.3s ease;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: color 0.3s ease;
 }
 
 .footer-section ul li:hover {
-  color: #e84a7a;
+    color: #e84a7a;
 }
 
+
+/* ------------------------------
+    Responsive Styles for Mobile
+---------------------------------*/
+
+@media (max-width: 768px) {
+    /* Navbar styles (kept from original snippet for completeness) */
+   
+
+    
+    
+    /* Hero/Collections/Browse styles (kept from original snippet for completeness) */
+    .hero { height: 70vh; }
+    .hero-overlay { padding: 1rem; }
+    .hero h2 { font-size: 1.4rem; }
+    .hero button { font-size: 0.9rem; padding: 0.6rem 1.4rem; }
+    .collections-section h3 { font-size: 1.6rem; }
+    .collections-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+    .browse-section { flex-direction: column; text-align: center; padding: 40px 5%; }
+    .browse-section .content, .browse-section .image { max-width: 100%; }
+    .browse-section .title { font-size: 2rem; }
+    .browse-section .subtitle { font-size: 1rem; }
+    .browse-section .browse-btn { padding: 12px 30px; font-size: 1rem; }
+
+    /* --- FOOTER COMPACT MOBILE LAYOUT --- */
+    .footer {
+        /* Set padding to minimal */
+        padding: 20px 5%;
+        flex-direction: column;
+        gap: 0; 
+    }
+
+    /* 1. About Section - Stays full width, minimal padding */
+    .footer-section.about {
+        flex: 1 1 100%;
+        margin: 0;
+        padding: 15px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .footer-section.about .logo {
+        height: 35px;
+        margin-bottom: 5px;
+    }
+
+    .footer-section.about p {
+        font-size: 13px;
+        line-height: 1.4;
+        margin-bottom: 10px;
+    }
+
+    /* 2. Contact & Links Wrapper: Now only contains the contact info, spanning full width */
+    .footer-details-mobile-grid {
+        display: block; /* Change back to block layout for single section */
+        width: 100%;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    /* HIDE THE LINKS SECTION ENTIRELY ON MOBILE */
+    .footer-details-mobile-grid .footer-section.links {
+        display: none; 
+    }
+
+    /* Contact Section: Takes up full width and removes vertical divider */
+    .footer-details-mobile-grid .footer-section.contact {
+        flex: 1 1 100%; /* Force full width */
+        margin: 0;
+        padding: 0 5px; 
+        border-right: none; /* Remove the vertical separator */
+        border-bottom: none; /* Ensure no extra borders */
+    }
+
+    /* Typography and Spacing Adjustments for Maximum Density */
+    .footer-section h4 {
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+    
+    .footer-section h4::after {
+        width: 25px; 
+        height: 2px;
+        bottom: -5px;
+    }
+
+    .footer-section p,
+    .footer-section ul {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .footer-section ul li {
+        margin-bottom: 3px;
+    }
+    
+    /* Final cleanup: Remove the border from the very last section */
+    .footer-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+}
+
+
+/* Styles for the new profile dropdown (kept from original snippet for completeness) */
+
+.profile-dropdown-container {
+    position: relative;
+}
+
+.profile-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    display: flex;
+    align-items: center;
+}
+
+.profile-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 10px;
+    background-color: var(--card-background); 
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    padding: 8px 0;
+    min-width: 120px;
+    z-index: 10;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    font-size: 1em;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: var(--background-light); 
+}
 
 /* ------------------------------
    Responsive Styles for Mobile
@@ -307,25 +407,7 @@ body {
 
 @media (max-width: 768px) {
   /* Navbar */
-  .navbar {
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem;
-  }
-
-  .navbar-center {
-    display: none; /* Hide side links on mobile (optional) */
-  }
-
-  .navbar-title {
-    position: static;
-    transform: none;
-    font-size: 1.4rem;
-  }
-
-  .logo img {
-    height: 32px;
-  }
+  
 
   /* Hero Section */
   .hero {
@@ -380,24 +462,6 @@ body {
     font-size: 1rem;
   }
 
-  /* Footer */
-  .footer {
-    flex-direction: column;
-    padding: 40px 5%;
-  }
-
-  .footer-section {
-    margin: 20px 0;
-  }
-
-  .footer-section h4 {
-    font-size: 18px;
-  }
-
-  .footer-section p,
-  .footer-section ul {
-    font-size: 14px;
-  }
 }
 /* Styles for the new profile dropdown */
 
@@ -447,3 +511,153 @@ body {
 }
 
 
+/* ... (Existing CSS code above the media query remains unchanged) ... */
+
+/* ------------------------------
+    Responsive Styles for Mobile
+---------------------------------*/
+
+
+/* ... (Existing Styles for the new profile dropdown remain unchanged) ... */
+
+/* --- DESKTOP / BASE STYLES --- */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* REDUCED HEIGHT: Minimal vertical padding */
+    padding: 0.8rem 2rem; 
+    background-color: var(--white, #ffffff);
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    
+    /* ANIMATION: Transition for smooth sticky scroll and styling changes */
+    transition: all 0.3s ease-in-out; 
+    box-shadow: var(--shadow-base, 0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* --- LOGO SIZING (CRITICAL for height reduction) --- */
+.navbar-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    /* Set the desired compact height for the circular logo */
+    height: 40px; 
+    width: auto;
+    transition: height 0.3s ease;
+}
+
+/* Center (Text Logo) */
+.navbar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: block;
+}
+
+.navbar-text-logo {
+    /* Set the desired compact height for the text logo */
+    height: 25px; 
+    width: auto;
+    display: block;
+}
+
+/* Right (Links and Icons) */
+.navbar-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem; 
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    align-items: center; /* Vertically align all items (links, cart, user icon) */
+}
+
+/* --- ICON ANIMATION / STYLING --- */
+.profile-dropdown-container {
+    position: relative;
+    height: 24px;
+}
+
+.profile-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: var(--nav-text-color, #333);
+    /* ANIMATION: Smooth color change on hover */
+    transition: color 0.3s; 
+}
+
+.profile-icon-btn:hover {
+    color: var(--primary-color, #e84a7a);
+    transform: scale(1.1); /* Subtle "ping" animation */
+}
+
+/* --- DROPDOWN MENU ANIMATION --- */
+.profile-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 10px;
+    background-color: var(--white, #ffffff);
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: var(--shadow-hover, 0 4px 8px rgba(0, 0, 0, 0.15));
+    padding: 5px 0;
+    min-width: 120px;
+    z-index: 10;
+    
+    /* ANIMATION: Fade in and slight slide down */
+    opacity: 0;
+    transform: translateY(-10px);
+    animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ------------------------------
+    MOBILE STYLES (Max-width 768px)
+---------------------------------*/
+
+@media (max-width: 768px) {
+    /* --- COMPACT MOBILE ROW LAYOUT --- */
+    .navbar {
+        flex-direction: row; 
+        justify-content: space-between;
+        padding: 0.5rem 1rem; /* Even tighter padding */
+        box-shadow: var(--shadow-base, 0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Logo is smaller on mobile */
+    .logo {
+        height: 32px; 
+    }
+    
+    /* Hide the centered text logo entirely on mobile */
+    .navbar-center {
+        display: none; 
+    }
+
+    /* Hide the regular text links on mobile */
+    .nav-link-item {
+        display: none;
+    }
+
+    /* Right section remains the container for icons */
+    .navbar-right {
+        gap: 1rem; 
+        flex: 0 0 auto;
+    }
+}

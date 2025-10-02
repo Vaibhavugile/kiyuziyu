@@ -15,6 +15,8 @@ import {
   runTransaction, // Added for transactions
   orderBy, // This is the new import you need
    serverTimestamp,
+   startAfter,
+   limit
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -74,4 +76,6 @@ export {
    serverTimestamp,
    signOut,  // Exporting the newly added function
    signInAnonymously,
+   limit,
+   startAfter,
 };
