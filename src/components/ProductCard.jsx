@@ -198,7 +198,7 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
 
         <p className="product-quantity">In Stock: {quantityToDisplay}</p>
         
-        {variations && variations.length > 1 && (
+        {variations && variations.length >= 1 && (
           <div className="variations-selector">
             {variations.map((v, index) => (
               <button
