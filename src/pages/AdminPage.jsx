@@ -1530,7 +1530,7 @@ const handleCancelOrder = async (orderId) => {
                         <label>Purchase Rate:</label>
                         <input type="number" step="0.01" value={subcollectionPurchaseRate} onChange={(e) => setSubcollectionPurchaseRate(e.target.value)} placeholder="Purchase Rate (e.g., 0.50)" required />
                       </div>
-                      <div className="tiered-pricing-container">
+                      <div className="tiered-pricing-container1">
                         <div className="pricing-section">
                           <h4>Retail Pricing</h4>
                           {subcollectionTieredPricing.retail.map((tier, index) => (
