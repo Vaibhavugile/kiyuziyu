@@ -14,7 +14,7 @@ import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import OrderHistoryPage from './pages/OrderHistoryPage'; // Import the new page
-
+import ReportPage from './pages/ReportPage';
 function App() {
   return (
     <AuthProvider>
@@ -30,7 +30,8 @@ function App() {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/order-success" element={<OrderSuccessPage />} />
             <Route path="/order-history" element={<OrderHistoryPage />} /> {/* Add the new route here */}
-          </Routes>
+            <Route path="/report" element={<ReportPage />} />
+          </Routes> 
           <Footer />
         </Router>
       </CartProvider>

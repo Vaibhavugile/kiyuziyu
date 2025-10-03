@@ -62,7 +62,7 @@ const ProductsPage = () => {
   const [sortBy, setSortBy] = useState('default'); // Default/ProductCode, price-asc, price-desc
   const [isControlsVisible, setIsControlsVisible] = useState(false);
   const cartItemsCount = Object.values(cart).reduce((total, item) => total + item.quantity, 0);
-
+ const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   // --- Fetch Main Collection and Subcollections (Initial Setup) ---
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -104,6 +104,20 @@ const ProductsPage = () => {
       fetchMetadata();
     }
   }, [collectionId]);
+  // --- Debounce Effect for Search Term ---
+  useEffect(() => {
+    // Set a timeout to delay the fetch
+    const handler = setTimeout(() => {
+      // Update the term that the fetch function will rely on
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // Debounce delay of 500ms
+
+    // Cleanup function to clear the timeout if searchTerm changes before the delay
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]); // Re-run effect whenever the instant searchTerm changes
+  // --- END Debounce Effect ---
 
   // --- NEW CORE DATA FETCHING FUNCTION ---
   const fetchProducts = useCallback(async (isLoadMore = false) => {

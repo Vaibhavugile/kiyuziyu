@@ -48,14 +48,14 @@ const Navbar = () => {
                 <li><MiniCart /></li>
                 
                 {/* Profile Icon and Dropdown */}
-                {currentUser ? (
+                {/* {currentUser ? (
                     <li className="profile-dropdown-container">
                         <button
                             className="profile-icon-btn"
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                             aria-label="User Profile"
                         >
-                            <FaUserCircle size={24} /> {/* Animated Profile Icon */}
+                            <FaUserCircle size={24} /> 
                         </button>
                         {isDropdownOpen && (
                             <div className="profile-dropdown-menu">
@@ -69,7 +69,7 @@ const Navbar = () => {
                     <li className="nav-link-item">
                         <Link to="/login">Login</Link>
                     </li>
-                )}
+                )} */}
             </ul>
         </nav>
     );
