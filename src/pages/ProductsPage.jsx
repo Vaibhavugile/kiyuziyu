@@ -261,36 +261,42 @@ const ProductsPage = () => {
     return currentProducts;
   }, [products, sortBy, subcollectionsMap, userRole, cart]);
 
-  const handleAddToCart = (product, variation) => {
-    // ... (Keep existing handleAddToCart logic) ...
-    if (!currentUser) {
-      alert("The websiteis under maintenance for order please contact +91 7897897441  ");
-      return;
-    }
-    const subcollection = subcollectionsMap[product.subcollectionId];
-    if (!subcollection || !subcollection.tieredPricing) {
-        console.error('Pricing information is missing for this product.');
-        return;
-    }
-    const tieredPricingData = subcollection.tieredPricing;
-    const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
-    const pricingId = createStablePricingId(roleBasedTiers);
-    const productData = {
-        id: product.id,
-        productName: product.productName,
-        productCode: product.productCode,
-        image: product.image,
-        images: product.images,
-        quantity: product.quantity,
-        variations: product.variations,
-        tieredPricing: tieredPricingData,
-        subcollectionId: product.subcollectionId,
-        collectionId: collectionId,
-        pricingId: pricingId,
-        variation: variation
+    const handleAddToCart = (product, variation) => {
+        if (!currentUser) {
+            alert("The website is under maintenance for order please contact +91 7897897441");
+            return;
+        }
+        const subcollection = subcollectionsMap[product.subcollectionId];
+        if (!subcollection || !subcollection.tieredPricing) {
+            console.error('Pricing information is missing for this product.');
+            return;
+        }
+        const tieredPricingData = subcollection.tieredPricing;
+        const roleBasedTiers = tieredPricingData[userRole === 'wholesaler' ? 'wholesale' : 'retail'];
+        const pricingId = createStablePricingId(roleBasedTiers);
+        
+        // --- CRITICAL FIX: DO NOT pass stock quantity or full variations list ---
+        const productData = {
+            id: product.id,
+            productName: product.productName,
+            productCode: product.productCode,
+            image: product.image,
+            images: product.images,
+            
+            // REMOVED: quantity: product.quantity, // <--- PREVENTS BUG AT SOURCE
+            // REMOVED: variations: product.variations, // <--- PREVENTS DATA POLLUTION
+            
+            tieredPricing: tieredPricingData,
+            subcollectionId: product.subcollectionId,
+            collectionId: collectionId,
+            pricingId: pricingId,
+            variation: variation // The specific selected variation object is crucial
+        };
+        // --- END CRITICAL FIX ---
+        
+        addToCart(productData);
     };
-    addToCart(productData);
-  };
+
   
   // Display loading status clearly
   if (isLoading && products.length === 0) {

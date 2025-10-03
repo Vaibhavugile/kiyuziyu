@@ -1,3 +1,5 @@
+// src/components/ProductCard.jsx - UPDATED
+
 import React, { useState, useEffect } from 'react';
 import './ProductCard.css';
 import Zoom from 'react-medium-image-zoom';
@@ -6,14 +8,13 @@ import { getCartItemId } from './CartContext';
 
 
 const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart, tieredPricing }) => {
-  // Now destructure tieredPricing from the product object as a fallback
-  const { productName, productCode, image, variations, quantity, tieredPricing: productTieredPricing } = product;
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [{ url: product.image }] : []);
-  const [selectedVariation, setSelectedVariation] = useState(null);
-  const [cartQuantity, setCartQuantity] = useState(0);
+  // CRITICAL FIX: Ensure 'id' is destructured here for stable use in useEffect dependencies
+  const { productName, productCode, images, image, variations, quantity, tieredPricing: productTieredPricing, id } = product; 
   
-  // NEW STATE: Manages the visibility of the tiered pricing list
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const imagesToDisplay = images && images.length > 0 ? images : (image ? [{ url: image }] : []);
+  const [selectedVariation, setSelectedVariation] = useState(null);
+  // REMOVED: const [cartQuantity, setCartQuantity] = useState(0); - We calculate directly in renderActions
   const [showTiers, setShowTiers] = useState(false); 
 
   // Use the tieredPricing prop if it exists, otherwise fall back to the one on the product object
@@ -26,21 +27,10 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
     }
   }, [variations]);
 
-  // Update cartQuantity whenever the selected variation or the cart changes
- useEffect(() => {
-    // Only update cartQuantity if the cart prop is provided
-    if (cart) {
-      if (selectedVariation) {
-        const productWithVariation = { ...product, variation: selectedVariation };
-        const cartItemId = getCartItemId(productWithVariation);
-        setCartQuantity(cart[cartItemId]?.quantity || 0);
-      } else {
-        const cartItemId = getCartItemId(product);
-        setCartQuantity(cart[cartItemId]?.quantity || 0);
-      }
-    }
-  }, [selectedVariation, cart, product]);
+  // REMOVED: The useEffect that previously updated cartQuantity on variation switch is now gone.
+  // The logic is moved directly into renderActions for simplicity and reactivity.
   
+  // Image carousel logic
   useEffect(() => {
     if (imagesToDisplay.length > 1) {
       const interval = setInterval(() => {
@@ -66,18 +56,26 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
   
   const renderActions = () => {
     if (isCart) {
+      // NOTE: This assumes onIncrement/onDecrement for cart view already know the cartItemId
       return (
         <div className="cart-actions">
           <button onClick={onDecrement} className="quantity-btn">-</button>
-          <span className="cart-quantity">{cartQuantity}</span>
+          {/* Using product.quantity here because in a cart view, the product prop IS the cart item */}
+          <span className="cart-quantity">{quantity}</span> 
           <button onClick={onIncrement} className="quantity-btn">+</button>
         </div>
       );
     }
-    const currentQuantityInCart = cartQuantity || 0;
+    
+    // START OF FIX: Calculate quantity directly from cart prop based on selected variation
     const productDataWithVariation = { ...product, variation: selectedVariation };
+    const cartItemId = getCartItemId(productDataWithVariation);
+    const currentQuantityInCart = cart[cartItemId]?.quantity || 0;
+
     const incrementAction = () => onIncrement(productDataWithVariation);
-    const decrementAction = () => onDecrement(getCartItemId(productDataWithVariation));
+    const decrementAction = () => onDecrement(cartItemId);
+    // END OF FIX
+    
     return (
       <div className="product-actions">
         {currentQuantityInCart === 0 ? (
@@ -198,18 +196,31 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
 
         <p className="product-quantity">In Stock: {quantityToDisplay}</p>
         
-        {variations && variations.length >= 1 && (
+        {/* Variations Selector with inline cart quantity badge */}
+        {variations && variations.length > 1 && (
           <div className="variations-selector">
-            {variations.map((v, index) => (
-              <button
-                key={index}
-                className={`variation-btn ${selectedVariation?.color === v.color && selectedVariation?.size === v.size ? 'selected' : ''}`}
-                onClick={() => setSelectedVariation(v)}
-                title={`Color: ${v.color}, Size: ${v.size}`}
-              >
-                {v.color} {v.size}
-              </button>
-            ))}
+            {variations.map((v, index) => {
+              // Get the cart quantity for *this specific variation* button
+              const tempProductWithVariation = { ...product, variation: v };
+              const cartItemId = getCartItemId(tempProductWithVariation);
+              const quantityInCart = cart[cartItemId]?.quantity || 0;
+
+              return (
+                <button
+                  key={index}
+                  className={`variation-btn 
+                    ${selectedVariation?.color === v.color && selectedVariation?.size === v.size ? 'selected' : ''}
+                    ${quantityInCart > 0 ? 'in-cart' : ''}
+                  `}
+                  onClick={() => setSelectedVariation(v)} // This sets the selection
+                  title={`Color: ${v.color}, Size: ${v.size}`}
+                >
+                  {v.color} {v.size}
+                  {/* Display the cart quantity as a small badge */}
+                  {quantityInCart > 0 && <span className="variation-cart-qty">({quantityInCart})</span>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

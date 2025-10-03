@@ -1,4 +1,158 @@
 /* Base styles for the main content areas */
+
+/* --- NEW MODERN JEWELRY HERO SECTION --- */
+
+/* Keyframe Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-modern {
+    position: relative;
+    width: 100%;
+    height: 90vh; /* Full viewport height for impact */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #fff; /* Light text for a dark/elegant image */
+}
+
+/* Background Image and Subtle Animation */
+.hero-background-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center 30%; /* Focus the image slightly up */
+    z-index: 10;
+    /* Subtle zoom effect for animation */
+    transition: transform 10s ease-out; 
+    transform: scale(1.02);
+}
+
+.hero-modern:hover .hero-background-image {
+    transform: scale(1.0); /* Zoom out slightly on hover/load */
+}
+
+/* Elegant Dark Overlay */
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.2); /* Dark, transparent overlay */
+    z-index: 15;
+}
+
+/* Content (Text and Button) */
+.hero-content {
+    position: relative;
+    z-index: 20;
+    text-align: center;
+    max-width: 800px;
+    padding: 0 20px;
+}
+
+.hero-subtitle {
+    font-family: 'Playfair Display', serif; /* Elegant font */
+    font-size: 1.5rem;
+    font-weight: 300;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 5.5rem; /* Large and bold for impact */
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 30px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.hero-cta-button {
+    display: inline-block;
+    background-color: transparent;
+    color: #fff;
+    border: 2px solid #fff;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: all 0.3s ease-in-out;
+}
+
+.hero-cta-button:hover {
+    background-color: rgba(255, 255, 255, 0.15); /* Subtle fill on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 255, 255, 0.3);
+}
+
+
+/* Animation Classes */
+.animated-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+    opacity: 0; /* Start invisible */
+}
+
+/* Delay for staggering effect */
+.delay-1 {
+    animation-delay: 0.1s;
+}
+.delay-2 {
+    animation-delay: 0.3s;
+}
+.delay-3 {
+    animation-delay: 0.5s;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .hero-modern {
+        height: 60vh;
+    }
+    
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+
+    .hero-title {
+        font-size: 3rem;
+    }
+    
+    .hero-cta-button {
+        padding: 12px 30px;
+        font-size: 1rem;
+    }
+}
+
+/* Remove old video hero styles if they exist */
+.hero-video {
+    display: none;
+}
+.hero {
+    /* Set hero to full width/height if it was only for the video */
+    width: 100%; 
+    height: auto; 
+    min-height: 0;
+    /* Other reset styles for the old hero */
+    padding: 0;
+    margin: 0;
+}
 .collections-section,
 .browse-section {
   padding: 4rem 2rem;

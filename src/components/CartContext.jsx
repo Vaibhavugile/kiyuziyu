@@ -1,4 +1,5 @@
 // CartContext.jsx
+
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -36,11 +37,23 @@ export const createStablePricingId = (tiers) => {
 };
 
 export const getCartItemId = (product) => {
-  if (product.variation && product.variation.color && product.variation.size) {
-    return `${product.id}_${product.variation.color.replace(/\s+/g, '-')}_${product.variation.size.replace(/\s+/g, '-')}`;
+  // CRITICAL: Ensure we can handle cases where color or size might be missing/undefined 
+  // and only use variation if it exists.
+  if (product.variation) {
+    // Collect all variation keys (color, size, etc.) and sort them for a stable ID
+    const variationKeys = Object.keys(product.variation)
+      .filter(key => product.variation[key] != null) // Filter out null/undefined keys
+      .sort();
+
+    const variationString = variationKeys
+      .map(key => String(product.variation[key]).replace(/\s+/g, '-'))
+      .join('_');
+      
+    return `${product.id}_${variationString}`;
   }
   return product.id;
 };
+
 
 // Create the context
 export const CartContext = createContext();
@@ -138,6 +151,13 @@ export const CartProvider = ({ children }) => {
       const cartItemId = getCartItemId(productData);
       const currentQuantity = prevCart[cartItemId]?.quantity || 0;
 
+      // 🎯 CRITICAL FIX: Create a clean copy of productData and remove 
+      // stock-related fields that should not be used as the cart item's quantity.
+      const cleanProductData = { ...productData };
+      delete cleanProductData.quantity;
+      delete cleanProductData.variations;
+      // End CRITICAL FIX
+
       // 🎯 FIX: Determine the Stock Limit correctly based on product type and current cart state.
       let stockLimit;
       if (productData.variation) {
@@ -148,17 +168,19 @@ export const CartProvider = ({ children }) => {
         stockLimit = prevCart[cartItemId].stockLimit;
       } else {
         // Case 3: Simple product first time in cart. Stock is in productData.quantity.
-        stockLimit = Number(productData.quantity);
+        // NOTE: We rely on ProductsPage.jsx *not* passing this now, but if it did, 
+        // this is where the stock quantity would be pulled.
+        stockLimit = Number(productData.quantity || Infinity);
       }
-
+      
       if (currentQuantity >= stockLimit) {
         console.warn(`Cannot add more of ${productData.productName}. Max stock (${stockLimit}) reached.`);
         return prevCart;
       }
 
       // Determine pricing ID
-      const roleBasedTiers = productData.tieredPricing
-        ? productData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']
+      const roleBasedTiers = cleanProductData.tieredPricing
+        ? cleanProductData.tieredPricing[userRole === 'wholesaler' ? 'wholesale' : 'retail']
         : null;
       const pricingId = roleBasedTiers ? createStablePricingId(roleBasedTiers) : null;
       
@@ -166,18 +188,20 @@ export const CartProvider = ({ children }) => {
       const updatedCart = {
         ...prevCart,
         [cartItemId]: {
-          // Merge existing cart data first to preserve saved stockLimit, 
-          // then spread new productData (which includes other fresh details), 
-          // and finally set the new quantity/price.
+          // Merge existing cart data first to preserve saved price, etc.
           ...(prevCart[cartItemId] || {}), 
-          ...productData, 
+          
+          // Spread the *CLEAN* product data (which no longer contains stock quantity)
+          ...cleanProductData, 
           
           // Store the calculated stockLimit for future checks
           stockLimit: stockLimit, 
 
+          // EXPLICITLY SET THE CART QUANTITY, which is the cart's authority
           quantity: currentQuantity + 1,
+          
           price: prevCart[cartItemId]?.price || 0,
-          images: productData.images || (productData.image ? [{ url: productData.image }] : []),
+          images: cleanProductData.images || (cleanProductData.image ? [{ url: cleanProductData.image }] : []),
           pricingId: pricingId, 
         },
       };
