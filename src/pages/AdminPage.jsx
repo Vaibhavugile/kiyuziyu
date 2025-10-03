@@ -1393,6 +1393,35 @@ const AdminPage = () => {
       (product.productCode && product.productCode.toLowerCase().includes(searchQuery.toLowerCase()))
     )
   );
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) {
+        return 'N/A';
+    }
+
+    let date;
+    
+    // 1. Handle Firebase Timestamp (preferred method for Firestore data)
+    if (typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+    } 
+    // 2. Handle standard Date object
+    else if (timestamp instanceof Date) {
+        date = timestamp;
+    } 
+    // 3. Handle string or number representing a date
+    else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        date = new Date(timestamp);
+    }
+    
+    // 4. Final validation: check if the resulting date object is valid
+    if (date && !isNaN(date.getTime())) {
+        // Use toLocaleDateString() for a user-friendly, locale-specific format
+        return date.toLocaleDateString();
+    }
+
+    return 'N/A';
+};
   return (
     <div className="admin-page">
       <h1>Admin Dashboard</h1>
@@ -2126,46 +2155,91 @@ const AdminPage = () => {
           </div>
         )}
         {/* --- User Management Tab --- */}
-        {activeTab === 'users' && (
-          <div className="admin-section">
-            <h2>User Management</h2>
-            {isUserLoading ? (
-              <p>Loading users...</p>
-            ) : users.length === 0 ? (
-              <p>No users found.</p>
-            ) : (
-              <ul className="user-list">
-                {users.map((user) => (
-                  <li key={user.id} className="user-list-item">
-                    {Object.entries(user).map(([key, value]) => {
-                      if (key === 'id') return null; // Don't show the user ID in the list
-                      return (
-                        <p key={key}>
-                          <strong>{key}:</strong> {String(value)}
-                        </p>
-                      );
-                    })}
-                    <div className="user-actions">
-                      {user.role === 'retailer' && (
-                        <button onClick={() => handleUpdateUserRole(user.id, 'wholesaler')}>
-                          Change to Wholesaler
-                        </button>
-                      )}
-                      {user.role === 'wholesaler' && (
-                        <button onClick={() => handleUpdateUserRole(user.id, 'retailer')}>
-                          Change to Retailer
-                        </button>
-                      )}
-                      <button onClick={() => handleDeleteUser(user.id)} className="delete-user-button">
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      {activeTab === 'users' && (
+    <div className="admin-section">
+        <h2>User Management</h2>
+        
+        {/* Helper function to format the timestamp */}
+        {/* NOTE: You need to define this function outside of the render method */}
+        {/* For example: const formatDate = (timestamp) => timestamp?.toDate().toLocaleDateString() || 'N/A'; */}
+        
+        {isUserLoading ? (
+            <p>Loading users...</p>
+        ) : users.length === 0 ? (
+            <p>No users found.</p>
+        ) : (
+            <div className="user-table-container">
+                {/* 1. Table Header - 6 Columns */}
+                <div className="user-table-header">
+                    <div className="table-column header-name">Name</div>
+                    <div className="table-column header-email">last login</div>
+                    <div className="table-column header-mobile">Mobile</div>
+                    <div className="table-column header-address">Address</div>
+                    <div className="table-column header-created">Created At</div>
+                    <div className="table-column header-role">Role</div>
+                    <div className="table-column header-actions">Actions</div>
+                </div>
+
+                {/* 2. User Rows (List) */}
+                <ul className="user-table-list">
+                    {users.map((user) => (
+                        <li key={user.id} className="user-table-row">
+                            {/* Column 1: Name */}
+                            <div className="table-column user-name">{user.name || 'N/A'}</div>
+                            
+                            {/* Column 2: Email */}
+                            <div className="table-column user-email">{ formatDate(user.lastLogin || 'N/A')}</div>
+                            
+                            {/* Column 3: Mobile Number */}
+                            <div className="table-column user-mobile">{user.mobile || 'N/A'}</div>
+
+                            {/* Column 4: Address (Limited space, relies on CSS ellipsis) */}
+                            <div className="table-column user-address">{user.address || 'N/A'}</div>
+
+                            {/* Column 5: Created At (Assumes user.createdAt is a valid timestamp) */}
+                            <div className="table-column user-created-at">{formatDate(user.createdAt)}</div>
+                            
+                            {/* Column 6: Role */}
+                            <div className="table-column user-role">
+                                <span className={`role-tag role-${user.role}`}>
+                                    {user.role}
+                                </span>
+                            </div>
+
+                            {/* Column 7: Actions */}
+                            <div className="table-column user-actions-cell">
+                                <div className="user-action-buttons">
+                                    {user.role === 'retailer' && (
+                                        <button 
+                                            onClick={() => handleUpdateUserRole(user.id, 'wholesaler')}
+                                            className="btn-change-role btn-wholesaler"
+                                        >
+                                            Wholesaler
+                                        </button>
+                                    )}
+                                    {user.role === 'wholesaler' && (
+                                        <button 
+                                            onClick={() => handleUpdateUserRole(user.id, 'retailer')}
+                                            className="btn-change-role btn-retailer"
+                                        >
+                                            Retailer
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => handleDeleteUser(user.id)} 
+                                        className="btn-delete-user"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         )}
+    </div>
+)}
         {activeTab === 'offline-billing' && (
           <div className="offline-billing-section">
             <h2>Offline Billing</h2>

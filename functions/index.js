@@ -18,8 +18,9 @@ const WHATSAPP_TEMPLATE_NAME = "invoice_pdf";
 const WHATSAPP_TEMPLATE_NAMESPACE = "9fdcfe39_c1cc_4d44_b582_d043de7d016d";
 const WHATSAPP_INTEGRATED_NUMBER = "15558698269";
 
-// Generate PDF invoice
-// Generate PDF invoice
+// =========================================================================
+// UPDATED generateInvoice FUNCTION (with robust image error handling)
+// =========================================================================
 const generateInvoice = async (orderData, filePath) => {
   const doc = new PDFDocument({
     size: "A4",
@@ -31,10 +32,17 @@ const generateInvoice = async (orderData, filePath) => {
   // --- Invoice Header with Logo ---
   const logoPath = path.join(__dirname,
       "src/assets/WhatsApp Image 2025-09-12 at 00.31.52_50c66845.jpg");
+
+  // Safety check for the local logo
   if (fs.existsSync(logoPath)) {
-    doc.image(logoPath, 50, 45, {
-      width: 50,
-    });
+    try {
+      doc.image(logoPath, 50, 45, {
+        width: 50,
+      });
+    } catch (e) {
+      // This is unlikely to fail unless the local file is corrupted
+      console.error("Failed to include local logo image:", e.message);
+    }
   }
 
   doc
@@ -135,21 +143,27 @@ const generateInvoice = async (orderData, filePath) => {
       .lineTo(550, 265)
       .stroke();
 
-  // --- Items List with Images ---
+  // --- Items List with Images (The critical section with fixes) ---
   let itemsY = 280;
   doc.fillColor("#000000");
 
   const imagePromises = orderData.items.map(async (item) => {
     let imageBuffer = null;
+
+    // CRITICAL FIX 1: Safely download the image (handle 404s/network errors)
     try {
-      const response = await axios.get(item.image, {
-        responseType: "arraybuffer",
-      });
-      imageBuffer = response.data;
+      if (item.image) {
+        const response = await axios.get(item.image, {
+          responseType: "arraybuffer",
+        });
+        imageBuffer = response.data;
+      }
     } catch (err) {
-      console.error(`Failed to download image for item ${item.productName}:`,
-          err.message);
-      // Continue without image if download fails
+      console.warn(
+          `Failed to download image for item ${item.productName}:`,
+          err.message,
+      );
+      // imageBuffer remains null, and we rely on the next block for placeholder
     }
 
     const itemTotal = item.quantity * item.priceAtTimeOfOrder;
@@ -157,15 +171,39 @@ const generateInvoice = async (orderData, filePath) => {
     const imageX = 50;
     const textX = 100;
 
-    if (imageBuffer) {
-      doc.image(imageBuffer, imageX, itemsY, {
-        width: imageSize,
-        height: imageSize,
-      });
+    try {
+      if (imageBuffer) {
+        doc.image(imageBuffer, imageX, itemsY, {
+          width: imageSize,
+          height: imageSize,
+        });
+      } else {
+        // Placeholder for failed download or missing URL
+        doc
+            .fillColor("#ff0000")
+            .fontSize(8)
+            .text("[No Image]", imageX, itemsY + imageSize / 3, {
+              width: imageSize,
+              align: "center",
+            });
+      }
+    } catch (e) {
+      // Placeholder for "Unknown image format" error (corrupted buffer)
+      console.error(`Failed to place image ${item.productName}:`, e.message);
+      doc
+          .fillColor("#ff0000")
+          .fontSize(8)
+          .text("[Format Error]", imageX, itemsY + imageSize / 3, {
+            width: imageSize,
+            align: "center",
+          });
     }
 
+    // Reset color and font for the rest of the text
+    doc.fillColor("#000000").fontSize(10);
+
+    // Add item details
     doc
-        .fontSize(10)
         .text(item.productName, textX, itemsY + imageSize / 4)
         .text(item.quantity, 300, itemsY + imageSize / 4, {
           width: 100,
@@ -249,6 +287,10 @@ const generateInvoice = async (orderData, filePath) => {
     writeStream.on("error", reject);
   });
 };
+// =========================================================================
+// END OF generateInvoice UPDATE
+// =========================================================================
+
 // Add this function above or below your exports.placeOrder function in index.js
 
 exports.cancelOrder = functions.https.onRequest(async (req, res) => {
@@ -322,7 +364,7 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
 
         if (!productDoc.exists) {
           console.warn(`Product not found for stock,
-             reversal: ${productDoc.ref.path}. Skipping.`);
+            reversal: ${productDoc.ref.path}. Skipping.`);
           continue; // Skip stock update if product is deleted
         }
 
@@ -350,7 +392,7 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
 
           if (!variationFound) {
             console.warn(`Variation not found in product: ${item.productName}.,
-               Cannot fully reverse stock.`);
+                Cannot fully reverse stock.`);
           } else {
             // Store the planned update for variations
             updates.push({
@@ -391,13 +433,13 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
     // End of Transaction
 
     res.status(200).json({message: `Order ${orderId},
-      successfully cancelled and stock updated.`});
+            successfully cancelled and stock updated.`});
   } catch (err) {
     console.error("Error cancelling order (Transaction rolled back):",
         err.message);
     const statusCode = err.message.includes("Order not found") ||
-        err.message.includes("already cancelled") ||
-        err.message.includes("delivered order") ? 400 : 500;
+            err.message.includes("already cancelled") ||
+            err.message.includes("delivered order") ? 400 : 500;
 
     const errorMessage = err.message.split(": ")[0] || "Failed to cancel order";
 
@@ -633,4 +675,3 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     });
   }
 });
-

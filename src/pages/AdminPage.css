@@ -1377,4 +1377,191 @@ input[type=number] {
   padding: 5px 10px;
 }
 
+/* ======================================================= */
+/* 1. Table Container and Structure */
+/* ======================================================= */
+
+.user-table-container {
+    width: 100%; 
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* * DEFINE GRID COLUMNS: 7 Columns Total
+ * Name(1fr) | Email(1.5fr) | Mobile(1fr) | Address(1fr) | Created(1fr) | Role(100px) | Actions(220px)
+ */
+.user-table-header,
+.user-table-row {
+    display: grid;
+    /* Adjust these fractions as needed to balance the space */
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 100px 220px; 
+    padding: 12px 15px;
+    align-items: center;
+}
+
+/* ======================================================= */
+/* 2. Header and Row Styles (No Change from previous, except for the grid above) */
+/* ======================================================= */
+
+.user-table-header {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    color: #444;
+    border-bottom: 2px solid #ddd;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+
+.user-table-list {
+    list-style: none; 
+    margin: 0;
+    padding: 0;
+}
+
+.user-table-row {
+    background-color: #ffffff;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95em;
+    transition: background-color 0.2s ease;
+}
+
+.user-table-row:hover {
+    background-color: #f9f9f9;
+}
+
+.user-table-row:last-child {
+    border-bottom: none;
+}
+
+/* Styles for all data cells to handle overflow */
+.table-column {
+    display: flex;
+    align-items: center;
+    min-width: 0; 
+}
+
+.user-email,
+.user-name,
+.user-mobile,
+.user-address,
+.user-created-at {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ======================================================= */
+/* 3. Role Tag and Button Styles (Unchanged) */
+/* ======================================================= */
+
+.role-tag {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: capitalize;
+    font-size: 0.8em;
+}
+
+.role-tag.role-retailer {
+    background-color: #e0f7fa;
+    color: #00bcd4;
+}
+
+.role-tag.role-wholesaler {
+    background-color: #fffde7;
+    color: #ffc107;
+}
+
+.user-action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end; 
+    width: 100%;
+}
+
+.user-action-buttons button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.btn-change-role {
+    color: white;
+}
+
+.btn-wholesaler {
+    background-color: #28a745; 
+}
+
+.btn-retailer {
+    background-color: #007bff; 
+}
+
+.btn-delete-user {
+    background-color: #dc3545; 
+    color: white;
+}
+
+.btn-wholesaler:hover { background-color: #218838; }
+.btn-retailer:hover { background-color: #0056b3; }
+.btn-delete-user:hover { background-color: #c82333; }
+
+/* ======================================================= */
+/* 4. Mobile Responsiveness (Updated Labels) */
+/* ======================================================= */
+
+@media (max-width: 768px) {
+    .user-table-header {
+        display: none;
+    }
+
+    .user-table-row {
+        grid-template-columns: 1fr;
+        padding: 15px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        display: block; 
+    }
+
+    .user-table-row:hover {
+        background-color: #ffffff;
+    }
+
+    /* Add labels back to stacked fields */
+    .user-table-row .table-column {
+        display: block;
+        padding: 5px 0;
+    }
+    
+    .user-table-row .table-column::before {
+        font-weight: bold;
+        display: block;
+        color: #777;
+        font-size: 0.8em;
+        text-transform: capitalize;
+    }
+    
+    /* Specific label overrides for better display */
+    .user-name::before { content: "Name:"; }
+    .user-email::before { content: "Email:"; }
+    .user-mobile::before { content: "Mobile:"; } /* NEW */
+    .user-address::before { content: "Address:"; } /* NEW */
+    .user-created-at::before { content: "Created At:"; } /* NEW */
+    .user-role::before { content: "Role:"; }
+    .user-actions-cell::before { content: "Actions:"; margin-top: 10px;}
+
+    .user-action-buttons {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
 /* Update the existing image preview style for better consistency */
