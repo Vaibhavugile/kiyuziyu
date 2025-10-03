@@ -7,7 +7,10 @@ import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from './CartContext';
 
 
-const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart, tieredPricing }) => {
+// 🎯 CRITICAL FIX: Set a default value for the 'cart' prop to {}
+// This prevents the 'Cannot read properties of undefined' error when ProductCard
+// is used in the AdminPage where the cart prop is not supplied.
+const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart = {}, tieredPricing }) => {
   // CRITICAL FIX: Ensure 'id' is destructured here for stable use in useEffect dependencies
   const { productName, productCode, images, image, variations, quantity, tieredPricing: productTieredPricing, id } = product; 
   
@@ -25,176 +28,191 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
     if (variations && variations.length > 0) {
       setSelectedVariation(variations[0]);
     }
-  }, [variations]);
-
-  // REMOVED: The useEffect that previously updated cartQuantity on variation switch is now gone.
-  // The logic is moved directly into renderActions for simplicity and reactivity.
+  }, [variations, id]);
   
-  // Image carousel logic
-  useEffect(() => {
-    if (imagesToDisplay.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [imagesToDisplay]);
-  
-  const handlePrevImage = (e) => {
-    e.stopPropagation();
-    setCurrentImageIndex(prevIndex => (prevIndex - 1 + imagesToDisplay.length) % imagesToDisplay.length);
-  };
-  const handleNextImage = (e) => {
-    e.stopPropagation();
-    setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
-  };
-
-  const totalQuantity = variations ? variations.reduce((sum, v) => sum + Number(v.quantity), 0) : Number(quantity || 0);
-  const quantityToDisplay = selectedVariation ? Number(selectedVariation.quantity) : totalQuantity;
-  const isOutOfStock = totalQuantity === 0;
-  const isVariationOutOfStock = selectedVariation?.quantity === 0;
-  
-  const renderActions = () => {
+  // Function to get the current quantity in cart for the selected item/variation
+  const getCurrentCartQuantity = () => {
+    // If cart is used in the cart page (isCart=true), the 'product' object IS the cart item.
     if (isCart) {
-      // NOTE: This assumes onIncrement/onDecrement for cart view already know the cartItemId
+      return product.quantity || 0;
+    }
+    
+    // If not in cart view, and no variation is selected (simple product)
+    if (!selectedVariation && !variations) {
+      const cartItemId = getCartItemId(product);
+      return cart[cartItemId]?.quantity || 0;
+    }
+    
+    // If variations exist and one is selected (or defaulted)
+    if (selectedVariation) {
+      // Create a temporary object with the selected variation to generate the unique ID
+      const productDataWithVariation = { ...product, variation: selectedVariation };
+      const cartItemId = getCartItemId(productDataWithVariation);
+      return cart[cartItemId]?.quantity || 0;
+    }
+
+    // Default case (shouldn't happen often)
+    return 0;
+  };
+  
+  const quantityInCart = getCurrentCartQuantity();
+  
+  // Logic to determine if the add/quantity button should be disabled
+  const isAddDisabled = () => {
+    let stockLimit = 0;
+    if (variations && selectedVariation) {
+      stockLimit = Number(selectedVariation.quantity);
+    } else if (quantity) {
+      stockLimit = Number(quantity);
+    } else {
+      // If stock is not specified, assume infinite or don't disable
+      return false;
+    }
+    
+    // Disable if the current cart quantity matches or exceeds the stock limit
+    return quantityInCart >= stockLimit;
+  };
+  
+  // Logic for display quantity
+  const quantityToDisplay = (variations && selectedVariation) ? selectedVariation.quantity : quantity;
+
+
+  // --- Action Buttons and Logic ---
+  const renderActions = () => {
+    // 1. Admin Actions (High Priority)
+    if (onEdit || onDelete) {
+      return (
+        <div className="admin-actions">
+          {onEdit && <button onClick={onEdit} className="edit-btn">Edit</button>}
+          {onDelete && <button onClick={onDelete} className="delete-btn">Delete</button>}
+        </div>
+      );
+    }
+
+    // 2. Cart Page Actions (isCart = true)
+    if (isCart) {
+      // The product object passed here *already contains* the cart quantity.
       return (
         <div className="cart-actions">
-          <button onClick={onDecrement} className="quantity-btn">-</button>
-          {/* Using product.quantity here because in a cart view, the product prop IS the cart item */}
-          <span className="cart-quantity">{quantity}</span> 
-          <button onClick={onIncrement} className="quantity-btn">+</button>
+          <button onClick={() => onDecrement(product.cartItemId)} className="quantity-btn">-</button>
+          <span className="cart-quantity-display">{product.quantity}</span> 
+          <button onClick={() => onIncrement(product.cartItemId)} className="quantity-btn" disabled={isAddDisabled()}>+</button>
         </div>
       );
     }
     
-    // START OF FIX: Calculate quantity directly from cart prop based on selected variation
-    const productDataWithVariation = { ...product, variation: selectedVariation };
-    const cartItemId = getCartItemId(productDataWithVariation);
-    const currentQuantityInCart = cart[cartItemId]?.quantity || 0;
-
-    const incrementAction = () => onIncrement(productDataWithVariation);
-    const decrementAction = () => onDecrement(cartItemId);
-    // END OF FIX
+    // 3. Product Page Actions (Standard Shopping View)
+    // The functions (onIncrement/onDecrement) are actually handlers passed from ProductsPage.jsx
+    if (quantityInCart > 0) {
+      // Show quantity controls if item is already in cart
+      const productDataForCart = { ...product, variation: selectedVariation };
+      const cartItemId = getCartItemId(productDataForCart);
+      
+      return (
+        <div className="quantity-controls-container">
+          <button onClick={() => onDecrement(cartItemId)} className="quantity-btn">-</button>
+          <span className="cart-quantity-display">{quantityInCart}</span>
+          <button 
+            onClick={() => onIncrement(product, selectedVariation)} 
+            className="quantity-btn" 
+            disabled={isAddDisabled()}
+          >
+            +
+          </button>
+        </div>
+      );
+    }
+    
+    // Show 'Add to Cart' button if item is not in cart
+    // The variation must be selected if variations exist
+    const isVariationMissing = variations && !selectedVariation;
     
     return (
-      <div className="product-actions">
-        {currentQuantityInCart === 0 ? (
-          <button
-            onClick={incrementAction}
-            className={`add-to-cart-btn ${isVariationOutOfStock ? 'disabled' : ''}`}
-            disabled={isVariationOutOfStock}
-          >
-            {isVariationOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-          </button>
-        ) : (
-          <div className="quantity-controls">
-            <button onClick={decrementAction} className="quantity-btn">-</button>
-            <span className="cart-quantity-display">{currentQuantityInCart}</span>
-            <button
-              onClick={incrementAction}
-              className={`quantity-btn ${isVariationOutOfStock ? 'disabled' : ''}`}
-              disabled={isVariationOutOfStock}
-            >
-              +
-            </button>
-          </div>
-        )}
-        {onEdit && onDelete && (
-          <div className="admin-actions">
-            <button onClick={onEdit}>Edit</button>
-            <button onClick={onDelete}>Delete</button>
-          </div>
-        )}
-      </div>
+      <button 
+        onClick={() => onIncrement(product, selectedVariation)} 
+        className="add-to-cart-btn"
+        disabled={isAddDisabled() || isVariationMissing}
+        title={isVariationMissing ? "Please select a variation" : (isAddDisabled() ? "Out of Stock" : "Add to Cart")}
+      >
+        {isAddDisabled() ? 'Out of Stock' : (isVariationMissing ? 'Select Option' : 'Add to Cart')}
+      </button>
     );
   };
   
-  // Sort the tiers by min_quantity
-  const sortedTiers = pricingData ? [...pricingData].sort((a, b) => a.min_quantity - b.min_quantity) : null;
+  // --- Image Navigation ---
+  const showPrev = () => setCurrentImageIndex(i => (i - 1 + imagesToDisplay.length) % imagesToDisplay.length);
+  const showNext = () => setCurrentImageIndex(i => (i + 1) % imagesToDisplay.length);
   
-  let pricingOverlay = null;
-  let tieredPricingButton = null;
+  // --- Price Display Logic ---
+  const currentPrice = isCart ? product.price : (pricingData?.currentPrice || '---'); 
+  const nextTierInfo = isCart ? (pricingData?.nextTierInfo || null) : (pricingData?.nextTierInfo || null);
+  const tieredPrices = isCart ? pricingData?.tieredPrices : (pricingData?.tieredPrices || null);
 
-  if (sortedTiers && sortedTiers.length > 1) {
-    
-    // Calculate max saving for the button text
-    const basePrice = sortedTiers[0].price;
-    const bestPrice = sortedTiers[sortedTiers.length - 1].price;
-    let maxDiscountText = 'Show Bulk Pricing Details';
-    if (basePrice > bestPrice) {
-        // Calculate percentage saved, round to nearest whole number
-        const percentageSaved = ((basePrice - bestPrice) / basePrice) * 100;
-        const roundedPercentage = Math.round(percentageSaved);
-        maxDiscountText = `Show Bulk Pricing (Save Up to ${roundedPercentage}%)`;
-    }
-    
-    // 1. Define the button
-    tieredPricingButton = (
-        <button 
-            className={`toggle-tiers-btn ${showTiers ? 'active' : ''}`}
-            onClick={(e) => { 
-                // Prevent accidental card navigation/selection
-                e.stopPropagation(); 
-                setShowTiers(!showTiers); 
-            }}
-        >
-            <span>{showTiers ? 'Hide Bulk Pricing Details' : maxDiscountText}</span>
-            <span className="dropdown-icon">{showTiers ? '▲' : '▼'}</span>
-        </button>
-    );
-
-    // 2. Define the collapsible content (rendered only if showTiers is true)
-    if (showTiers) {
-        pricingOverlay = (
-            <div className="tiered-pricing-container">
-                <h4 className="pricing-overlay-title">Quantity Discounts</h4>
-                {sortedTiers.map((tier, index) => (
-                    <div key={index} className="pricing-tier-row">
-                        <span className="tier-quantity">
-                            {`Buy ${tier.min_quantity}${tier.max_quantity ? ` - ${tier.max_quantity}` : '+'}`}
-                        </span>
-                        <span className="tier-price-each">
-                            @ ₹{tier.price} each
-                        </span>
-                    </div>
-                ))}
-            </div>
-        );
-    }
-  }
 
   return (
-    <div className={`product-card ${isOutOfStock ? 'out-of-stock' : ''}`}>
-      {isOutOfStock && <div className="out-of-stock-overlay">Out of Stock</div>}
-      
+    <div className="product-card">
       <div className="product-image-container">
+        {/* Navigation Arrows */}
         {imagesToDisplay.length > 1 && (
-          <button onClick={handlePrevImage} className="carousel-btn prev">&#10094;</button>
+          <>
+            <button className="prev-btn" onClick={showPrev}>&lt;</button>
+            <button className="next-btn" onClick={showNext}>&gt;</button>
+          </>
         )}
-        <Zoom>
-          <img
-            alt={productName}
-            src={imagesToDisplay[currentImageIndex]?.url}
-            className="product-image"
-          />
-        </Zoom>
-        {imagesToDisplay.length > 1 && (
-          <button onClick={handleNextImage} className="carousel-btn next">&#10095;</button>
-        )}
-      </div>
-      
-      <div className="product-info">
-        <h4 className="product-title">{productName}</h4>
-        <p className="product-code">{productCode}</p>
-
-        {/* Base Price Display */}
-        <p className="product-price">Price: ₹{sortedTiers && sortedTiers.length > 0 ? sortedTiers[0].price : 'N/A'}</p>
         
-        {/* Tiered Pricing Button and Collapsible Content */}
-        {tieredPricingButton}
-        {pricingOverlay}
+        {/* Main Image with Zoom */}
+        {imagesToDisplay.length > 0 ? (
+          <Zoom wrapStyle={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            <img 
+              src={imagesToDisplay[currentImageIndex].url} 
+              alt={productName} 
+              className="product-image" 
+            />
+          </Zoom>
+        ) : (
+          <div className="no-image-placeholder">No Image</div>
+        )}
 
-        <p className="product-quantity">In Stock: {quantityToDisplay}</p>
+      </div>
+
+      <div className="product-details">
+        {/* Product Info */}
+        <h3 className="product-name">{productName}</h3>
+        <p className="product-code">Code: {productCode}</p>
+        
+        {/* Price and Tiering Toggle */}
+        <div className="price-and-tiers">
+          <p className="product-price">₹{currentPrice}</p>
+          
+          {/* Tiers Toggle Button */}
+          {tieredPrices && (
+            <button className="tiers-toggle-btn" onClick={() => setShowTiers(s => !s)}>
+              {showTiers ? 'Hide Tiers' : 'Show Tiers'}
+            </button>
+          )}
+        </div>
+
+        {/* Tiered Pricing List (Collapsible) */}
+        {tieredPrices && (
+          <div className={`tiers-list-container ${showTiers ? 'open' : ''}`}>
+            {tieredPrices.map((tier, index) => (
+              <div key={index} className="tier-item">
+                <span>{tier.min_quantity} +</span>
+                <span className="tier-price">₹{tier.price}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Next Tier Hint */}
+        {nextTierInfo && (
+          <p className="next-tier-hint">
+            Buy {nextTierInfo.quantityNeeded} more to get to ₹{nextTierInfo.price}.
+          </p>
+        )}
+        
+        {/* Stock Info */}
+        <p className="product-stock">In Stock: {quantityToDisplay}</p>
         
         {/* Variations Selector with inline cart quantity badge */}
         {variations && variations.length > 1 && (
