@@ -22,7 +22,7 @@ import {
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
-import { getPriceForQuantity,getCartItemId} from '../components/CartContext';
+import { getPriceForQuantity, getCartItemId } from '../components/CartContext';
 import './AdminPage.css';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -102,8 +102,8 @@ const AdminPage = () => {
 
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
- const [groupedOrders, setGroupedOrders] = useState({});
- const [groupedOrdersFromFiltered, setGroupedOrdersFromFiltered] = useState({});
+  const [groupedOrders, setGroupedOrders] = useState({});
+  const [groupedOrdersFromFiltered, setGroupedOrdersFromFiltered] = useState({});
 
   const [orderReports, setOrderReports] = useState([]);
   const [paymentReports, setPaymentReports] = useState([]);
@@ -128,7 +128,7 @@ const AdminPage = () => {
   const [imageSrc, setImageSrc] = useState(null);
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
-const [sortedDateKeys, setSortedDateKeys] = useState([]);
+  const [sortedDateKeys, setSortedDateKeys] = useState([]);
 
   const formatOrderDate = (timestamp) => {
     const today = new Date();
@@ -136,24 +136,24 @@ const [sortedDateKeys, setSortedDateKeys] = useState([]);
     yesterday.setDate(today.getDate() - 1);
 
     const orderDate = timestamp.toDate();
-    
+
     // Normalize dates to remove time part for comparison
     const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
     const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const yesterdayDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
 
     if (orderDay.getTime() === todayDay.getTime()) {
-        return "Today";
+      return "Today";
     }
     if (orderDay.getTime() === yesterdayDay.getTime()) {
-        return "Yesterday";
+      return "Yesterday";
     }
     return orderDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
-};
+  };
 
   // Handlers for Tiered Pricing (now for Subcollections)
   const handleAddTier = (type) => {
@@ -175,55 +175,55 @@ const [sortedDateKeys, setSortedDateKeys] = useState([]);
   };
 
 
- const fetchOrders = async () => {
-        try {
-            const ordersSnapshot = await getDocs(collection(db, "orders"));
-            const ordersList = ordersSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                // Ensure timestamps are handled correctly for sorting
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-            }));
-            
-            // Sort orders by creation date, descending
-            ordersList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-            
-            // Group orders by formatted date
-            const groups = ordersList.reduce((acc, order) => {
-                const dateKey = formatOrderDate(order.createdAt);
-                if (!acc[dateKey]) {
-                    acc[dateKey] = [];
-                }
-                acc[dateKey].push(order);
-                return acc;
-            }, {});
-            
-            setGroupedOrders(groups);
-            setOrders(ordersList);
-        } catch (error) {
-            console.error("Error fetching orders: ", error);
+  const fetchOrders = async () => {
+    try {
+      const ordersSnapshot = await getDocs(collection(db, "orders"));
+      const ordersList = ordersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Ensure timestamps are handled correctly for sorting
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      }));
+
+      // Sort orders by creation date, descending
+      ordersList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      // Group orders by formatted date
+      const groups = ordersList.reduce((acc, order) => {
+        const dateKey = formatOrderDate(order.createdAt);
+        if (!acc[dateKey]) {
+          acc[dateKey] = [];
         }
-    };
+        acc[dateKey].push(order);
+        return acc;
+      }, {});
 
-     useEffect(() => {
-        const fetchData = async () => {
-            await fetchMainCollections();
-            await fetchSubcollections();
-            await fetchProducts();
-            await fetchOrders();
-        };
-        fetchData();
-    }, []);
-   
-   const openOrderModal = (order) => {
-        setSelectedOrder(order);
-        setShowOrderModal(true);
-    };
+      setGroupedOrders(groups);
+      setOrders(ordersList);
+    } catch (error) {
+      console.error("Error fetching orders: ", error);
+    }
+  };
 
-    const closeOrderModal = () => {
-        setShowOrderModal(false);
-        setSelectedOrder(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchMainCollections();
+      await fetchSubcollections();
+      await fetchProducts();
+      await fetchOrders();
     };
+    fetchData();
+  }, []);
+
+  const openOrderModal = (order) => {
+    setSelectedOrder(order);
+    setShowOrderModal(true);
+  };
+
+  const closeOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedOrder(null);
+  };
 
   const handleTierChange = (type, index, field, value) => {
     setSubcollectionTieredPricing((prevPricing) => {
@@ -386,31 +386,31 @@ const [sortedDateKeys, setSortedDateKeys] = useState([]);
   });
   useEffect(() => {
     const groups = filteredOrders.reduce((acc, order) => {
-        const dateKey = formatOrderDate(order.createdAt);
-        if (!acc[dateKey]) {
-            acc[dateKey] = [];
-        }
-        acc[dateKey].push(order);
-        return acc;
+      const dateKey = formatOrderDate(order.createdAt);
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(order);
+      return acc;
     }, {});
     setGroupedOrdersFromFiltered(groups);
-}, [filteredOrders]);
-useEffect(() => {
+  }, [filteredOrders]);
+  useEffect(() => {
     // Sort the keys to ensure "Today", "Yesterday", and then other dates
     const keys = Object.keys(groupedOrdersFromFiltered);
-    
-    keys.sort((a, b) => {
-        if (a === "Today") return -1;
-        if (b === "Today") return 1;
-        if (a === "Yesterday") return -1;
-        if (b === "Yesterday") return 1;
 
-        // For all other dates, sort in descending order
-        return new Date(b) - new Date(a);
+    keys.sort((a, b) => {
+      if (a === "Today") return -1;
+      if (b === "Today") return 1;
+      if (a === "Yesterday") return -1;
+      if (b === "Yesterday") return 1;
+
+      // For all other dates, sort in descending order
+      return new Date(b) - new Date(a);
     });
 
     setSortedDateKeys(keys);
-}, [groupedOrdersFromFiltered]);
+  }, [groupedOrdersFromFiltered]);
 
   // New: Fetches low stock products
   useEffect(() => {
@@ -851,169 +851,194 @@ useEffect(() => {
     setProductVariations(prev => prev.filter((_, index) => index !== indexToRemove));
   };
   const handleNextProduct = (e) => {
-  e.preventDefault();
-  
-  // Check for product name and code
-  if (!productName || !productCode) {
-    alert("Please fill out product name and product code.");
-    return;
-  }
+    e.preventDefault();
 
-  // Check if either a single quantity or at least one variation has been added
-  if (productVariations.length === 0 && productQuantity === '') {
+    // Check for product name and code
+    if (!productName || !productCode) {
+      alert("Please fill out product name and product code.");
+      return;
+    }
+
+    // Check if either a single quantity or at least one variation has been added
+    if (productVariations.length === 0 && productQuantity === '') {
       alert("Please enter a quantity or add at least one variation.");
       return;
-  }
-  
-  const updatedProducts = [...newProducts];
-  
-  // Create an array of images including the main one and any additional uploads
-  const images = [{
-    file: updatedProducts[currentImageIndex].imageFile,
-    previewUrl: updatedProducts[currentImageIndex].previewUrl,
-  }, ...additionalImages];
+    }
 
-  updatedProducts[currentImageIndex].productName = productName;
-  updatedProducts[currentImageIndex].productCode = productCode;
-  
-  // Store either the single quantity or the variations
-  if (productVariations.length > 0) {
+    const updatedProducts = [...newProducts];
+
+    // Create an array of images including the main one and any additional uploads
+    const images = [{
+      file: updatedProducts[currentImageIndex].imageFile,
+      previewUrl: updatedProducts[currentImageIndex].previewUrl,
+    }, ...additionalImages];
+
+    updatedProducts[currentImageIndex].productName = productName;
+    updatedProducts[currentImageIndex].productCode = productCode;
+
+    // Store either the single quantity or the variations
+    if (productVariations.length > 0) {
       updatedProducts[currentImageIndex].variations = productVariations;
-  } else {
+    } else {
       updatedProducts[currentImageIndex].quantity = Number(productQuantity);
-  }
-  
-  updatedProducts[currentImageIndex].images = images; // Save the array of images
-  
-  setNewProducts(updatedProducts);
-  
-  // Reset fields for the next product
-  setProductName(''); 
-  setProductCode('');
-  setProductQuantity('');
-  setAdditionalImages([]); 
-  
-  // Reset the variation-specific states
-  setProductVariations([]);
-  setNewVariation({ color: '', size: '', quantity: '' });
+    }
 
-  setCurrentImageIndex(currentImageIndex + 1);
-};
-const handleAddAllProducts = async (e) => {
+    updatedProducts[currentImageIndex].images = images; // Save the array of images
+
+    setNewProducts(updatedProducts);
+
+    // Reset fields for the next product
+    setProductName('');
+    setProductCode('');
+    setProductQuantity('');
+    setAdditionalImages([]);
+
+    // Reset the variation-specific states
+    setProductVariations([]);
+    setNewVariation({ color: '', size: '', quantity: '' });
+
+    setCurrentImageIndex(currentImageIndex + 1);
+  };
+  const handleAddAllProducts = async (e) => {
     e.preventDefault();
     setIsProductUploading(true);
 
     try {
-        const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
+      const productCollectionRef = collection(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products");
 
-        // Use a batch write for efficiency when saving multiple documents
-        const batch = writeBatch(db);
+      // Use a batch write for efficiency when saving multiple documents
+      const batch = writeBatch(db);
 
-        // Iterate over the `newProducts` array, which holds all the product data
-        for (const product of newProducts) {
-            // Check if product has necessary details before trying to save
-            if (!product.productName || !product.productCode) {
-                console.error("Skipping product with missing name or code:", product);
-                continue; // Move to the next product if this one is incomplete
-            }
-
-            // Step 1: Upload the main product image for the current product in the loop
-            let mainImageUrl = '';
-            // Make sure the image is available for the current product
-            const mainImageFile = product.images.length > 0 ? product.images[0].file : null;
-            
-            if (mainImageFile) {
-                mainImageUrl = await uploadImageAndGetURL(mainImageFile);
-            }
-
-            // Step 2: Prepare the variations array
-            // Check if the `variations` property exists on the product object
-            const finalVariations = product.variations
-                ? product.variations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }))
-                : [{ color: '', size: '', quantity: Number(product.quantity) }];
-
-            // Calculate the total quantity from the final variations array
-            const totalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
-
-            // Step 3: Prepare the data object for the current product
-            const productData = {
-                productName: product.productName,
-                productCode: product.productCode,
-                quantity: totalQuantity,
-                image: mainImageUrl,
-                variations: finalVariations,
-                mainCollection: selectedMainCollectionId,
-                timestamp: serverTimestamp(),
-            };
-            
-            console.log("Saving the following product data:", productData);
-
-            // Add the new document to the batch
-            const newDocRef = doc(productCollectionRef);
-            batch.set(newDocRef, productData);
+      // Iterate over the `newProducts` array, which holds all the product data
+      for (const product of newProducts) {
+        // Check if product has necessary details before trying to save
+        if (!product.productName || !product.productCode) {
+          console.error("Skipping product with missing name or code:", product);
+          continue; // Move to the next product if this one is incomplete
         }
 
-        // Commit the batch to save all products at once
-        await batch.commit();
+        // Step 1: Upload the main product image for the current product in the loop
+        let mainImageUrl = '';
+        // Make sure the image is available for the current product
+        const mainImageFile = product.images.length > 0 ? product.images[0].file : null;
 
-        console.log("All products added successfully.");
-        alert("All products added successfully!");
-        fetchProducts();
-        resetProductForm();
-        setNewProducts([]); // Reset the array after a successful upload
-        setProductVariations([]);
-        setNewVariation({ color: '', size: '', quantity: '' });
-    } catch (err) {
-        console.error("Error adding all products:", err);
-        alert("Failed to save products.");
-    } finally {
-        setIsProductUploading(false);
-    }
-};
+        if (mainImageFile) {
+          mainImageUrl = await uploadImageAndGetURL(mainImageFile);
+        }
 
-const startEditProduct = (product) => {
-  console.log("Starting edit for product:", product);
-  setEditingProduct(product);
-  setProductName(product.productName);
-  setProductCode(product.productCode);
-  setProductQuantity(product.quantity);
-  // Set images for editing, using an empty array if product.images is undefined
-  setAdditionalImages((product.images || []).map(url => ({ previewUrl: url })));
-  setShowProductForm(true);
-};
-  const handleUpdateProduct = async (e) => {
-    e.preventDefault();
-    setIsProductUploading(true);
-    try {
-      const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
+        // Step 2: Prepare the variations array
+        // Check if the `variations` property exists on the product object
+        const finalVariations = product.variations
+          ? product.variations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }))
+          : [{ color: '', size: '', quantity: Number(product.quantity) }];
 
-      // Filter out existing images from new uploads to avoid re-uploading
-      const newImagesToUpload = additionalImages.filter(img => img.file);
-      const uploadedUrls = await Promise.all(
-        newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
-      );
+        // Calculate the total quantity from the final variations array
+        const totalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
 
-      // Combine existing image URLs with the new ones
-      const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
-      const allImageUrls = [...existingUrls, ...uploadedUrls];
+        // Step 3: Prepare the data object for the current product
+        const productData = {
+          productName: product.productName,
+          productCode: product.productCode,
+          quantity: totalQuantity,
+          image: mainImageUrl,
+          variations: finalVariations,
+          mainCollection: selectedMainCollectionId,
+          timestamp: serverTimestamp(),
+        };
 
-      const productData = {
-        productName: productName,
-        productCode: productCode,
-        quantity: Number(productQuantity),
-        images: allImageUrls,
-      };
+        console.log("Saving the following product data:", productData);
 
-      await updateDoc(productDocRef, productData);
+        // Add the new document to the batch
+        const newDocRef = doc(productCollectionRef);
+        batch.set(newDocRef, productData);
+      }
+
+      // Commit the batch to save all products at once
+      await batch.commit();
+
+      console.log("All products added successfully.");
+      alert("All products added successfully!");
       fetchProducts();
       resetProductForm();
+      setNewProducts([]); // Reset the array after a successful upload
+      setProductVariations([]);
+      setNewVariation({ color: '', size: '', quantity: '' });
     } catch (err) {
-      console.error("Error updating product:", err);
-      alert("Failed to update product data.");
+      console.error("Error adding all products:", err);
+      alert("Failed to save products.");
     } finally {
       setIsProductUploading(false);
     }
   };
+
+  const startEditProduct = (product) => {
+  console.log("Starting edit for product:", product);
+  setEditingProduct(product);
+  setProductName(product.productName);
+  setProductCode(product.productCode);
+
+  // CRITICAL FIX: Load variations or single quantity
+  if (product.variations && product.variations.length > 0) {
+    setProductVariations(product.variations); // Load existing variations
+    setProductQuantity(''); // Clear single quantity input
+  } else {
+    setProductVariations([]); // Clear variations state
+    setProductQuantity(product.quantity || ''); // Load single quantity (or empty if none)
+  }
+
+  setNewVariation({ color: '', size: '', quantity: '' }); // Clear the "Add Variation" inputs
+  // Note: Your original code uses product.images for setAdditionalImages, but product.image for the main image src. I'll maintain the existing logic for additional images below.
+  setAdditionalImages((product.images || []).map(url => ({ previewUrl: url }))); 
+  setShowProductForm(true);
+};
+  const handleUpdateProduct = async (e) => {
+  e.preventDefault();
+  setIsProductUploading(true);
+
+  try {
+    const productDocRef = doc(db, "collections", selectedMainCollectionId, "subcollections", selectedSubcollectionId, "products", editingProduct.id);
+
+    // Filter out existing images from new uploads to avoid re-uploading
+    const newImagesToUpload = additionalImages.filter(img => img.file);
+    const uploadedUrls = await Promise.all(
+      newImagesToUpload.map(img => uploadImageAndGetURL(img.file))
+    );
+
+    // Combine existing image URLs with the new ones
+    const existingUrls = additionalImages.filter(img => !img.file).map(img => img.previewUrl);
+    const allImageUrls = [...existingUrls, ...uploadedUrls];
+
+    // --- VARIATION LOGIC FIX: Determine final quantity and variations ---
+    let finalQuantity = 0;
+    let finalVariations = [];
+
+    if (productVariations.length > 0) {
+      finalVariations = productVariations.map(v => ({ color: v.color, size: v.size, quantity: Number(v.quantity) }));
+      finalQuantity = finalVariations.reduce((sum, v) => sum + v.quantity, 0);
+    } else {
+      // If no variations are set, use the single quantity value
+      finalQuantity = Number(productQuantity);
+    }
+    // --- END VARIATION LOGIC FIX ---
+
+    const productData = {
+      productName: productName,
+      productCode: productCode,
+      quantity: finalQuantity, // Save the calculated total quantity
+      variations: finalVariations, // Save the variations array (will be empty if a single-quantity product)
+      images: allImageUrls,
+    };
+
+    await updateDoc(productDocRef, productData);
+    fetchProducts();
+    resetProductForm();
+  } catch (err) {
+    console.error("Error updating product:", err);
+    alert("Failed to update product data.");
+  } finally {
+    setIsProductUploading(false);
+  }
+};
 
   const handleDeleteProduct = async (productId, imageUrl) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -1127,51 +1152,51 @@ const startEditProduct = (product) => {
   };
 
   // 🔑 IMPORTANT: Use the actual deployed URL you provided
-const FIREBASE_CANCEL_ORDER_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/cancelOrder"; 
+  const FIREBASE_CANCEL_ORDER_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/cancelOrder";
 
-// Add this function inside your AdminPage component, next to handleUpdateOrderStatus
-const handleCancelOrder = async (orderId) => {
+  // Add this function inside your AdminPage component, next to handleUpdateOrderStatus
+  const handleCancelOrder = async (orderId) => {
     if (!window.confirm(`Are you sure you want to cancel Order ID: ${orderId}? This action will reverse stock quantities.`)) {
-        return;
+      return;
     }
 
     // Assuming you have a loading state to prevent double-clicks
     // setIsProcessing(true);
 
     try {
-        const response = await fetch(FIREBASE_CANCEL_ORDER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ orderId: orderId }),
-        });
+      const response = await fetch(FIREBASE_CANCEL_ORDER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId: orderId }),
+      });
 
-        const result = await response.json();
+      const result = await response.json();
 
-        if (response.ok) {
-            alert(result.message);
-            // 🔄 Crucial: Reload the orders list to reflect the status change and stock reversal
-            // You must call your main data fetching function here (e.g., fetchOrders)
-            // Example:
-            // if (typeof fetchOrders === 'function') {
-            //     fetchOrders(); 
-            // }
-            
-            // For now, let's just close the modal and trust the next refresh cycle
-            setSelectedOrder(null); 
-            
-        } else {
-            alert(`Cancellation Failed: ${result.error || 'An unknown error occurred.'}`);
-        }
+      if (response.ok) {
+        alert(result.message);
+        // 🔄 Crucial: Reload the orders list to reflect the status change and stock reversal
+        // You must call your main data fetching function here (e.g., fetchOrders)
+        // Example:
+        // if (typeof fetchOrders === 'function') {
+        //     fetchOrders(); 
+        // }
+
+        // For now, let's just close the modal and trust the next refresh cycle
+        setSelectedOrder(null);
+
+      } else {
+        alert(`Cancellation Failed: ${result.error || 'An unknown error occurred.'}`);
+      }
     } catch (error) {
-        console.error("Error cancelling order:", error);
-        alert("Network error. Could not connect to the cancellation service.");
-    } 
+      console.error("Error cancelling order:", error);
+      alert("Network error. Could not connect to the cancellation service.");
+    }
     // finally {
     //    // setIsProcessing(false); 
     // }
-};
+  };
 
 
 
@@ -1255,34 +1280,34 @@ const handleCancelOrder = async (orderId) => {
     }
   };
 
- const handleOfflineAddToCart = (product, quantity) => {
-  setOfflineCart(prevCart => {
+  const handleOfflineAddToCart = (product, quantity) => {
+    setOfflineCart(prevCart => {
       // Use the new getCartItemId to create a unique ID for the product and its variation
       const cartItemId = getCartItemId(product);
       const currentQuantity = prevCart[cartItemId]?.quantity || 0;
       const newCart = {
-          ...prevCart,
-          [cartItemId]: {
-              ...product,
-              quantity: currentQuantity + quantity,
-          },
+        ...prevCart,
+        [cartItemId]: {
+          ...product,
+          quantity: currentQuantity + quantity,
+        },
       };
       return newCart;
-  });
-};
+    });
+  };
 
   const handleOfflineRemoveFromCart = (cartItemId) => {
     setOfflineCart(prevCart => {
-        const newCart = { ...prevCart };
-        const newQuantity = (newCart[cartItemId]?.quantity || 0) - 1;
-        if (newQuantity <= 0) {
-            delete newCart[cartItemId];
-        } else {
-            newCart[cartItemId].quantity = newQuantity;
-        }
-        return newCart;
+      const newCart = { ...prevCart };
+      const newQuantity = (newCart[cartItemId]?.quantity || 0) - 1;
+      if (newQuantity <= 0) {
+        delete newCart[cartItemId];
+      } else {
+        newCart[cartItemId].quantity = newQuantity;
+      }
+      return newCart;
     });
-};
+  };
 
   const getOfflineCartTotal = () => {
     return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -1669,14 +1694,74 @@ const handleCancelOrder = async (orderId) => {
                                         <label>Product Code:</label>
                                         <input type="text" value={productCode} onChange={(e) => setProductCode(e.target.value)} required />
                                       </div>
+
+                                      {/* Conditional Rendering: Show Quantity OR Variations (FIXED) */}
+                                      {productVariations.length === 0 ? (
+                                        // Show the single Quantity input if no variations are added
+                                        <div className="form-group">
+                                          <label>Quantity:</label>
+                                          <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
+                                        </div>
+                                      ) : (
+                                        // Show the variations list if variations are present
+                                        <div className="variation-input-container">
+                                          <h4>Current Variations</h4>
+                                          <ul className="variations-list">
+                                            {productVariations.map((v, index) => (
+                                              <li key={index} className="variation-item">
+                                                <span>{v.color}, {v.size}, Qty: {v.quantity}</span>
+                                                <button type="button" onClick={() => handleRemoveVariation(index)} className="remove-variation-btn">
+                                                  &times;
+                                                </button>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* NEW: Always show the variation input fields for adding more variations (same as bulk upload) */}
+                                      <div className="variation-input">
+                                        <input
+                                          type="text"
+                                          name="color"
+                                          value={newVariation.color}
+                                          onChange={handleNewVariationChange}
+                                          placeholder="Color (e.g., Red)"
+                                        />
+                                        <input
+                                          type="text"
+                                          name="size"
+                                          value={newVariation.size}
+                                          onChange={handleNewVariationChange}
+                                          placeholder="Size (e.g., L)"
+                                        />
+                                        <input
+                                          type="number"
+                                          name="quantity"
+                                          value={newVariation.quantity}
+                                          onChange={handleNewVariationChange}
+                                          placeholder="Quantity"
+                                        />
+                                        <button type="button" onClick={handleAddVariation} className="add-variation-btn">
+                                          Add Variation
+                                        </button>
+                                      </div>
+
+                                      {/* The Upload Additional Product Photos section remains here */}
                                       <div className="form-group">
-                                        <label>Quantity:</label>
-                                        <input type="number" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} onWheel={(e) => e.preventDefault()} required />
+                                        <label>Upload Additional Product Photos:</label>
+                                        <input
+                                          type="file"
+                                          onChange={handleAdditionalImageChange}
+                                          multiple
+                                          accept="image/*"
+                                        />
                                       </div>
                                     </div>
                                   </div>
                                 </>
                               ) : (
+                                // ... bulk upload JSX remains here
                                 <>
                                   {newProducts.length > 0 && currentImageIndex < newProducts.length ? (
                                     <>
@@ -1833,72 +1918,72 @@ const handleCancelOrder = async (orderId) => {
         )}
 
         {/* --- Order Management Section --- */}
-   {activeTab === 'orders' && (
-    <div className="admin-section">
-        <h2>Customer Orders</h2>
+        {activeTab === 'orders' && (
+          <div className="admin-section">
+            <h2>Customer Orders</h2>
 
-        {/* Search and Filter Bar */}
-        <div className="order-filters">
-            <input
+            {/* Search and Filter Bar */}
+            <div className="order-filters">
+              <input
                 type="text"
                 placeholder="Search by ID, name, email, or phone"
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
                 className="search-input"
-            />
-            <input
+              />
+              <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 title="Start Date"
-            />
-            <input
+              />
+              <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 title="End Date"
-            />
-            <select
+              />
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="status-select"
-            >
+              >
                 <option value="All">All Statuses</option>
                 <option value="Pending">Pending</option>
                 <option value="Processing">Processing</option>
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
-            </select>
-            
-        </div>
+              </select>
 
-        {isOrderLoading ? (
-            <p>Loading orders...</p>
-        ) : filteredOrders.length === 0 ? (
-            <p>No orders found with the current filters.</p>
-        ) : (
-            // Now we map over the sortedDateKeys
-            sortedDateKeys.length > 0 ? (
-                sortedDateKeys.map(dateKey => (
-                    <div key={dateKey} className="order-date-group">
-                        <h3>{dateKey}</h3>
-                        <ul className="orders-list">
-                            {groupedOrdersFromFiltered[dateKey].map((order) => (
-                                <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-                                    <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                                    <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                                    <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))
+            </div>
+
+            {isOrderLoading ? (
+              <p>Loading orders...</p>
+            ) : filteredOrders.length === 0 ? (
+              <p>No orders found with the current filters.</p>
             ) : (
+              // Now we map over the sortedDateKeys
+              sortedDateKeys.length > 0 ? (
+                sortedDateKeys.map(dateKey => (
+                  <div key={dateKey} className="order-date-group">
+                    <h3>{dateKey}</h3>
+                    <ul className="orders-list">
+                      {groupedOrdersFromFiltered[dateKey].map((order) => (
+                        <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
+                          <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                          <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                          <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
                 <p>No orders found with the current filters.</p>
-            )
+              )
+            )}
+          </div>
         )}
-    </div>
-)}
 
         {/* Render Order Details Modal */}
         {selectedOrder && (
@@ -1906,7 +1991,7 @@ const handleCancelOrder = async (orderId) => {
             order={selectedOrder}
             onClose={() => setSelectedOrder(null)}
             onUpdateStatus={handleUpdateOrderStatus}
-            onCancelOrder={handleCancelOrder} 
+            onCancelOrder={handleCancelOrder}
           />
         )}
         {/* --- Low Stock Tab --- */}

@@ -425,3 +425,84 @@
     padding: 0 10px 10px;
   }
 }
+
+/* --- VIEW CART OVERLAY STYLES (REQUIRED FIX) --- */
+/* This section was missing and is necessary to display the cart overlay */
+
+.view-cart-fixed-container {
+    /* Fixed position at the bottom of the viewport */
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000; /* Ensure it stays above other content */
+}
+
+.view-cart-btn-overlay {
+    /* Base Button Styling */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--secondary-color); /* Use a distinct color */
+    color: var(--card-bg); /* White text */
+    padding: 12px 20px;
+    border-radius: 50px; /* Pill shape */
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); /* Green shadow */
+    transition: var(--transition-smooth);
+    cursor: pointer;
+}
+
+.view-cart-btn-overlay:hover {
+    background-color: #27ae60; /* Darker secondary color on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.6);
+}
+
+.cart-icon-wrapper {
+    font-size: 1.2em;
+}
+
+.cart-details-wrapper {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.view-cart-text {
+    font-size: 0.9em;
+}
+
+.cart-items-count-overlay {
+    font-size: 0.75em;
+    font-weight: 400;
+}
+
+.cart-arrow-wrapper {
+    font-size: 1.2em;
+    margin-left: 5px;
+}
+
+/* Optional: Adjust for mobile */
+@media (max-width: 600px) {
+    .view-cart-fixed-container {
+        bottom: 10px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%); /* Center the button */
+    }
+    
+    .view-cart-btn-overlay {
+        padding: 10px 15px;
+    }
+    
+    .view-cart-text {
+        /* Hide text to save space on small screens */
+        display: none; 
+    }
+    
+    .cart-details-wrapper {
+        flex-direction: row;
+        gap: 5px;
+    }
+}
