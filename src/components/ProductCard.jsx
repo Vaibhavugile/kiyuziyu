@@ -45,11 +45,16 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
     setCurrentImageIndex(prevIndex => (prevIndex + 1) % imagesToDisplay.length);
   };
 
- const totalQuantity = (variations && variations.length > 0) 
+  // Calculate total stock for display (if variations are not selected)
+  const totalQuantity = (variations && variations.length > 0) 
       ? variations.reduce((sum, v) => sum + Number(v.quantity), 0) 
-      : Number(quantity || 0);   const quantityToDisplay = selectedVariation ? Number(selectedVariation.quantity) : totalQuantity;
+      : Number(quantity || 0);   
+      
+  // Use the selected variation's stock if available, otherwise use total stock
+  const quantityToDisplay = selectedVariation ? Number(selectedVariation.quantity) : totalQuantity;
+  
   const isOutOfStock = totalQuantity === 0;
-  const isVariationOutOfStock = selectedVariation?.quantity === 0;
+  // Note: We use quantityToDisplay for the stock limit check inside renderActions
   
   const renderActions = () => {
     // Handle Admin Mode First and Return Early
@@ -62,13 +67,25 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
         );
     }
 
-    // Handle Cart Mode
+    // --- 1. Handle Cart Mode (Updates applied here) ---
     if (isCart) {
       return (
         <div className="cart-actions">
-          <button onClick={onDecrement} className="quantity-btn">-</button>
+          <button 
+              onClick={onDecrement} 
+              className="quantity-btn"
+          >
+              -
+          </button>
           <span className="cart-quantity">{quantity}</span> 
-          <button onClick={onIncrement} className="quantity-btn">+</button>
+          <button 
+              onClick={onIncrement} 
+              className="quantity-btn"
+              // Disable if the current quantity in cart (prop 'quantity') is >= the total available stock
+              disabled={quantity >= quantityToDisplay}
+          >
+              +
+          </button>
         </div>
       );
     }
@@ -82,27 +99,41 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
     const cartItemId = getCartItemId(productDataWithVariation);
     const currentQuantityInCart = cart[cartItemId]?.quantity || 0;
 
-    const incrementAction = () => onIncrement(productDataWithVariation);
+    // --- 2. NEW STOCK LIMIT LOGIC FOR STOREFRONT ---
+    const availableStock = quantityToDisplay; 
+    // Disable if current cart quantity is equal to or greater than available stock
+    const isMaxStockReached = currentQuantityInCart >= availableStock;
+    // ----------------------------------------------
+
+    const incrementAction = () => {
+        // Only call onIncrement if stock limit is NOT reached
+        if (!isMaxStockReached) {
+            onIncrement(productDataWithVariation);
+        }
+    };
     const decrementAction = () => onDecrement(cartItemId);
     
     return (
       <div className="product-actions">
         {currentQuantityInCart === 0 ? (
+          // --- 3. Update Add to Cart Button ---
           <button
             onClick={incrementAction}
-            className={`add-to-cart-btn ${isVariationOutOfStock ? 'disabled' : ''}`}
-            disabled={isVariationOutOfStock}
+            className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
+            disabled={isMaxStockReached}
           >
-            {isVariationOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            {/* Display appropriate message */}
+            {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add to Cart'}
           </button>
         ) : (
           <div className="quantity-controls">
             <button onClick={decrementAction} className="quantity-btn">-</button>
             <span className="cart-quantity-display">{currentQuantityInCart}</span>
+            {/* --- 4. Update Increment Button --- */}
             <button
               onClick={incrementAction}
-              className={`quantity-btn ${isVariationOutOfStock ? 'disabled' : ''}`}
-              disabled={isVariationOutOfStock}
+              className={`quantity-btn ${isMaxStockReached ? 'disabled' : ''}`}
+              disabled={isMaxStockReached}
             >
               +
             </button>
@@ -114,6 +145,7 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
   
   // Sort the tiers by min_quantity
   const sortedTiers = pricingData ? [...pricingData].sort((a, b) => a.min_quantity - b.min_quantity) : null;
+  
   
   let pricingOverlay = null;
   let tieredPricingButton = null;
@@ -203,7 +235,7 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
         {variations && variations.length > 1 && (
           <div className="variations-selector">
             {variations.map((v, index) => {
-              // --- FIX APPLIED HERE: Check if 'cart' is defined before accessing it ---
+              // --- Check if 'cart' is defined before accessing it ---
               let quantityInCart = 0;
               if (cart) {
                 // Get the cart quantity for *this specific variation* button

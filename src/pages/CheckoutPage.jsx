@@ -6,10 +6,6 @@ import './CheckoutPage.css';
 
 const SHIPPING_FEE = 199;
 
-/**
- * Renders the checkout page, handling form submission, cart validation, 
- * and displaying structured server-side stock errors.
- */
 const CheckoutPage = () => {
   // 1. Destructure checkMinOrderValue
   const { cart, getCartTotal, clearCart, checkMinOrderValue } = useCart();
@@ -33,65 +29,80 @@ const CheckoutPage = () => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
-  // error can be a string (for simple errors) or an object {__html: string} (for detailed stock errors)
-  const [error, setError] = useState(null); 
+  const [error, setError] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevData => ({ ...prevData, [name]: value }));
   };
 
-  /**
-   * Clears all error states and performs basic client-side validation.
-   * @returns {boolean} True if validation passes.
-   */
-  const validateForm = () => {
-    setError(null);
-    const requiredFields = ['fullName', 'phoneNumber', 'addressLine1', 'city', 'state', 'pincode'];
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        setError(`Please fill out the required field: ${field.charAt(0).toUpperCase() + field.slice(1)}.`);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  /**
-   * Handles the order submission process, including server-side stock validation.
-   */
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
-    if (!validateForm() || showMinOrderWarning || cart.length === 0) {
-      if (cart.length === 0) setError("Your cart is empty.");
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
 
-    // Prepare items for the server (ensure quantities are numbers)
-    const validatedItems = cart.map(item => ({
-        ...item,
-        quantity: Number(item.quantity)
-    }));
+    // 3. NEW: Minimum Order Check
+    if (isWholesaler && !isMinMet) {
+      setError(`Minimum wholesale order of ₹${minimumRequired.toFixed(2)} not met. Please return to cart and increase your order total.`);
+      setIsProcessing(false);
+      return;
+    }
+
+    if (Object.values(cart).length === 0) {
+      setError("Your cart is empty. Please add items before checking out.");
+      setIsProcessing(false);
+      return;
+    }
+
+    const { fullName, email, phoneNumber, addressLine1, city, state, pincode } = formData;
+    if (!fullName || !email || !phoneNumber || !addressLine1 || !city || !state || !pincode) {
+      setError("Please fill out all mandatory shipping details.");
+      setIsProcessing(false);
+      return;
+    }
+
+    const validatedItems = Object.values(cart).map(item => {
+      // Correctly map all necessary product data, including variation
+      if (!item.id || !item.productCode || !item.quantity || !item.price || !item.subcollectionId || !item.collectionId || !item.productName) {
+        console.error("Skipping item due to missing data:", item);
+        return null;
+      }
+      return {
+        productId: item.id,
+        productName: item.productName,
+        productCode: item.productCode,
+        image: item.image,
+        images: item.images,
+        quantity: Number(item.quantity),
+        priceAtTimeOfOrder: Number(item.price),
+        subcollectionId: item.subcollectionId,
+        collectionId: item.collectionId,
+        // Pass the variation data to the server for stock updates
+        variation: item.variation,
+      };
+    }).filter(Boolean);
+
+    if (validatedItems.length === 0) {
+      setError("Your cart contains invalid items. Please clear your cart and try again.");
+      setIsProcessing(false);
+      return;
+    }
 
     const subtotal = getCartTotal();
     const totalWithShipping = subtotal + SHIPPING_FEE;
 
     const orderData = {
-      billingInfo: formData,
+      userId: currentUser?.uid || 'guest',
       items: validatedItems,
+      totalAmount: totalWithShipping,
       subtotal: subtotal,
       shippingFee: SHIPPING_FEE,
-      total: totalWithShipping,
-      userRole: isWholesaler ? 'wholesaler' : 'retailer',
-      userId: currentUser?.uid || 'anonymous',
+      billingInfo: formData,
+      status: 'Pending',
     };
 
     try {
-      // NOTE: Replace with your actual Cloud Function URL if different
-      const response = await fetch('https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/placeOrder', { 
+      const response = await fetch('https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/placeOrder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,172 +110,164 @@ const CheckoutPage = () => {
         body: JSON.stringify(orderData),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.json();
-
-        // 1. Handle Insufficient Stock (409 Conflict status from the function)
-        if (response.status === 409 && errorBody.stockErrors) {
-            
-          // Build detailed error message HTML for presentation
-          const detailedMessage = `
-            <strong>Stock Alert: Insufficient inventory for some items!</strong>
-            <p>Please review the following items and update quantities in your cart:</p>
-            <ul>
-                ${errorBody.stockErrors.map(err => 
-                    `<li>
-                        <span class="product-name-error">${err.productName}</span> 
-                        ${err.variation !== 'N/A' ? `<span class="product-variation-error">(${err.variation})</span>` : ''}: 
-                        You requested <strong>${err.requested}</strong>, but only <strong>${err.available}</strong> available.
-                    </li>`
-                ).join('')}
-            </ul>
-          `;
-
-          // Set the error state as an object to trigger the detailed display logic in JSX
-          setError({
-            __html: detailedMessage
-          });
-          
-          throw new Error('Stock validation failed.');
-        }
-
-        // 2. Handle other server errors (500, 400, etc.)
-        throw new Error(errorBody.error || 'Failed to place order. Please try again.');
+      // --- START: STOCK ERROR HANDLING (409 Conflict) ---
+      if (response.status === 409) {
+          const errorBody = await response.json();
+          // Check if the custom stock error array is present
+          if (errorBody.stockErrors && errorBody.stockErrors.length > 0) {
+              
+              // 1. Format the detailed error message
+              const stockErrorDetails = errorBody.stockErrors.map(err => 
+                  ` - ${err.productName}${err.variation !== "N/A" ? ' (' + err.variation + ')' : ''} (Requested: ${err.requested}, Available: ${err.available})`
+              ).join('\n'); // Use newline for clean multi-line display
+              
+              const fullErrorMessage = `⚠️ **Insufficient Stock Alert!**\nThe following item(s) are short on stock. Please adjust your cart quantities:\n\n${stockErrorDetails}\n\n**Action Required:** Please return to your cart and reduce the quantity of these items.`;
+              
+              setError(fullErrorMessage);
+              
+              // Throw a custom error to skip the rest of the try block and move to finally
+              throw new Error("STOCK_ERROR_DISPLAYED"); 
+          }
       }
-      
+      // --- END: STOCK ERROR HANDLING ---
+
+      if (!response.ok) {
+        // Handle other non-409 errors (e.g., 400, 500)
+        let message = 'Failed to place order. Please try again.';
+        try {
+            const errorJson = await response.json();
+            // Use the error message from the backend if available
+            message = errorJson.error || message; 
+        } catch (e) {
+            // Ignore JSON parsing error if response is not JSON
+        }
+        throw new Error(message);
+      }
+
       // Success path
       clearCart();
       navigate('/order-success');
 
     } catch (err) {
       console.error("Error submitting order:", err);
-      // If error was not set by 409 block, set a generic message
-      if (!error || typeof error === 'string') { 
-        setError(err.message.includes('Stock validation') ? err.message : "There was an unexpected error processing your order. Please try again.");
+      
+      // Only set a generic error if it wasn't the detailed stock error we just set
+      if (err.message !== "STOCK_ERROR_DISPLAYED") {
+        setError(err.message || "There was an error processing your order. Please try again.");
       }
     } finally {
       setIsProcessing(false);
     }
-  };
+};
 
   return (
     <div className="checkout-page-container">
       <h2>Complete Your Order</h2>
-      
-      {/* 🛑 Renders Detailed Stock Error or Simple String Error */}
-      {error && (
-          <div className={`error-message ${error.__html ? 'server-stock-error' : ''}`}>
-              {/* Check if the error is the detailed HTML object */}
-              {error.__html ? (
-                  <div dangerouslySetInnerHTML={error} />
-              ) : (
-                  <p>{error}</p>
-              )}
-          </div>
-      )}
-      
-      {showMinOrderWarning && (
-        <div className="warning-message min-order-warning">
-          <p>
-            As a Wholesaler, your minimum order value must be ₹{minimumRequired.toFixed(2)}. 
-            You need ₹{minimumRemaining.toFixed(2)} more to place your order.
-          </p>
-        </div>
-      )}
-
-      <div className="checkout-content">
-        <div className="billing-details">
-          <h3>Billing & Shipping Information</h3>
-          <form onSubmit={handleSubmitOrder}>
-            <div className="form-group">
-              <label>Full Name*</label>
-              <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} required />
-            </div>
-            <div className="form-group">
-              <label>Email Address</label>
-              <input type="email" name="email" value={formData.email} onChange={handleInputChange} disabled />
-            </div>
-            <div className="form-group">
-              <label>Phone Number*</label>
-              <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} required />
-            </div>
-            <div className="form-group">
-              <label>Address Line 1*</label>
-              <input type="text" name="addressLine1" value={formData.addressLine1} onChange={handleInputChange} required />
-            </div>
-            <div className="form-group">
-              <label>Address Line 2 (Optional)</label>
-              <input type="text" name="addressLine2" value={formData.addressLine2} onChange={handleInputChange} />
-            </div>
-            <div className="form-group-row">
-              <div className="form-group">
-                <label>City*</label>
-                <input type="text" name="city" value={formData.city} onChange={handleInputChange} required />
+{error && <pre className="error-message">{error}</pre>} 
+      {Object.values(cart).length > 0 ? (
+        <div className="checkout-content">
+          
+          {/* Billing & Shipping Section - Left side on Desktop */}
+          <div className="billing-section">
+            <h3>Billing & Shipping Information</h3>
+            <form onSubmit={handleSubmitOrder}>
+              <div className="form-field-group">
+                <input type="text" name="fullName" placeholder="Full Name *" value={formData.fullName} onChange={handleInputChange} required />
               </div>
-              <div className="form-group">
-                <label>State*</label>
-                <input type="text" name="state" value={formData.state} onChange={handleInputChange} required />
+              <div className="form-field-group">
+                <input type="email" name="email" placeholder="Email Address *" value={formData.email} onChange={handleInputChange} required />
               </div>
-              <div className="form-group">
-                <label>Pincode*</label>
-                <input type="text" name="pincode" value={formData.pincode} onChange={handleInputChange} required />
+              <div className="form-field-group">
+                <input type="tel" name="phoneNumber" placeholder="Phone Number *" value={formData.phoneNumber} onChange={handleInputChange} required />
               </div>
-            </div>
 
-            <button 
-              type="submit" 
-              className="place-order-button" 
-              disabled={isProcessing || showMinOrderWarning || cart.length === 0}
-            >
-              {isProcessing ? 'Processing...' : 'Place Order'}
-            </button>
-          </form>
-        </div>
-
-        <div className="order-summary-card">
-          <h3>Order Summary</h3>
-          <div className="cart-items-summary">
-            {cart.map((item) => (
-              <div key={item.id} className="cart-item-summary">
-                <img src={item.image} alt={item.productName} className="cart-item-image" />
-                <div className="cart-item-details">
-                  <p className="cart-item-name">{item.productName}</p>
-                  {item.variation && (
-                    <p className="cart-item-variation">
-                      Variation: {item.variation.color} {item.variation.size}
-                    </p>
-                  )}
-                  <p className="cart-item-price">Price: ₹{item.price}</p>
-                  <p className="cart-item-quantity">Quantity: {item.quantity}</p>
+              <div className="address-fields">
+                <div className="form-field-group">
+                    <input type="text" name="addressLine1" placeholder="Address Line 1 *" value={formData.addressLine1} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="addressLine2" placeholder="Address Line 2 (Optional)" value={formData.addressLine2} onChange={handleInputChange} />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="city" placeholder="City *" value={formData.city} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="state" placeholder="State/Province/Region *" value={formData.state} onChange={handleInputChange} required />
+                </div>
+                <div className="form-field-group">
+                    <input type="text" name="pincode" placeholder="Pincode *" value={formData.pincode} onChange={handleInputChange} required />
                 </div>
               </div>
-            ))}
+
+              {/* Min Order Warning in Form */}
+              {showMinOrderWarning && (
+                  <p className="error-message min-order-warning-checkout">
+                      ⚠️ Minimum wholesale order of **₹{minimumRequired.toFixed(2)}** not met. Please return to cart to add **₹{minimumRemaining.toFixed(2)}** more.
+                  </p>
+              )}
+
+              <button type="submit" className="checkout-btn" disabled={isProcessing || showMinOrderWarning}>
+                {isProcessing ? 'Processing...' : 'Place Order'}
+              </button>
+            </form>
           </div>
-          
-          {/* Totals Calculation */}
-          <div className="cart-total-section">
-            <p>Subtotal:</p>
-            <p>₹{getCartTotal().toFixed(2)}</p>
-          </div>
-          
-          {/* Display Minimum Order Requirement for Wholesalers */}
-          {isWholesaler && (
-              <div className={`cart-total-section minimum-order-line ${isMinMet ? 'met' : 'not-met'}`}>
-                  <p>Min. Order (Wholesale):</p>
-                  <p>₹{minimumRequired.toFixed(2)}</p>
-              </div>
-          )}
-          
-          <div className="cart-total-section">
-            <p>Shipping:</p>
-            <p>₹{SHIPPING_FEE.toFixed(2)}</p>
-          </div>
-          <div className="cart-total-section total-final">
-            <p>Total:</p>
-            <p>₹{(getCartTotal() + SHIPPING_FEE).toFixed(2)}</p>
+
+          {/* Order Summary Section - Right side on Desktop */}
+          <div className="order-details">
+            <h3>Order Summary</h3>
+            <div className="cart-items-list">
+              {Object.values(cart).map((item, index) => (
+                <div key={item.id + (item.variation ? item.variation.color + item.variation.size : '')} className="cart-item">
+                  <div className="cart-item-image-wrapper">
+                    {/* Correctly display the first image from the 'images' array or fallback to 'image' */}
+                    <img
+                      src={item.images && item.images.length > 0 ? item.images[0].url : item.image}
+                      alt={item.productName}
+                      className="cart-item-image"
+                    />
+                  </div>
+                  <div className="cart-item-details">
+                    <h4 className="cart-item-name">{item.productName}</h4>
+                    <p className="cart-item-code">Code: {item.productCode}</p>
+                    {item.variation && (
+                      <p className="cart-item-variation">
+                        Variation: {item.variation.color} {item.variation.size}
+                      </p>
+                    )}
+                    <p className="cart-item-price">Price: ₹{item.price}</p>
+                    <p className="cart-item-quantity">Quantity: {item.quantity}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Totals Calculation */}
+            <div className="cart-total-section">
+              <p>Subtotal:</p>
+              <p>₹{getCartTotal().toFixed(2)}</p>
+            </div>
+            
+            {/* NEW: Display Minimum Order Requirement for Wholesalers */}
+            {isWholesaler && (
+                <div className={`cart-total-section minimum-order-line ${isMinMet ? 'met' : 'not-met'}`}>
+                    <p>Min. Order (Wholesale):</p>
+                    <p>₹{minimumRequired.toFixed(2)}</p>
+                </div>
+            )}
+            
+            <div className="cart-total-section">
+              <p>Shipping:</p>
+              <p>₹{SHIPPING_FEE.toFixed(2)}</p>
+            </div>
+            <div className="cart-total-section total-final">
+              <p>Total:</p>
+              <p>₹{(getCartTotal() + SHIPPING_FEE).toFixed(2)}</p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <p className="empty-cart-message">Your cart is empty.</p>
+      )}
     </div>
   );
 };

@@ -450,7 +450,7 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
 });
 
 exports.placeOrder = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com"); // update for frontend
+  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com");
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "POST");
     res.set("Access-Control-Allow-Headers", "Content-Type");
@@ -467,7 +467,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
   const invoiceFileName = `invoice_${uuidv4()}.pdf`;
   const invoicePath = path.join(tempDirectory, invoiceFileName);
 
-  // NEW: Array to collect stock errors across all items
+  // Array to collect stock errors across all items
   const stockErrors = [];
 
   try {
@@ -477,7 +477,10 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     await db.runTransaction(async (t) => {
       // --- PHASE 1: ALL READS FIRST (Required by Firestore Transactions) ---
 
-      // 1. Collect all product references and create read promises
+      // Map to group order items by their base productId
+      const productMap = new Map();
+
+      // 1. Collect all product references and group items for processing
       const productReadPromises = orderData.items.map((item) => {
         const productRef = db
             .collection("collections")
@@ -486,94 +489,127 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             .doc(item.subcollectionId)
             .collection("products")
             .doc(item.productId);
-        // Execute the read operation inside the transaction
-        return t.get(productRef);
+
+        // Store the promise and the item for later mapping
+        const readPromise = t.get(productRef);
+
+        // Add item to map: Key is the productRef path (unique identifier)
+        const refPath = productRef.path;
+        if (!productMap.has(refPath)) {
+          productMap.set(refPath, {productRef, items: [], productDoc: null});
+        }
+        productMap.get(refPath).items.push(item);
+
+        return readPromise;
       });
 
       // 2. Wait for all product documents to be read
       const productDocs = await Promise.all(productReadPromises);
       console.log("All product documents successfully read.");
 
-      // 3. Prepare updates (Validation and data generation)
+      // Map the document snapshot back to the consolidated product entries
+      let docIndex = 0;
+      for (const entry of productMap.values()) {
+        // we can assign the snapshot from the first occurrence of this product.
+        if (!entry.productDoc) {
+          entry.productDoc = productDocs[docIndex];
+        }
+        docIndex++;
+      }
+
+
+      // 3. Prepare consolidated updates (Validation and data generation)
       const updates = [];
 
-      for (let i = 0; i < orderData.items.length; i++) {
-        const item = orderData.items[i];
-        const productDoc = productDocs[i];
+      // Iterate through the consolidated map of unique products
+      for (const [refPath, entry] of productMap.entries()) {
+        const productDoc = entry.productDoc;
+        const productRef = entry.productRef;
+        const items = entry.items;
 
         if (!productDoc.exists) {
-          throw new Error(`Product not found: ${productDoc.ref.path}`);
+          throw new Error(`Product not found: ${refPath}`);
         }
 
         const productData = productDoc.data();
-        const quantitySold = Number(item.quantity);
+        let updateData = {};
 
-        // Case 1: Product with Variations
-        if (item.variation && productData.variations &&
-            Array.isArray(productData.variations)) {
-          let variationFound = false;
-          const updatedVariations = productData.variations.map((v) => {
-            const isMatch = (v.color === item.variation.color &&
-                            v.size === item.variation.size);
+        // --- VARIATION CONSOLIDATION LOGIC ---
+        if (productData.variations && Array.isArray(productData.variations)) {
+          let updatedVariations = [...productData.variations];
+          const variationErrors = [];
 
-            if (isMatch) {
-              const currentQuantity = Number(v.quantity) || 0;
-              const newQuantity = currentQuantity - quantitySold;
+          for (const item of items) {
+            const quantitySold = Number(item.quantity);
+            let variationFound = false;
 
-              if (newQuantity < 0) {
-                // ❌ INSUFFICIENT STOCK: COLLECT ERROR
-                stockErrors.push({
-                  productName: item.productName,
-                  variation: `${v.color} ${v.size}`,
-                  requested: quantitySold,
-                  available: currentQuantity,
-                });
+            // Only process items that actually specify a variation
+            if (item.variation) {
+              updatedVariations = updatedVariations.map((v) => {
+                const isMatch = (v.color === item.variation.color &&
+                                         v.size === item.variation.size);
+
+                if (isMatch) {
+                  const currentQuantity = Number(v.quantity) || 0;
+                  const newQuantity = currentQuantity - quantitySold;
+
+                  if (newQuantity < 0) {
+                    variationErrors.push({
+                      productName: item.productName,
+                      variation: `${v.color} ${v.size}`,
+                      requested: quantitySold,
+                      available: currentQuantity,
+                    });
+                    return v; // Keep original quantity in the array
+                  }
+
+                  variationFound = true;
+                  return {...v, quantity: newQuantity}; // Apply deduction
+                }
                 return v;
-              }
-
-              variationFound = true;
-              return {...v, quantity: newQuantity};
+              });
             }
-            return v;
-          });
 
-          if (!variationFound) {
-            throw new Error(
-                `Variation not found in product: ${item.productName}`,
-            );
+            if (item.variation && !variationFound) {
+              throw new Error(`Variatio not foundproduct: ${item.productName}`);
+            }
           }
 
-          // NOTE: The transaction will be rolled back later if stockErrors > 0
-          updates.push({
-            ref: productDoc.ref,
-            data: {variations: updatedVariations},
-          });
+          if (variationErrors.length > 0) {
+            stockErrors.push(...variationErrors);
+          } else {
+            updateData = {variations: updatedVariations};
+          }
 
-        // Case 2: Simple Product
+        // --- SIMPLE PRODUCT CONSOLIDATION LOGIC ---
         } else {
           const currentQuantity = Number(productData.quantity) || 0;
-          const newQuantity = currentQuantity - quantitySold;
+          const totalQuantitySold = items.reduce((sum, item) =>
+            sum + Number(item.quantity), 0);
+          const newQuantity = currentQuantity - totalQuantitySold;
 
           if (newQuantity < 0) {
             // ❌ INSUFFICIENT STOCK: COLLECT ERROR
             stockErrors.push({
-              productName: item.productName,
+              productName: items[0].productName, // Use first item's name
               variation: "N/A",
-              requested: quantitySold,
+              requested: totalQuantitySold,
               available: currentQuantity,
             });
-            // Skip adding this update to prevent rollback issues,
-            // the explicit error throw below handles the rollback.
-            continue;
+          } else {
+            updateData = {quantity: newQuantity};
           }
+        }
 
-          // Store the planned update
+        // Only add a valid update (i.e., no stock error for this product)
+        if (Object.keys(updateData).length > 0 &&
+        !stockErrors.find((e) => e.productName === items[0].productName)) {
           updates.push({
-            ref: productDoc.ref,
-            data: {quantity: newQuantity},
+            ref: productRef,
+            data: updateData,
           });
         }
-      }
+      } // End of productMap loop
 
       // CRITICAL CHECK: If any stock error was collected, throw a custom
       // error to rollback the entire transaction.
@@ -683,18 +719,14 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     if (fs.existsSync(invoicePath)) fs.unlinkSync(invoicePath);
 
     // --- ERROR HANDLING FIX ---
-    // Check for the custom error thrown during the transaction
     if (err.message === "STOCK_FAILURE_ROLLBACK") {
       console.warn("Stock failure detected.Returning detailed errorsclient.");
-
-      // Return 409 Conflict status code and the detailed error array
       return res.status(409).json({
         error: "Insufficient stock detected for some items.",
-        stockErrors: stockErrors, // Return the collected array of errors
+        stockErrors: stockErrors,
       });
     }
 
-    // Handle generic errors (Product not found, etc.)
     const statusCode = err.message.includes("Product not found") ? 400 : 500;
     const errorMessage = err.message.split(": ")[0] || "Fail to process order";
 
@@ -703,3 +735,4 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     });
   }
 });
+

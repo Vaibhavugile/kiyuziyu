@@ -22,7 +22,7 @@ import {
 import CollectionCard from '../components/CollectionCard';
 import ProductCard from '../components/ProductCard';
 import OrderDetailsModal from '../components/OrderDetailsModal';
-import { getPriceForQuantity, getCartItemId } from '../components/CartContext';
+import { getPriceForQuantity, getCartItemId,useCart,createStablePricingId } from '../components/CartContext';
 import './AdminPage.css';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -121,6 +121,8 @@ const AdminPage = () => {
   const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
   const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
+  // Add this line with your other useState calls at the top of the component:
+const [offlineSelections, setOfflineSelections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   // Add this line to your other useState declarations
   const [editedTotal, setEditedTotal] = useState('');
@@ -165,8 +167,107 @@ const AdminPage = () => {
   const onCropComplete = (crop) => {
     setCompletedCrop(crop);
   };
+const handleOfflineSelectionChange = (productId, variationObject) => {
+    // This updates the selected variation for a specific product
+    setOfflineSelections(prev => ({
+        ...prev,
+        [productId]: variationObject
+    }));
+};
+// NOTE: You must have getCartItemId and getPriceForOfflineBilling (or similar) available in this file's scope.
 
+const handleOfflineAddToCart = (product, variation = null, incrementBy = 1) => {
+    
+    // 1. Determine the item's unique ID based on product and variation
+    const itemToAdd = { ...product, variation: variation || product.variation };
+    const cartItemId = getCartItemId(itemToAdd);
 
+    // 2. Determine available stock for the selected variant
+    // Use the stock from the passed variation object, or fallback to the product's base quantity
+    const availableStock = variation 
+        ? Number(variation.quantity) 
+        : (itemToAdd.variation ? Number(itemToAdd.variation.quantity) : Number(product.quantity || 0));
+
+    const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
+    
+    // 3. Stock Check: Prevent adding if the limit is reached
+    if (currentQuantityInCart >= availableStock) {
+        console.warn(`Cannot add item: Max stock reached for ${product.productName} (${availableStock}).`);
+        // Optional: You could show a UI alert here
+        return; 
+    }
+
+    // 4. Update the cart state
+    setOfflineCart(prevCart => {
+        const existingItem = prevCart[cartItemId];
+
+        // Item enrichment: Save the availableStock and the variation
+        const itemToSave = {
+            ...itemToAdd,
+            id: cartItemId, // Use the unique ID as the cart key
+            // You need a helper function to determine the price based on type/tiers
+            price: getPriceForOfflineBilling(itemToAdd, offlinePricingType), 
+            availableStock: availableStock, // Save the stock for cart controls
+        };
+
+        if (existingItem) {
+            // Increment logic
+            return {
+                ...prevCart,
+                [cartItemId]: {
+                    ...existingItem,
+                    quantity: existingItem.quantity + incrementBy,
+                }
+            };
+        } else {
+            // New item logic
+            return {
+                ...prevCart,
+                [cartItemId]: {
+                    ...itemToSave,
+                    quantity: 1, // Add one item
+                }
+            };
+        }
+    });
+};
+// --- NEW UTILITY FUNCTION for Offline Billing ---
+const getPriceForOfflineBilling = (item, offlinePricingType) => {
+    // 1. Determine the pricing tiers to use based on the selected type (retail/wholesale)
+    // NOTE: This assumes the product object already has a structure like:
+    // item.tieredPricing.wholesale and item.tieredPricing.retail, or that 
+    // you are passing a pre-calculated tieredPricing prop/object if needed.
+    
+    const productTiers = item.tieredPricing; // Assuming item has this structure
+
+    if (!productTiers) {
+        // Fallback: Use base price from the product/variation if no tiers are available
+        return item.variation?.price || item.price || 0; 
+    }
+
+    const tiers = offlinePricingType === 'wholesale'
+        ? productTiers.wholesale
+        : productTiers.retail;
+
+    if (!tiers || tiers.length === 0) {
+        return item.variation?.price || item.price || 0;
+    }
+
+    // 2. Use the smallest quantity tier price (since we are adding 1 at a time, we use the base price)
+    // NOTE: In the offline selection panel, we only care about the base price for display.
+    // The getPriceForQuantity function (imported from CartContext) should find the correct price.
+    
+    // For simplicity in the selection panel, we usually display the base price (tier 1).
+    // The lowest quantity tier is the one with the smallest min_quantity.
+    const baseTier = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity)[0];
+
+    // For the cart, the price should be calculated for the *current* quantity (item.quantity).
+    // Since this function is used when adding the item *to* the cart, and also when refreshing the price, 
+    // we should usually just return the base price for the selection panel, or the price for quantity 1.
+    
+    // Using quantity 1 to get the base price
+    return getPriceForQuantity(tiers, 1) || baseTier.price || item.price || 0;
+};
   const handleRemoveTier = (type, index) => {
     setSubcollectionTieredPricing((prevPricing) => ({
       ...prevPricing,
@@ -1280,21 +1381,7 @@ const AdminPage = () => {
     }
   };
 
-  const handleOfflineAddToCart = (product, quantity) => {
-    setOfflineCart(prevCart => {
-      // Use the new getCartItemId to create a unique ID for the product and its variation
-      const cartItemId = getCartItemId(product);
-      const currentQuantity = prevCart[cartItemId]?.quantity || 0;
-      const newCart = {
-        ...prevCart,
-        [cartItemId]: {
-          ...product,
-          quantity: currentQuantity + quantity,
-        },
-      };
-      return newCart;
-    });
-  };
+  
 
   const handleOfflineRemoveFromCart = (cartItemId) => {
     setOfflineCart(prevCart => {
@@ -1312,66 +1399,177 @@ const AdminPage = () => {
   const getOfflineCartTotal = () => {
     return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
   };
-  const handleFinalizeSale = async () => {
+ const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
-      alert('The cart is empty. Please add products to finalize the sale.');
-      return;
+        alert('The cart is empty. Please add products to finalize the sale.');
+        return;
     }
 
     if (window.confirm('Are you sure you want to finalize this offline sale?')) {
-      try {
-        // Determine the final total amount based on the edited input or the calculated total
-        const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : getOfflineCartTotal();
+        let isStockError = false; 
+        const productUpdatesMap = {}; // Maps baseProductId -> { ref, data, cartItems }
 
-        const orderData = {
-          userId: 'offline-sale',
-          status: 'Delivered',
-          createdAt: serverTimestamp(),
-          items: Object.values(offlineCart).map(item => ({
-            productId: item.id || 'N/A',
-            productName: item.productName || 'N/A',
-            productCode: item.productCode || 'N/A',
-            quantity: item.quantity || 0,
-            price: typeof item.price === 'number' ? item.price : 0,
-            image: item.image || '',
-          })),
-          totalAmount: typeof finalTotal === 'number' ? finalTotal : 0,
-          subtotal: typeof finalTotal === 'number' ? finalTotal : 0,
-          shippingFee: 0,
-        };
+        try {
+            // ----------------------------------------------------
+            // 🎯 PHASE 1: COLLECT PRODUCT DATA AND CONSOLIDATE UPDATES
+            // ----------------------------------------------------
+            console.log(`\n--- STARTING OFFLINE SALE TRANSACTION PREP ---`);
 
-        await addDoc(collection(db, 'orders'), orderData);
-        console.log('Order added to Firestore successfully!');
+            // 1. Group cart items by their base Product ID and fetch the document once
+            for (const item of Object.values(offlineCart)) {
+                const baseProductId = item.id.split('_')[0]; 
+                
+                if (!productUpdatesMap[baseProductId]) {
+                    const productRef = doc(db, 
+                        'collections', item.collectionId, 
+                        'subcollections', item.subcollectionId, 
+                        'products', baseProductId
+                    );
+                    const productDoc = await getDoc(productRef);
 
-        const batch = writeBatch(db);
-        for (const productId in offlineCart) {
-          const item = offlineCart[productId];
-          const productRef = doc(db, 'collections', item.collectionId, 'subcollections', item.subcollectionId, 'products', productId);
+                    if (!productDoc.exists()) {
+                        throw new Error(`Product not found: ${baseProductId}`);
+                    }
+                    
+                    productUpdatesMap[baseProductId] = {
+                        ref: productRef,
+                        data: productDoc.data(),
+                        cartItems: [],
+                        hasError: false,
+                    };
+                }
+                productUpdatesMap[baseProductId].cartItems.push(item);
+            }
+            
+            // 2. Process all cart items for each product to calculate the final stock
+            const batch = writeBatch(db);
 
-          const productDoc = await getDoc(productRef);
-          if (productDoc.exists()) {
-            const currentQuantity = productDoc.data().quantity || 0;
-            const newQuantity = currentQuantity - item.quantity;
-            batch.update(productRef, { quantity: newQuantity });
-          }
+            for (const baseProductId in productUpdatesMap) {
+                const { ref: productRef, data: productData, cartItems } = productUpdatesMap[baseProductId];
+                
+                let currentVariations = productData.variations ? [...productData.variations] : null;
+                let currentSimpleQuantity = productData.quantity;
+
+                // Iterate through all cart items that belong to THIS single product
+                for (const item of cartItems) {
+                    const quantitySold = item.quantity;
+                    
+                    console.log(`\nProcessing Item: ${item.productName} (Variation: ${item.variation?.color || 'Simple'}) (Qty: ${quantitySold})`);
+
+                    // --- VARIATION LOGIC ---
+                    if (item.variation && currentVariations) {
+                        currentVariations = currentVariations.map(v => {
+                            const isMatch = (v.color === item.variation.color && v.size === item.variation.size);
+                            
+                            if (isMatch) {
+                                let currentQuantity = Number(v.quantity) || 0;
+                                let newQuantity = currentQuantity - quantitySold;
+                                
+                                console.log(`  -> Stock BEFORE: ${currentQuantity}`);
+
+                                if (newQuantity < 0) {
+                                    isStockError = true;
+                                    productUpdatesMap[baseProductId].hasError = true;
+                                    console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentQuantity} available.`);
+                                    return v; 
+                                }
+                                
+                                // Update the variation's quantity in our temporary array
+                                return { ...v, quantity: newQuantity };
+                            }
+                            return v;
+                        });
+                        
+                    // --- SIMPLE PRODUCT LOGIC ---
+                    } else if (!item.variation) {
+                        currentSimpleQuantity = Number(currentSimpleQuantity) || 0;
+                        let newQuantity = currentSimpleQuantity - quantitySold;
+                        
+                        console.log(`  -> Type: Simple Product`);
+                        console.log(`  -> Stock BEFORE: ${currentSimpleQuantity}`);
+
+                        if (newQuantity < 0) {
+                            isStockError = true;
+                            productUpdatesMap[baseProductId].hasError = true;
+                            console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentSimpleQuantity} available.`);
+                        } else {
+                            currentSimpleQuantity = newQuantity; // Update the temporary quantity
+                        }
+                    }
+                }
+
+                // 3. Add ONE FINAL UPDATE to the batch for this base product ID
+                if (!productUpdatesMap[baseProductId].hasError) {
+                    const finalUpdateData = currentVariations ? 
+                        { variations: currentVariations } : 
+                        { quantity: currentSimpleQuantity };
+
+                    batch.update(productRef, finalUpdateData);
+                    
+                    // 🎯 LOG FINAL STOCK
+                    const finalQty = currentVariations ? 'Variations Array Updated' : currentSimpleQuantity;
+                    console.log(`  ✅ FINAL Stock AFTER: ${finalQty}`);
+                    console.log(`  -> Batch updated for ${baseProductId}.`);
+                }
+            } // End of productUpdatesMap loop
+
+
+            // 4. EXECUTE WRITES (Order Save and Stock Update)
+            if (isStockError) {
+                console.log(`\n--- TRANSACTION ROLLED BACK (Due to Stock Error) ---`);
+                throw new Error("STOCK_FAILURE_CLIENT"); 
+            }
+            
+            // Prepare and save order data (only if no stock error)
+            const calculatedTotal = getOfflineCartTotal();
+            const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : calculatedTotal;
+
+            const orderData = {
+                userId: 'offline-sale',
+                status: 'Completed Offline',
+                createdAt: serverTimestamp(),
+                items: Object.values(offlineCart).map(item => ({
+                    productId: item.id.split('_')[0] || 'N/A',
+                    productName: item.productName || 'N/A',
+                    quantity: item.quantity || 0,
+                    price: typeof item.price === 'number' ? item.price : 0,
+                    variation: item.variation || null, 
+                })),
+                totalAmount: finalTotal,
+                subtotal: finalTotal,
+                shippingFee: 0,
+                pricingType: offlinePricingType, 
+            };
+            
+            const orderRef = await addDoc(collection(db, 'orders'), orderData);
+            console.log(`✅ Order added to Firestore successfully with ID: ${orderRef.id}`);
+
+            await batch.commit();
+            console.log('✅ All Stock quantities updated successfully!');
+            console.log('------------------------------------------');
+
+            // 5. Success and Cleanup
+            alert('Offline sale finalized and stock updated successfully!');
+            setOfflineCart({});
+            setEditedTotal('');
+            setSelectedOfflineCollectionId('');
+            setSelectedOfflineSubcollectionId('');
+            setOfflineProducts([]);
+            
+            if (activeTab === 'orders') fetchOrders();
+            if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
+            
+        } catch (error) {
+            if (error.message === "STOCK_FAILURE_CLIENT") {
+                alert('Failed to finalize sale: Insufficient stock for one or more items. Please adjust the cart.');
+            } else {
+                console.error('\n--- FINAL ERROR ---');
+                console.error('Error finalizing offline sale:', error);
+                alert('Failed to finalize the sale. Please check console for details.');
+            }
         }
-        await batch.commit();
-        console.log('Stock quantities updated successfully!');
-
-        alert('Offline sale finalized and stock updated successfully!');
-        setOfflineCart({});
-        setEditedTotal(''); // Clear the edited total after sale
-        setSelectedOfflineCollectionId('');
-        setSelectedOfflineSubcollectionId('');
-        setOfflineProducts([]);
-        if (activeTab === 'orders') fetchOrders();
-        if (activeSubTab === 'products') fetchProducts(selectedSubcollectionId);
-      } catch (error) {
-        console.error('Error finalizing offline sale:', error);
-        alert('Failed to finalize the sale. Please try again.');
-      }
     }
-  };
+};
   useEffect(() => {
     if (selectedOfflineCollectionId) {
       fetchSubcollectionsForOffline(selectedOfflineCollectionId);
@@ -2241,147 +2439,216 @@ const AdminPage = () => {
     </div>
 )}
         {activeTab === 'offline-billing' && (
-          <div className="offline-billing-section">
-            <h2>Offline Billing</h2>
-            <div className="billing-container">
-              <div className="product-selection-panel">
-                <h4>Select Products</h4>
-                <div className="dropdown-group">
-                  <select
-                    className="billing-select"
-                    value={offlinePricingType}
-                    onChange={(e) => setOfflinePricingType(e.target.value)}
-                  >
-                    <option value="retail">Retail Pricing</option>
-                    <option value="wholesale">Wholesale Pricing</option>
-                  </select>
-                  <select
-                    className="billing-select"
-                    value={selectedOfflineCollectionId}
-                    onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
-                  >
-                    <option value="">Select Collection</option>
-                    {mainCollections.map((collection) => (
-                      <option key={collection.id} value={collection.id}>
-                        {collection.title}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="billing-select"
-                    value={selectedOfflineSubcollectionId}
-                    onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
-                    disabled={!selectedOfflineCollectionId}
-                  >
-                    <option value="">Select Subcollection</option>
-                    {offlineSubcollections.map((subcollection) => (
-                      <option key={subcollection.id} value={subcollection.id}>
-                        {subcollection.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+  <div className="offline-billing-section">
+    <h2>Offline Billing</h2>
+    <div className="billing-container">
+      <div className="product-selection-panel">
+        <h4>Select Products</h4>
+        <div className="dropdown-group">
+          <select
+            className="billing-select"
+            value={offlinePricingType}
+            onChange={(e) => setOfflinePricingType(e.target.value)}
+          >
+            <option value="retail">Retail Pricing</option>
+            <option value="wholesale">Wholesale Pricing</option>
+          </select>
+          <select
+            className="billing-select"
+            value={selectedOfflineCollectionId}
+            onChange={(e) => setSelectedOfflineCollectionId(e.target.value)}
+          >
+            <option value="">Select Collection</option>
+            {mainCollections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.title}
+              </option>
+            ))}
+          </select>
+          <select
+            className="billing-select"
+            value={selectedOfflineSubcollectionId}
+            onChange={(e) => setSelectedOfflineSubcollectionId(e.target.value)}
+            disabled={!selectedOfflineCollectionId}
+          >
+            <option value="">Select Subcollection</option>
+            {offlineSubcollections.map((subcollection) => (
+              <option key={subcollection.id} value={subcollection.id}>
+                {subcollection.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-                {/* Search Input */}
-                <input
-                  type="text"
-                  placeholder="Search products by name or code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="product-search-bar"
-                />
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="Search products by name or code..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="product-search-bar"
+        />
 
-                {isOfflineProductsLoading ? (
-                  <p className="loading-message">Loading products...</p>
-                ) : filteredOfflineProducts.length > 0 ? (
-                  <div className="billing-product-list">
-                    {filteredOfflineProducts.map(product => {
-                      // Get the current price from the cart state
-                      const currentPriceInCart = offlineCart[product.id]?.price;
-                      const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
+        {isOfflineProductsLoading ? (
+          <p className="loading-message">Loading products...</p>
+        ) : filteredOfflineProducts.length > 0 ? (
+          <div className="billing-product-list">
+            {filteredOfflineProducts.map(product => {
+              // --- STOCK/VARIATION LOGIC SETUP (Requires offlineSelections state) ---
+              // 1. Get the current selection (or default to the first variant)
+              const currentSelection = offlineSelections[product.id] || 
+                                       (product.variations && product.variations.length > 0 ? product.variations[0] : null);
+              
+              // 2. Get the stock for the currently selected item/variant
+              const availableStock = currentSelection ? Number(currentSelection.quantity) : Number(product.quantity || 0);
 
-                      return (
-                        <div
-                          key={product.id}
-                          className="billing-product-item"
-                          onClick={() => handleOfflineAddToCart(product)}
+              // 3. Calculate quantity in cart for this specific variant
+              // NOTE: getCartItemId must be available in this component's scope (imported from CartContext)
+              const cartItemId = getCartItemId({ ...product, variation: currentSelection });
+              const currentQuantityInCart = offlineCart[cartItemId]?.quantity || 0;
+              
+              // 4. Check for stock limit
+              const isMaxStockReached = currentQuantityInCart >= availableStock;
+              
+              const imagesToDisplay = product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []);
+              const currentImage = imagesToDisplay.length > 0 ? (imagesToDisplay[0].url || imagesToDisplay[0].url || imagesToDisplay[0]) : '';
+              // ----------------------------------------------------------------------
+
+              return (
+                <div
+                  key={product.id}
+                  className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
+                >
+                  {/* Product Details */}
+                  <img
+                    alt={product.productName}
+                    src={currentImage}
+                    className="product-image"
+                  />
+                  <div className="product-details">
+                    <span className="product-name">{product.productName}</span>
+                    <span className="product-code">{product.productCode}</span>
+
+                    {/* Variation Selector */}
+                    {product.variations && product.variations.length > 1 && (
+                        <select
+                            className="billing-variation-select"
+                            // Value must be stringified JSON object to hold the full variation data
+                            value={JSON.stringify(currentSelection || {})} 
+                            // Handler uses JSON.parse to get the selected object back
+                            onChange={(e) => handleOfflineSelectionChange(product.id, JSON.parse(e.target.value))}
                         >
-                          <img
-                            alt={productName}
-                            src={imagesToDisplay[currentImageIndex]}
-                            className="product-image"
-                          />                          <span className="product-name">{product.productName}</span>
-                          <span className="product-code">{product.productCode}</span>
-                          <span className="product-quantity">Qty: {product.quantity}</span>
-                          {typeof currentPriceInCart === 'number' && (
-                            <span className="product-price">₹{currentPriceInCart.toFixed(2)}</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                            {product.variations.map((v, index) => (
+                                <option 
+                                    key={index} 
+                                    value={JSON.stringify(v)} 
+                                    disabled={Number(v.quantity) <= 0}
+                                >
+                                    {v.color} {v.size} (Stock: {v.quantity})
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    
+                    <span className={`product-quantity ${availableStock === 0 ? 'out-of-stock-text' : ''}`}>
+                        In Stock: {availableStock}
+                    </span>
                   </div>
-                ) : (
-                  <p className="no-products-found">
-                    {selectedOfflineSubcollectionId
-                      ? 'No products found for your search.'
-                      : 'Please select a collection and subcollection to view products.'}
-                  </p>
-                )}
-              </div>
-              <div className="billing-cart-panel">
-                <h4>Billing Cart</h4>
-                {Object.keys(offlineCart).length > 0 ? (
-                  <>
-                    <ul className="cart-list">
-                      {Object.values(offlineCart).map((item) => (
-                        <li key={item.id} className="cart-item">
-                          <div className="cart-item-details">
-                            <span className="cart-item-name">{item.productName}</span>
-                            <span className="cart-item-name">{item.productCode}</span>
 
-                            <span className="cart-item-info">
-                              {item.quantity} x ₹
-                              {typeof item.price === 'number'
-                                ? item.price.toFixed(2)
-                                : item.price !== undefined && item.price !== null
-                                  ? parseFloat(item.price).toFixed(2)
-                                  : '0.00'}
-                            </span>
-                          </div>
-                          <div className="cart-item-controls">
-                            <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-                            <span className="cart-quantity">{item.quantity}</span>
-                            <button onClick={() => handleOfflineAddToCart(item, 1)} className="quantity-btn">+</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* NEW: Editable Total Input */}
-                    <div className="cart-total-info">
-                      <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
-                      <label htmlFor="edited-total-input">Final Total:</label>
-                      <input
-                        id="edited-total-input"
-                        type="number"
-                        value={editedTotal}
-                        onChange={(e) => setEditedTotal(e.target.value)}
-                        placeholder="Enter final total"
-                        className="editable-total-input"
-                      />
-                    </div>
-
-                    <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-                      Finalize Sale
-                    </button>
-                  </>
-                ) : (
-                  <p>Cart is empty. Add products to start billing.</p>
-                )}
-              </div>
-            </div>
+                  {/* Add to Cart Control */}
+                  <div className="product-actions-offline">
+                      <span className="cart-item-quantity">In Cart: {currentQuantityInCart}</span>
+                      <button
+                          // Pass the product and the currently selected variation to the handler
+                          onClick={() => handleOfflineAddToCart(product, currentSelection)}
+                          className={`add-to-cart-btn ${isMaxStockReached ? 'disabled' : ''}`}
+                          disabled={isMaxStockReached}
+                      >
+                          {isMaxStockReached ? (availableStock === 0 ? 'Out of Stock' : 'Max Stock Reached') : 'Add 1'}
+                      </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
+        ) : (
+          <p className="no-products-found">
+            {selectedOfflineSubcollectionId
+              ? 'No products found for your search.'
+              : 'Please select a collection and subcollection to view products.'}
+          </p>
         )}
+      </div>
+      
+      <div className="billing-cart-panel">
+        <h4>Billing Cart</h4>
+        {Object.keys(offlineCart).length > 0 ? (
+          <>
+            <ul className="cart-list">
+              {Object.values(offlineCart).map((item) => (
+                <li key={item.id} className="cart-item">
+                  <div className="cart-item-details">
+                    <span className="cart-item-name">{item.productName}</span>
+                    <span className="cart-item-code">{item.productCode}</span>
+                    {/* NEW: Display Variation */}
+                    {item.variation && (item.variation.color || item.variation.size) && (
+                        <span className="cart-item-info variation-detail">
+                            {item.variation.color} {item.variation.size}
+                        </span>
+                    )}
+
+                    <span className="cart-item-info">
+                      {item.quantity} x ₹
+                      {typeof item.price === 'number'
+                        ? item.price.toFixed(2)
+                        : item.price !== undefined && item.price !== null
+                          ? parseFloat(item.price).toFixed(2)
+                          : '0.00'}
+                    </span>
+                  </div>
+                  <div className="cart-item-controls">
+                    <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+                    <span className="cart-quantity">{item.quantity}</span>
+                    {/* NEW: Stock limit check for Cart item */}
+                    <button 
+                        // When incrementing from the cart, we pass the existing item and its variation
+                        onClick={() => handleOfflineAddToCart(item, item.variation)} 
+                        className="quantity-btn"
+                        // Disable if current quantity is >= the stock quantity stored on the cart item
+                        disabled={item.quantity >= (item.availableStock || Infinity)} 
+                    >
+                        +
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* NEW: Editable Total Input */}
+            <div className="cart-total-info">
+              <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
+              <label htmlFor="edited-total-input">Final Total:</label>
+              <input
+                id="edited-total-input"
+                type="number"
+                value={editedTotal}
+                onChange={(e) => setEditedTotal(e.target.value)}
+                placeholder="Enter final total"
+                className="editable-total-input"
+              />
+            </div>
+
+            <button onClick={handleFinalizeSale} className="finalize-sale-btn">
+              Finalize Sale
+            </button>
+          </>
+        ) : (
+          <p>Cart is empty. Add products to start billing.</p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
