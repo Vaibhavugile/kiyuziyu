@@ -477,11 +477,10 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     await db.runTransaction(async (t) => {
       // --- PHASE 1: ALL READS FIRST (Required by Firestore Transactions) ---
 
-      // Map to group order items by their base productId
-      const productMap = new Map();
+      // Key: refPath, Value: { productRef, items: [], productDoc: null }
+      const productDataMap = new Map();
 
-      // 1. Collect all product references and group items for processing
-      const productReadPromises = orderData.items.map((item) => {
+      for (const item of orderData.items) {
         const productRef = db
             .collection("collections")
             .doc(item.collectionId)
@@ -490,45 +489,42 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             .collection("products")
             .doc(item.productId);
 
-        // Store the promise and the item for later mapping
-        const readPromise = t.get(productRef);
-
-        // Add item to map: Key is the productRef path (unique identifier)
         const refPath = productRef.path;
-        if (!productMap.has(refPath)) {
-          productMap.set(refPath, {productRef, items: [], productDoc: null});
+
+        if (!productDataMap.has(refPath)) {
+          productDataMap.set(refPath, {productRef, items: [],
+            productDoc: null});
         }
-        productMap.get(refPath).items.push(item);
+        productDataMap.get(refPath).items.push(item);
+      }
 
-        return readPromise;
-      });
+      // 2. Fetch the documents for all UNIQUE product references
+      const readPromises = Array.from(productDataMap.values()).map(
+          (entry) => t.get(entry.productRef),
+      );
+      const uniqueProductDocs = await Promise.all(readPromises);
+      console.log("All unique product documents successfully read.");
 
-      // 2. Wait for all product documents to be read
-      const productDocs = await Promise.all(productReadPromises);
-      console.log("All product documents successfully read.");
-
-      // Map the document snapshot back to the consolidated product entries
+      // 3. Map the fetched documents back to the productDataMap
       let docIndex = 0;
-      for (const entry of productMap.values()) {
-        // we can assign the snapshot from the first occurrence of this product.
-        if (!entry.productDoc) {
-          entry.productDoc = productDocs[docIndex];
-        }
+      for (const entry of productDataMap.values()) {
+        entry.productDoc = uniqueProductDocs[docIndex];
         docIndex++;
       }
 
 
-      // 3. Prepare consolidated updates (Validation and data generation)
+      // 4. Prepare consolidated updates (Validation and data generation)
       const updates = [];
 
       // Iterate through the consolidated map of unique products
-      for (const [refPath, entry] of productMap.entries()) {
+      for (const entry of productDataMap.values()) {
         const productDoc = entry.productDoc;
         const productRef = entry.productRef;
         const items = entry.items;
+        const productPath = productRef.path;
 
         if (!productDoc.exists) {
-          throw new Error(`Product not found: ${refPath}`);
+          throw new Error(`Product not found: ${productPath}`);
         }
 
         const productData = productDoc.data();
@@ -546,10 +542,16 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             // Only process items that actually specify a variation
             if (item.variation) {
               updatedVariations = updatedVariations.map((v) => {
-                const isMatch = (v.color === item.variation.color &&
-                                         v.size === item.variation.size);
+                const isMatch = (
+                  ((v.color ?? "").trim() ===
+                  (item.variation.color ?? "").trim()) &&
+                  ((v.size ?? "").trim() === (item.variation.size ?? "").trim())
+                );
 
                 if (isMatch) {
+                  // CRUCIAL: Mark as found upon matching the variation object.
+                  variationFound = true;
+
                   const currentQuantity = Number(v.quantity) || 0;
                   const newQuantity = currentQuantity - quantitySold;
 
@@ -560,10 +562,9 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
                       requested: quantitySold,
                       available: currentQuantity,
                     });
-                    return v; // Keep original quantity in the array
+                    return v;
                   }
 
-                  variationFound = true;
                   return {...v, quantity: newQuantity}; // Apply deduction
                 }
                 return v;
@@ -571,7 +572,8 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             }
 
             if (item.variation && !variationFound) {
-              throw new Error(`Variatio not foundproduct: ${item.productName}`);
+              // Corrected the error message for better readability
+              throw new Error(`Variation not found : ${item.productName}`);
             }
           }
 
@@ -581,7 +583,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             updateData = {variations: updatedVariations};
           }
 
-        // --- SIMPLE PRODUCT CONSOLIDATION LOGIC ---
+          // --- SIMPLE PRODUCT CONSOLIDATION LOGIC ---
         } else {
           const currentQuantity = Number(productData.quantity) || 0;
           const totalQuantitySold = items.reduce((sum, item) =>
@@ -603,13 +605,13 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
         // Only add a valid update (i.e., no stock error for this product)
         if (Object.keys(updateData).length > 0 &&
-        !stockErrors.find((e) => e.productName === items[0].productName)) {
+            !stockErrors.find((e) => e.productName === items[0].productName)) {
           updates.push({
             ref: productRef,
             data: updateData,
           });
         }
-      } // End of productMap loop
+      } // End of productDataMap loop
 
       // CRITICAL CHECK: If any stock error was collected, throw a custom
       // error to rollback the entire transaction.
@@ -619,7 +621,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
       // --- PHASE 2: ALL WRITES NOW (Must follow all reads) ---
 
-      // 4. Save the Order (The first write)
+      // 5. Save the Order (The first write)
       const orderRef = db.collection("orders").doc();
       orderData.orderId = orderRef.id;
 
@@ -631,7 +633,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
       console.log("Order saved with ID:", orderRef.id);
 
 
-      // 5. Update Product Stock (The remaining writes)
+      // 6. Update Product Stock (The remaining writes)
       updates.forEach((update) => {
         t.update(update.ref, update.data);
       });
@@ -642,12 +644,12 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
     // --- 2. Post-Transaction Steps (PDF, Storage, WhatsApp) ---
 
-    // 3. Generate PDF
+    // 7. Generate PDF
     console.log("Generating PDF...");
     await generateInvoice(orderData, invoicePath);
     console.log("PDF created:", invoicePath);
 
-    // 4. Upload to Firebase Storage
+    // 8. Upload to Firebase Storage
     console.log("Uploading to Firebase Storage...");
     const bucket = admin.storage().bucket();
     const destination = `invoices/${invoiceFileName}`;
@@ -657,12 +659,12 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     });
 
     const mediaUrl =
-        `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
-        `${encodeURIComponent(destination)}?alt=media`;
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
+      `${encodeURIComponent(destination)}?alt=media`;
 
     console.log("PDF uploaded. Public URL:", mediaUrl);
 
-    // 5. Send WhatsApp Message
+    // 9. Send WhatsApp Message
     console.log("Sending WhatsApp message...");
     const messagePayload = {
       integrated_number: WHATSAPP_INTEGRATED_NUMBER,
@@ -707,7 +709,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
     console.log("WhatsApp message sent.");
 
-    // 6. Cleanup temp file
+    // 10. Cleanup temp file
     fs.unlinkSync(invoicePath);
     console.log("Order complete.");
     res.status(200).json({message: "Order placed and invoice sent!"});
@@ -720,14 +722,16 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
     // --- ERROR HANDLING FIX ---
     if (err.message === "STOCK_FAILURE_ROLLBACK") {
-      console.warn("Stock failure detected.Returning detailed errorsclient.");
+      // Cleaned up the log message
+      console.warn("Stock failure detected.");
       return res.status(409).json({
         error: "Insufficient stock detected for some items.",
         stockErrors: stockErrors,
       });
     }
-
-    const statusCode = err.message.includes("Product not found") ? 400 : 500;
+    // Update status code check to include the corrected error message
+    const statusCode = err.message.includes("Product not found") ||
+                       err.message.includes("Variation not found") ? 400 : 500;
     const errorMessage = err.message.split(": ")[0] || "Fail to process order";
 
     res.status(statusCode).json({
@@ -735,4 +739,5 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     });
   }
 });
+
 

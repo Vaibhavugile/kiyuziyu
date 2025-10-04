@@ -121,6 +121,8 @@ const AdminPage = () => {
   const [offlinePricingType, setOfflinePricingType] = useState('retail'); // 'retail' or 'wholesaler'
   const [subcollectionsMap, setSubcollectionsMap] = useState({});
   const [isOfflineProductsLoading, setIsOfflineProductsLoading] = useState(false);
+  const [offlineSubtotal, setOfflineSubtotal] = useState(0);
+  const [pricedOfflineCart, setPricedOfflineCart] = useState({});
   // Add this line with your other useState calls at the top of the component:
 const [offlineSelections, setOfflineSelections] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -1396,10 +1398,115 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
     });
   };
 
-  const getOfflineCartTotal = () => {
-    return Object.values(offlineCart).reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
- const handleFinalizeSale = async () => {
+ // NOTE: Assuming you have access to db, doc, getDoc, and getPriceForQuantity helper
+// If this function is in a component, you may need to import those Firestore functions.
+// --- Function to calculate the final price per item and the total ---
+// NOTE: This logic replaces or is integrated into your existing getOfflineCartTotal logic
+const calculatePricedCart = async () => {
+    const cartItems = Object.values(offlineCart);
+    if (cartItems.length === 0) return { updatedCartMap: {}, total: 0 };
+
+    const subcollectionPricingMap = {};
+    const updatedCartMap = { ...offlineCart };
+    const pricingTypeKey = offlinePricingType === 'wholesale' ? 'wholesale' : 'retail';
+
+    // Phase 1: Aggregate Quantities and Fetch Pricing
+    for (const item of cartItems) {
+        const subcollectionId = item.subcollectionId;
+        const collectionId = item.collectionId;
+        const quantitySold = item.quantity;
+
+        if (!subcollectionPricingMap[subcollectionId]) {
+            // Assumes pricing is on the subcollection document as written
+            const subcollectionRef = doc(db, 'collections', collectionId, 'subcollections', subcollectionId);
+            const subcollectionDoc = await getDoc(subcollectionRef);
+
+            if (!subcollectionDoc.exists()) {
+                console.error(`Subcollection pricing not found: ${subcollectionId}`);
+                continue;
+            }
+
+            subcollectionPricingMap[subcollectionId] = {
+                pricingData: subcollectionDoc.data().tieredPricing,
+                totalQuantity: 0,
+                items: [],
+            };
+        }
+        subcollectionPricingMap[subcollectionId].totalQuantity += quantitySold;
+        subcollectionPricingMap[subcollectionId].items.push(item);
+    }
+    
+    let runningTotal = 0;
+
+    // Phase 2: Apply Tiered Pricing and Update Item Prices
+    for (const entry of Object.values(subcollectionPricingMap)) {
+        const tiers = entry.pricingData?.[pricingTypeKey];
+        const totalGroupQuantity = entry.totalQuantity;
+
+        let finalPricePerUnit = null;
+        
+        if (tiers && tiers.length > 0) {
+            // 🛑 CRITICAL FIX: Convert price and quantity strings to numbers
+            const numericTiers = tiers.map(tier => ({
+                min_quantity: Number(tier.min_quantity) || 0,
+                max_quantity: Number(tier.max_quantity) || Infinity, // Use Infinity for open-ended tiers
+                price: Number(tier.price) || 0
+            }));
+
+            // Assume getPriceForQuantity is available
+            finalPricePerUnit = getPriceForQuantity(numericTiers, totalGroupQuantity);
+        }
+
+        // Apply price to each item in the group
+        for (const item of entry.items) {
+            // Use the calculated price, or fall back to the item's original price (which may still be a string)
+            const effectivePrice = finalPricePerUnit !== null 
+                ? finalPricePerUnit 
+                : (Number(item.price) || 0); // Ensure fallback price is also a number
+            
+            // Update the item's price in the cart map for display
+            updatedCartMap[item.id] = {
+                ...updatedCartMap[item.id],
+                // CRITICAL: Use a new key to store the dynamic price
+                calculatedPrice: effectivePrice
+            };
+            
+            runningTotal += effectivePrice * item.quantity;
+        }
+    }
+
+    return { updatedCartMap, total: runningTotal };
+};
+useEffect(() => {
+    let isMounted = true;
+    const updatePricedCart = async () => {
+        if (Object.keys(offlineCart).length === 0) {
+            if (isMounted) {
+                setPricedOfflineCart({});
+                setOfflineSubtotal(0);
+            }
+            return;
+        }
+        
+        try {
+            const { updatedCartMap, total } = await calculatePricedCart();
+            
+            if (isMounted) {
+                setPricedOfflineCart(updatedCartMap);
+                setOfflineSubtotal(total);
+            }
+        } catch (error) {
+            console.error("Error calculating offline cart prices:", error);
+        }
+    };
+
+    updatePricedCart();
+    
+    return () => { isMounted = false; };
+// Re-run whenever the cart contents or the pricing type changes
+}, [offlineCart, offlinePricingType]);// Depend on the cart content and pricing type
+
+const handleFinalizeSale = async () => {
     if (Object.keys(offlineCart).length === 0) {
         alert('The cart is empty. Please add products to finalize the sale.');
         return;
@@ -1407,11 +1514,11 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
 
     if (window.confirm('Are you sure you want to finalize this offline sale?')) {
         let isStockError = false; 
-        const productUpdatesMap = {}; // Maps baseProductId -> { ref, data, cartItems }
+        const productUpdatesMap = {}; 
 
         try {
             // ----------------------------------------------------
-            // 🎯 PHASE 1: COLLECT PRODUCT DATA AND CONSOLIDATE UPDATES
+            // 🎯 PHASE 1: Aggregate Cart Items and Fetch Product Data
             // ----------------------------------------------------
             console.log(`\n--- STARTING OFFLINE SALE TRANSACTION PREP ---`);
 
@@ -1447,7 +1554,10 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
             for (const baseProductId in productUpdatesMap) {
                 const { ref: productRef, data: productData, cartItems } = productUpdatesMap[baseProductId];
                 
-                let currentVariations = productData.variations ? [...productData.variations] : null;
+                // 🛑 CRITICAL FIX: Only treat as variations if the array exists AND has items.
+                let currentVariations = (productData.variations && productData.variations.length > 0) 
+                    ? [...productData.variations] 
+                    : null; 
                 let currentSimpleQuantity = productData.quantity;
 
                 // Iterate through all cart items that belong to THIS single product
@@ -1491,6 +1601,7 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
                         if (newQuantity < 0) {
                             isStockError = true;
                             productUpdatesMap[baseProductId].hasError = true;
+                            // ✅ FIX (from previous error): Log the correct variable
                             console.error(`  ❌ STOCK ERROR: Requested ${quantitySold}, but only ${currentSimpleQuantity} available.`);
                         } else {
                             currentSimpleQuantity = newQuantity; // Update the temporary quantity
@@ -1500,15 +1611,22 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
 
                 // 3. Add ONE FINAL UPDATE to the batch for this base product ID
                 if (!productUpdatesMap[baseProductId].hasError) {
-                    const finalUpdateData = currentVariations ? 
-                        { variations: currentVariations } : 
-                        { quantity: currentSimpleQuantity };
+                    let finalUpdateData = {};
+                    let finalQtyLog = '';
+                    
+                    // The correct update is determined by the modified variable (currentVariations will be null for simple products now)
+                    if (currentVariations) { 
+                        finalUpdateData = { variations: currentVariations };
+                        finalQtyLog = 'Variations Array Updated';
+                    } else {
+                        finalUpdateData = { quantity: currentSimpleQuantity };
+                        finalQtyLog = currentSimpleQuantity;
+                    }
 
                     batch.update(productRef, finalUpdateData);
                     
                     // 🎯 LOG FINAL STOCK
-                    const finalQty = currentVariations ? 'Variations Array Updated' : currentSimpleQuantity;
-                    console.log(`  ✅ FINAL Stock AFTER: ${finalQty}`);
+                    console.log(`  ✅ FINAL Stock AFTER: ${finalQtyLog}`);
                     console.log(`  -> Batch updated for ${baseProductId}.`);
                 }
             } // End of productUpdatesMap loop
@@ -1520,25 +1638,57 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
                 throw new Error("STOCK_FAILURE_CLIENT"); 
             }
             
-            // Prepare and save order data (only if no stock error)
-            const calculatedTotal = getOfflineCartTotal();
-            const finalTotal = editedTotal !== '' ? parseFloat(editedTotal) : calculatedTotal;
+            // ... (The rest of the order data construction remains unchanged) ...
+            
+            const totalAmountToUse = editedTotal !== '' ? parseFloat(editedTotal) : offlineSubtotal; 
+
+            // Billing Info (Unchanged)
+            const customerName = 'SSS1'; 
+            const customerEmail = 'vaibhavugile7@gmail.com'; 
+            const customerPhone = '8446442204'; 
+            const customerAddress1 = 'pune'; 
+            const customerAddress2 = 'pune'; 
+            const customerCity = 'pune'; 
+            const customerState = 'Maharashtra'; 
+            const customerPincode = '412101'; 
+
+            const offlineSaleCustomerInfo = {
+                fullName: `${customerName} (Offline)`,
+                email: `${customerEmail} (Offline)`,
+                phoneNumber: `${customerPhone} (Offline)`,
+                addressLine1: `${customerAddress1} (Offline)`,
+                addressLine2: `${customerAddress2} (Offline)`,
+                city: `${customerCity} (Offline)`,
+                state: `${customerState} (Offline)`,
+                pincode: `${customerPincode} (Offline)`,
+            };
+            
+            // Order Items (Using correctly calculated price)
+            const orderItems = Object.values(pricedOfflineCart).map(item => ({
+                productId: item.id.split('_')[0] || 'N/A',
+                productName: item.productName || 'N/A',
+                productCode: item.productCode || 'N/A',
+                quantity: item.quantity || 0,
+                priceAtTimeOfOrder: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0, 
+                price: typeof item.calculatedPrice === 'number' ? item.calculatedPrice : Number(item.price) || 0,
+                image: item.image || '',
+                images: item.images || [],
+                variation: item.variation || null, 
+                subcollectionId: item.subcollectionId,
+                collectionId: item.collectionId,
+            }));
+
 
             const orderData = {
                 userId: 'offline-sale',
-                status: 'Completed Offline',
+                status: 'Delivered',
                 createdAt: serverTimestamp(),
-                items: Object.values(offlineCart).map(item => ({
-                    productId: item.id.split('_')[0] || 'N/A',
-                    productName: item.productName || 'N/A',
-                    quantity: item.quantity || 0,
-                    price: typeof item.price === 'number' ? item.price : 0,
-                    variation: item.variation || null, 
-                })),
-                totalAmount: finalTotal,
-                subtotal: finalTotal,
+                billingInfo: offlineSaleCustomerInfo, 
+                items: orderItems, 
+                totalAmount: totalAmountToUse, 
+                subtotal: totalAmountToUse,
                 shippingFee: 0,
-                pricingType: offlinePricingType, 
+                pricingType: offlinePricingType,
             };
             
             const orderRef = await addDoc(collection(db, 'orders'), orderData);
@@ -2581,71 +2731,79 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
       </div>
       
       <div className="billing-cart-panel">
-        <h4>Billing Cart</h4>
-        {Object.keys(offlineCart).length > 0 ? (
-          <>
+    <h4>Billing Cart</h4>
+    {Object.keys(offlineCart).length > 0 ? (
+        <>
             <ul className="cart-list">
-              {Object.values(offlineCart).map((item) => (
-                <li key={item.id} className="cart-item">
-                  <div className="cart-item-details">
-                    <span className="cart-item-name">{item.productName}</span>
-                    <span className="cart-item-code">{item.productCode}</span>
-                    {/* NEW: Display Variation */}
-                    {item.variation && (item.variation.color || item.variation.size) && (
-                        <span className="cart-item-info variation-detail">
-                            {item.variation.color} {item.variation.size}
-                        </span>
-                    )}
+                {/* CRITICAL: Iterate over pricedOfflineCart, not offlineCart */}
+                {Object.values(pricedOfflineCart).map((item) => {
+                    // Calculate the final unit price and line total for display
+                    const unitPrice = typeof item.calculatedPrice === 'number'
+                        ? item.calculatedPrice
+                        : (item.price !== undefined && item.price !== null ? parseFloat(item.price) : 0);
+                    const lineTotal = unitPrice * item.quantity;
 
-                    <span className="cart-item-info">
-                      {item.quantity} x ₹
-                      {typeof item.price === 'number'
-                        ? item.price.toFixed(2)
-                        : item.price !== undefined && item.price !== null
-                          ? parseFloat(item.price).toFixed(2)
-                          : '0.00'}
-                    </span>
-                  </div>
-                  <div className="cart-item-controls">
-                    <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
-                    <span className="cart-quantity">{item.quantity}</span>
-                    {/* NEW: Stock limit check for Cart item */}
-                    <button 
-                        // When incrementing from the cart, we pass the existing item and its variation
-                        onClick={() => handleOfflineAddToCart(item, item.variation)} 
-                        className="quantity-btn"
-                        // Disable if current quantity is >= the stock quantity stored on the cart item
-                        disabled={item.quantity >= (item.availableStock || Infinity)} 
-                    >
-                        +
-                    </button>
-                  </div>
-                </li>
-              ))}
+                    return (
+                        <li key={item.id} className="cart-item">
+                            <div className="cart-item-details">
+                                <span className="cart-item-name">{item.productName}</span>
+                                <span className="cart-item-code">{item.productCode}</span>
+                                {/* Display Variation */}
+                                {item.variation && (item.variation.color || item.variation.size) && (
+                                    <span className="cart-item-info variation-detail">
+                                        {item.variation.color} {item.variation.size}
+                                    </span>
+                                )}
+
+                                {/* UPDATED: Display calculated unit price */}
+                                <span className="cart-item-info unit-price">
+                                    ₹{unitPrice.toFixed(2)} / unit
+                                </span>
+                            </div>
+                            <div className="cart-item-controls">
+                                {/* NEW: Display line total */}
+                                <span className="cart-item-info line-total">
+                                    <strong className="line-total-amount">₹{lineTotal.toFixed(2)}</strong>
+                                </span>
+                                
+                                <button onClick={() => handleOfflineRemoveFromCart(item.id)} className="quantity-btn">-</button>
+                                <span className="cart-quantity">{item.quantity}</span>
+                                <button 
+                                    onClick={() => handleOfflineAddToCart(item, item.variation)} 
+                                    className="quantity-btn"
+                                    disabled={item.quantity >= (item.availableStock || Infinity)} 
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
             </ul>
 
             {/* NEW: Editable Total Input */}
             <div className="cart-total-info">
-              <p className="calculated-total">Calculated Total: ₹{getOfflineCartTotal().toFixed(2)}</p>
-              <label htmlFor="edited-total-input">Final Total:</label>
-              <input
-                id="edited-total-input"
-                type="number"
-                value={editedTotal}
-                onChange={(e) => setEditedTotal(e.target.value)}
-                placeholder="Enter final total"
-                className="editable-total-input"
-              />
+                {/* FIX: Removed the extra ₹ symbol (₹₹ -> ₹) */}
+                <p className="calculated-total">Calculated Total: ₹{offlineSubtotal.toFixed(2)}</p>
+                <label htmlFor="edited-total-input">Final Total:</label>
+                <input
+                    id="edited-total-input"
+                    type="number"
+                    value={editedTotal}
+                    onChange={(e) => setEditedTotal(e.target.value)}
+                    placeholder="Enter final total"
+                    className="editable-total-input"
+                />
             </div>
 
             <button onClick={handleFinalizeSale} className="finalize-sale-btn">
-              Finalize Sale
+                Finalize Sale
             </button>
-          </>
-        ) : (
-          <p>Cart is empty. Add products to start billing.</p>
-        )}
-      </div>
+        </>
+    ) : (
+        <p>Cart is empty. Add products to start billing.</p>
+    )}
+</div>
     </div>
   </div>
 )}
