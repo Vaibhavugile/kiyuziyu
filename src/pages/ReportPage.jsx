@@ -1,5 +1,3 @@
-// src/pages/ReportPage.jsx - FINAL VERSION WITH INFINITE SCROLL
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../components/AuthContext';
 import { 
@@ -10,7 +8,7 @@ import {
     orderBy,
     limit,
     startAfter,
-    where 
+    where
 } from '../firebase'; 
 import { FaSpinner, FaChartLine, FaCalendarDay, FaCalendarAlt, FaSearch, FaTimes } from 'react-icons/fa';
 import './ReportPage.css'; 
@@ -52,6 +50,7 @@ const ReportPage = () => {
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     
+    // lastVisible stores the last DocumentSnapshot
     const [lastVisible, setLastVisible] = useState(null);
     const [hasMore, setHasMore] = useState(true);
     const [subcollectionsMap, setSubcollectionsMap] = useState({});
@@ -65,7 +64,7 @@ const ReportPage = () => {
     const isFilterApplied = filterStartDate && filterEndDate;
 
 
-    // 1. Fetch Subcollection Purchase Rates (Cost Data - unchanged)
+    // 1. Fetch Subcollection Purchase Rates (Cost Data)
     useEffect(() => {
         const fetchSubcollectionData = async () => {
             if (!currentUser) return; 
@@ -102,7 +101,7 @@ const ReportPage = () => {
         }
     }, [currentUser]); 
 
-    // 2. Fetch Historical Orders (Core Logic - unchanged)
+    // 2. Fetch Historical Orders (Core Logic - UPDATED for range filter)
     const fetchOrders = useCallback(async (isLoadMore = false) => {
         if (!currentUser || Object.keys(subcollectionsMap).length === 0) {
             return; 
@@ -130,26 +129,47 @@ const ReportPage = () => {
         
         try {
             const ordersRef = collection(db, "orders"); 
-            let baseQuery = query(ordersRef, orderBy('createdAt', 'desc')); 
             
-            // --- FILTER LOGIC ---
+            // 🚀 STEP 1: Define the base query constraints 
+            let queryConstraints = [
+                // 🛑 CRITICAL FIX: Use '>' range filter instead of '!='
+                // This allows 'createdAt' to be the primary sort key.
+                where('status', '>', 'Cancelled'), 
+                
+                // Now, orderBy('createdAt', 'desc') can be first!
+                orderBy('createdAt', 'desc') 
+            ];
+
+            // 🚀 STEP 2: Apply Date Filters
             if (isFilterActive) {
                 const startTimestamp = new Date(filterStartDate);
                 const endTimestamp = new Date(filterEndDate);
                 endTimestamp.setHours(23, 59, 59, 999); 
 
-                baseQuery = query(
-                    ordersRef,
+                queryConstraints = [
+                    where('status', '>', 'Cancelled'),
                     where('createdAt', '>=', startTimestamp),
                     where('createdAt', '<=', endTimestamp),
-                    orderBy('createdAt', 'desc') 
-                );
-            } else if (lastVisible) {
-                // PAGINATION LOGIC 
-                baseQuery = query(baseQuery, startAfter(lastVisible));
-            }
+                    // Sorting by createdAt desc works fine with the range filter on status
+                    orderBy('createdAt', 'desc')
+                ];
+            } 
             
-            const finalQuery = isFilterActive ? baseQuery : query(baseQuery, limit(ORDERS_PER_BATCH));
+            // 🚀 STEP 3: Apply Pagination
+            if (!isFilterActive && lastVisible) {
+                // Now we only need the value of the PRIMARY sort key: createdAt
+                const lastCreatedAt = lastVisible.data().createdAt;
+                // Note: If you have multiple orders with the exact same millisecond timestamp, 
+                // you would need another unique orderBy field (like ID) for tie-breaking.
+                queryConstraints.push(startAfter(lastCreatedAt));
+            }
+
+            // 🚀 STEP 4: Apply limit for non-filtered queries
+            if (!isFilterActive) {
+                queryConstraints.push(limit(ORDERS_PER_BATCH));
+            }
+
+            const finalQuery = query(ordersRef, ...queryConstraints);
 
             const documentSnapshots = await getDocs(finalQuery);
             const fetchedOrders = documentSnapshots.docs.map(doc => ({
@@ -157,9 +177,9 @@ const ReportPage = () => {
                 ...doc.data(),
             }));
             
-            // --- PROFIT CALCULATION ---
+            // --- PROFIT CALCULATION (Unchanged) ---
             let batchTotalProfit = 0;
-            let batchTodaysProfit = 0;    
+            let batchTodaysProfit = 0;     
             let batchThisMonthsProfit = 0; 
             
             const ordersWithProfit = fetchedOrders.map(order => {
@@ -197,6 +217,7 @@ const ReportPage = () => {
                 if (documentSnapshots.docs.length < ORDERS_PER_BATCH) {
                     setHasMore(false);
                 } else {
+                    // Store the entire DocumentSnapshot for startAfter in the next call
                     setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
                     setHasMore(true);
                 }
@@ -204,7 +225,8 @@ const ReportPage = () => {
 
         } catch (err) {
             console.error("❌ FATAL ERROR: Orders fetch failed.", err);
-            setError("FATAL ERROR: Failed to load historical order data. Check Firebase Index.");
+            // Index required for this query: status (ASC) and createdAt (DESC)
+            setError("FATAL ERROR: Failed to load order data. Please ensure you have a composite index for **status** (ASC) and **createdAt** (DESC) fields.");
             setHasMore(false);
         } finally {
             setIsLoading(false);
@@ -270,7 +292,7 @@ const ReportPage = () => {
 
     const isFilterDisplayActive = isFilterApplied && (filteredRangeProfit !== null);
     
-    // --- RENDERING LOGIC (removed Load More button) ---
+    // --- RENDERING LOGIC (unchanged) ---
     if (!currentUser) {
         return <div className="report-page-container"><p className="error-message">Please log in to view this report.</p></div>;
     }
@@ -374,7 +396,7 @@ const ReportPage = () => {
                 )}
             </div>
 
-            {/* 🔥 NEW LOADING INDICATOR FOR INFINITE SCROLL 🔥 */}
+            {/* 🔥 LOADING INDICATOR FOR INFINITE SCROLL 🔥 */}
             {isFetchingMore && !isFilterApplied && (
               <div className="load-more-container">
                 <FaSpinner className="loading-spinner-small" /> Loading more orders...

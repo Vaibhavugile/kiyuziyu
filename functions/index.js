@@ -294,7 +294,7 @@ const generateInvoice = async (orderData, filePath) => {
 // Add this function above or below your exports.placeOrder function in index.js
 
 exports.cancelOrder = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com"); // update for frontend origin
+  res.set("Access-Control-Allow-Origin", "https://kiyuziyuofficial.com");
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Methods", "POST");
     res.set("Access-Control-Allow-Headers", "Content-Type");
@@ -307,38 +307,36 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
   }
 
   const {orderId} = req.body;
-  // Note: The 'db' and 'admin' variables are available globally
-  // because they are initialized at the top of index.js.
 
   if (!orderId) {
     return res.status(400).json({error: "Missing orderId."});
   }
 
   try {
-    console.log(`Starting cancellation for Order ID: ${orderId}`);
-
+    console.log(`\n--- STARTING ORDER CANCELLATION: ${orderId} ---`);
     // Start a transaction to safely reverse stock and update status
     await db.runTransaction(async (t) => {
       // --- PHASE 1: ALL READS FIRST ---
-
       // 1. Read the Order Document
       const orderRef = db.collection("orders").doc(orderId);
       const orderDoc = await t.get(orderRef);
-
       if (!orderDoc.exists) {
+        console.error(`ERROR: Order ${orderId} not found.`);
         throw new Error("Order not found.");
       }
 
       const orderData = orderDoc.data();
       const currentStatus = orderData.status;
 
-      // Basic validation checks
       if (currentStatus === "Cancelled") {
+        console.warn(`WARNING: Order ${orderId} is already Cancelled.`);
         throw new Error("Order is already cancelled.");
       }
       if (currentStatus === "Delivered") {
+        console.warn(`WARNING: Order ${orderId} is Delivered. Stopping cancl.`);
         throw new Error("Cannot cancel a delivered order.");
       }
+      console.log(`Order status  '${currentStatus}'Proceeding stock reversal.`);
 
       // 2. Read all Product Documents involved in the order
       const productReadPromises = orderData.items.map((item) => {
@@ -353,31 +351,51 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
       });
 
       const productDocs = await Promise.all(productReadPromises);
-      console.log("All product successfully read for stock reversal.");
+      console.log(`Successfully read ${productDocs.length} product
+         documents for reversal.`);
 
       // 3. Prepare updates (Stock reversal logic)
-      const updates = [];
+
+      // Map to consolidate multiple updates to the same product/variation group
+      const productUpdatesMap = new Map();
 
       for (let i = 0; i < orderData.items.length; i++) {
         const item = orderData.items[i];
         const productDoc = productDocs[i];
 
+        console.log(`\nProcessing item: ${item.productName} 
+          (Qty: ${item.quantity})`);
         if (!productDoc.exists) {
-          console.warn(`Product not found for stock,
-            reversal: ${productDoc.ref.path}. Skipping.`);
-          continue; // Skip stock update if product is deleted
+          console.warn(`WARNING: Product not found for stock reversal:
+             ${productDoc.ref.path}. Skipping.`);
+          continue;
         }
 
         const productData = productDoc.data();
-        // The quantity to return to stock is the original quantity ordered
         const quantityToReturn = Number(item.quantity);
 
-        if (item.variation && productData.variations &&
-                    Array.isArray(productData.variations)) {
+        const isVariationProduct = productData.variations &&
+                                   Array.isArray(productData.variations) &&
+                                   productData.variations.length > 0;
+
+        if (item.variation && isVariationProduct) {
           let variationFound = false;
-          const updatedVariations = productData.variations.map((v) => {
-            const isMatch = (v.color === item.variation.color &&
-                            v.size === item.variation.size);
+          const refPath = productDoc.ref.path;
+
+          let updatedVariations = productUpdatesMap.has(refPath) ?
+                productUpdatesMap.get(refPath).variations :
+                [...productData.variations];
+
+          console.log(`  -> Type: Variation Product. Item Variation: 
+            ${item.variation.color}/${item.variation.size}`);
+
+          updatedVariations = updatedVariations.map((v) => {
+            // Use robust, trimmed, null-safe comparison
+            const isMatch = (
+              ((v.color ?? "").trim() ===
+              (item.variation.color ?? "").trim()) &&
+ ((v.size ?? "").trim() === (item.variation.size ?? "").trim())
+            );
 
             if (isMatch) {
               const currentQuantity = Number(v.quantity) || 0;
@@ -385,35 +403,48 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
               const newQuantity = currentQuantity + quantityToReturn;
 
               variationFound = true;
+              console.log(`  -> Match found for ${v.color}/${v.size}.
+                 Stock BEFORE: ${currentQuantity}, 
+                 Stock AFTER: ${newQuantity}`);
               return {...v, quantity: newQuantity};
             }
             return v;
           });
 
           if (!variationFound) {
-            console.warn(`Variation not found in product: ${item.productName}.,
-                Cannot fully reverse stock.`);
-          } else {
-            // Store the planned update for variations
-            updates.push({
-              ref: productDoc.ref,
-              data: {variations: updatedVariations},
-            });
+            console.error(`FATAL: No variation match found for 
+              ${item.productName}. Stock not reversed.`);
           }
+
+          // Store the planned update for variations
+          productUpdatesMap.set(refPath, {
+            ref: productDoc.ref,
+            data: {variations: updatedVariations},
+            variations: updatedVariations, // Store the updated array
+          });
 
           // Case 2: Simple Product (Stock is held in the 'quantity' field)
         } else {
-          const currentQuantity = Number(productData.quantity) || 0;
+          const refPath = productDoc.ref.path;
+
+          // Get current quantity or use the one previously updated in this loop
+          const currentQuantity = productUpdatesMap.has(refPath) ?
+                productUpdatesMap.get(refPath).quantity :
+                (Number(productData.quantity) || 0);
+
           // REVERSE LOGIC: ADD back the cancelled quantity
           const newQuantity = currentQuantity + quantityToReturn;
 
+          console.log(`  -> Type: Simple Product. Stock BEFORE:
+             ${currentQuantity}, Stock AFTER: ${newQuantity}`);
           // Store the planned update for simple product
-          updates.push({
+          productUpdatesMap.set(refPath, {
             ref: productDoc.ref,
             data: {quantity: newQuantity},
+            quantity: newQuantity, // Store the quantity
           });
         }
-      }
+      } // End of item loop
 
       // --- PHASE 2: ALL WRITES NOW ---
 
@@ -422,24 +453,30 @@ exports.cancelOrder = functions.https.onRequest(async (req, res) => {
         status: "Cancelled",
         cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      console.log(`Order ${orderId} status set to Cancelled.`);
-
+      console.log(`\n✅ Order ${orderId} status set to Cancelled.`);
       // 5. Update Product Stock (Remaining Writes)
-      updates.forEach((update) => {
-        t.update(update.ref, update.data);
-      });
-      console.log("Stock successfully reversed in transaction.");
+      for (const updateEntry of productUpdatesMap.values()) {
+        t.update(updateEntry.ref, updateEntry.data);
+        // Log the final write action
+        if (updateEntry.data.variations) {
+          console.log(`✅ Stock Reversed: ${updateEntry.ref.path}.
+             Updated 'variations' array.`);
+        } else {
+          console.log(`✅ Stock Reversed: ${updateEntry.ref.path}.
+             New 'quantity' is ${updateEntry.data.quantity}.`);
+        }
+      }
+      console.log("--- Stock successfully reversed in transaction. ---");
     });
     // End of Transaction
-
-    res.status(200).json({message: `Order ${orderId},
-            successfully cancelled and stock updated.`});
+    res.status(200).json({message: `Order ${orderId} 
+      successfully cancelled and stock updated.`});
   } catch (err) {
-    console.error("Error cancelling order (Transaction rolled back):",
-        err.message);
+    console.error("\n--- FINAL ERROR (Transaction Rolled Back) ---");
+    console.error("Error cancelling order:", err.message);
     const statusCode = err.message.includes("Order not found") ||
-            err.message.includes("already cancelled") ||
-            err.message.includes("delivered order") ? 400 : 500;
+ err.message.includes("already cancelled") ||
+ err.message.includes("delivered order") ? 400 : 500;
 
     const errorMessage = err.message.split(": ")[0] || "Failed to cancel order";
 
@@ -531,7 +568,8 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
         let updateData = {};
 
         // --- VARIATION CONSOLIDATION LOGIC ---
-        if (productData.variations && Array.isArray(productData.variations)) {
+        if (productData.variations && Array.isArray(productData.variations) &&
+          productData.variations.length > 0) {
           let updatedVariations = [...productData.variations];
           const variationErrors = [];
 
