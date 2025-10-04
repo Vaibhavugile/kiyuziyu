@@ -30,213 +30,200 @@ body {
 .checkout-page-container h2 {
   text-align: center;
   margin-bottom: 30px;
-  color: var(--primary-color);
-  font-size: 2.8em;
+  color: var(--text-dark);
   font-weight: 700;
 }
 
 .checkout-content {
   display: flex;
-  justify-content: space-between;
   gap: 30px;
 }
 
-/* --- Section Styling (Cards) --- */
-.billing-section,
-.order-details {
-  flex: 1;
+/* --- Billing Details / Form --- */
+.billing-details {
+  flex: 2;
   background-color: var(--card-bg);
   padding: 30px;
   border-radius: 12px;
   box-shadow: var(--shadow-base);
-  min-width: 300px; /* Ensures they don't get too small */
 }
 
-.billing-section h3,
-.order-details h3 {
-  color: var(--text-dark);
-  font-size: 1.8em;
-  font-weight: 600;
+.billing-details h3 {
+  margin-top: 0;
   margin-bottom: 25px;
+  color: var(--primary-color);
   border-bottom: 2px solid var(--light-gray);
-  padding-bottom: 15px;
+  padding-bottom: 10px;
 }
 
-
-/* --- Billing & Shipping Form Styling --- */
-.billing-section form {
-  display: flex;
-  flex-direction: column;
-  /* Reduced gap slightly, or rely on .form-field-group for spacing */
-  gap: 15px; 
+.form-group {
+  margin-bottom: 18px;
 }
 
-/* New: Individual form field group for better structure */
-.form-field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px; /* Gap between label (if present) and input */
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 0.95em;
 }
 
-/* New: Style for labels (if used) */
-.form-field-group label {
-    font-size: 0.9em;
-    font-weight: 600;
-    color: var(--text-dark);
-    margin-bottom: 3px;
-}
-
-.billing-section input,
-.billing-section textarea {
+.form-group input {
   width: 100%;
-  padding: 15px;
+  padding: 10px 15px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 1em;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  /* New: Improved input text color consistency */
-  color: var(--text-dark);
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-.billing-section input::placeholder,
-.billing-section textarea::placeholder {
-    color: var(--text-light);
-    opacity: 0.8;
-}
-
-.billing-section input:focus,
-.billing-section textarea:focus {
+.form-group input:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
   outline: none;
 }
 
-.address-fields {
-  /* This is the grid container for address line, city, state, etc. */
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
+.form-group-row {
+    display: flex;
+    gap: 20px;
 }
 
-/* Make address fields single column on smaller screens */
-@media (max-width: 600px) {
-    .address-fields {
-        grid-template-columns: 1fr;
-    }
+.form-group-row .form-group {
+    flex: 1;
 }
 
-
-/* --- Place Order Button --- */
-.checkout-btn {
-  padding: 15px 20px;
-  background-color: var(--primary-color);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.2em;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: background-color 0.2s, transform 0.1s;
-  text-align: center;
+/* --- Order Summary --- */
+.order-summary-card {
+  flex: 1;
+  background-color: var(--card-bg);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-base);
+  height: fit-content;
+  position: sticky;
+  top: 40px;
 }
 
-.checkout-btn:hover:not(:disabled) {
-  background-color: #2980b9; /* Darker primary color */
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.order-summary-card h3 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--light-gray);
+  padding-bottom: 10px;
 }
 
-.checkout-btn:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-/* --- Cart/Order Items List --- */
-.cart-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding-right: 15px; /* Spacing before summary */
-  max-height: 400px; /* Fixed height for scrolling */
+.cart-items-summary {
+  max-height: 300px; /* Limit height for scroll */
   overflow-y: auto;
+  padding-right: 10px;
+  margin-bottom: 20px;
 }
 
-.cart-item {
+.cart-item-summary {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--border-color);
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed var(--light-gray);
 }
 
-.cart-item:last-child {
+.cart-item-summary:last-child {
   border-bottom: none;
-}
-
-.cart-item-image-wrapper {
-  width: 60px;
-  height: 60px;
-  flex-shrink: 0;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--light-gray);
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .cart-item-image {
-  width: 100%;
-  height: 100%;
+  width: 60px;
+  height: 60px;
   object-fit: cover;
+  border-radius: 6px;
+  margin-right: 15px;
+  border: 1px solid var(--border-color);
 }
 
 .cart-item-details {
   flex-grow: 1;
-}
-
-.cart-item-name {
-  font-size: 1em; 
-  font-weight: 600;
-  color: var(--text-dark);
-  margin: 0;
-}
-
-.cart-item-code,
-.cart-item-quantity,
-.cart-item-price {
-  margin: 2px 0 0;
-  color: var(--text-light);
   font-size: 0.9em;
 }
 
-/* --- Cart/Order Total Section --- */
+.cart-item-name {
+  font-weight: 600;
+  margin: 0 0 3px 0;
+  color: var(--text-dark);
+}
 
-/* Base style for all total rows */
+.cart-item-variation,
+.cart-item-price,
+.cart-item-quantity {
+  margin: 0 0 2px 0;
+  color: var(--text-light);
+}
+
+/* --- Totals Section --- */
 .cart-total-section {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 1.1em; 
-  font-weight: 500;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-bottom: 10px;
+  font-size: 1.1em;
   color: var(--text-dark);
+}
+
+.cart-total-section p:first-child {
+    font-weight: 500;
+}
+
+.cart-total-section p:last-child {
+    font-weight: 600;
 }
 
 /* Separator for the final total */
 .cart-total-section.total-final {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 2px solid var(--light-gray);
+  border-top: 2px solid var(--primary-color);
   font-size: 1.6em; /* Larger size for final total */
-  color: var(--secondary-color); /* Highlight final price */
+  color: var(--primary-color); /* Highlight final price */
   font-weight: 700;
 }
 
-.cart-total-section span {
-    font-weight: 700;
+/* Minimum Order Warning Line */
+.minimum-order-line.not-met {
+    color: #e74c3c; /* Red for not met */
+    font-weight: 600;
 }
 
-/* --- Error/Empty States --- */
+.minimum-order-line.met {
+    color: var(--secondary-color); /* Green for met */
+    font-weight: 600;
+}
+
+/* --- Action Button --- */
+.place-order-button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 20px;
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+.place-order-button:hover:not(:disabled) {
+  background-color: #27ae60;
+}
+
+.place-order-button:disabled {
+  background-color: var(--text-light);
+  cursor: not-allowed;
+}
+
+/* --- General Warning/Error Messages --- */
+
+/* Base style for all error messages */
 .error-message {
   color: #c0392b;
   background-color: #fcebeb;
@@ -248,50 +235,100 @@ body {
   font-weight: 500;
 }
 
-.empty-cart-message {
-  text-align: center;
-  font-size: 1.4em;
-  color: var(--text-light);
-  margin-top: 50px;
-  padding: 50px;
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  box-shadow: var(--shadow-base);
+.warning-message {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    text-align: center;
 }
 
 
-/* --- Mobile Responsiveness (Stack columns) --- */
-@media (max-width: 991px) {
+/* ======================================================= */
+/* 🛑 STYLING FOR DETAILED SERVER STOCK ERROR (New)        */
+/* ======================================================= */
+.error-message.server-stock-error {
+    background-color: #fef0f0; /* Lighter red/pink background */
+    border: 3px solid #dc3545; /* Prominent red border */
+    color: var(--text-dark); /* Dark text for readability */
+    padding: 25px;
+    margin: 25px 0;
+    border-radius: 12px;
+    font-size: 1rem;
+    line-height: 1.6;
+    text-align: left; /* Align text left for list structure */
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2); /* Soft shadow */
+}
+
+/* Style the main warning heading and paragraph */
+.error-message.server-stock-error strong:first-of-type {
+    display: block;
+    color: #dc3545; /* Bright red for main alert */
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+.error-message.server-stock-error p {
+    color: var(--text-light);
+    font-style: italic;
+    margin-bottom: 15px;
+    margin-top: 5px;
+}
+
+/* Style the unordered list of specific errors */
+.error-message.server-stock-error ul {
+    list-style-type: none; /* Remove default bullets */
+    padding-left: 0;
+    margin-top: 15px;
+}
+
+/* Style individual list items (the specific product errors) */
+.error-message.server-stock-error li {
+    padding: 10px 0;
+    border-top: 1px dashed var(--border-color); /* Subtle divider */
+    font-size: 0.95rem;
+    display: block;
+}
+
+.error-message.server-stock-error li:first-child {
+    border-top: none; /* No top divider for the first item */
+}
+
+/* Bold the product name for clarity */
+.error-message.server-stock-error .product-name-error {
+    font-weight: 700;
+    color: #b02a37; 
+    margin-right: 5px;
+}
+.error-message.server-stock-error .product-variation-error {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-light);
+}
+
+.error-message.server-stock-error li strong {
+    font-weight: 700;
+    color: #2c3e50; /* Highlight available/requested quantities */
+}
+
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 900px) {
   .checkout-content {
     flex-direction: column;
-    gap: 20px;
   }
 
-  .checkout-page-container {
-      margin: 0;
-      padding: 0;
-  }
-
-  .billing-section,
-  .order-details {
-    margin: 0;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 20px;
+  .order-summary-card {
+    position: static;
+    margin-top: 30px;
   }
 }
 
-/* Smaller mobile screens */
-@media (max-width: 480px) {
-    .cart-item {
-        /* Reduce gap to save space */
-        gap: 10px;
-    }
-    .cart-item-image-wrapper {
-        width: 50px;
-        height: 50px;
-    }
-    .cart-item-name {
-        font-size: 0.9em;
+@media (max-width: 500px) {
+    .form-group-row {
+        flex-direction: column;
+        gap: 0;
     }
 }

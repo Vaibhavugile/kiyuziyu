@@ -467,6 +467,9 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
   const invoiceFileName = `invoice_${uuidv4()}.pdf`;
   const invoicePath = path.join(tempDirectory, invoiceFileName);
 
+  // NEW: Array to collect stock errors across all items
+  const stockErrors = [];
+
   try {
     console.log("Starting order processing...");
 
@@ -507,7 +510,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
         // Case 1: Product with Variations
         if (item.variation && productData.variations &&
-                    Array.isArray(productData.variations)) {
+            Array.isArray(productData.variations)) {
           let variationFound = false;
           const updatedVariations = productData.variations.map((v) => {
             const isMatch = (v.color === item.variation.color &&
@@ -518,11 +521,14 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
               const newQuantity = currentQuantity - quantitySold;
 
               if (newQuantity < 0) {
-                throw new Error(
-                    `Insufficient stock for ${item.productName} ` +
-                                    `(${v.color} ${v.size}). Only ` +
-                                    `${currentQuantity} available.`,
-                );
+                // ❌ INSUFFICIENT STOCK: COLLECT ERROR
+                stockErrors.push({
+                  productName: item.productName,
+                  variation: `${v.color} ${v.size}`,
+                  requested: quantitySold,
+                  available: currentQuantity,
+                });
+                return v;
               }
 
               variationFound = true;
@@ -537,22 +543,28 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
             );
           }
 
-          // Store the planned update
+          // NOTE: The transaction will be rolled back later if stockErrors > 0
           updates.push({
             ref: productDoc.ref,
             data: {variations: updatedVariations},
           });
 
-          // Case 2: Simple Product
+        // Case 2: Simple Product
         } else {
           const currentQuantity = Number(productData.quantity) || 0;
           const newQuantity = currentQuantity - quantitySold;
 
           if (newQuantity < 0) {
-            throw new Error(
-                `Insufficient stock for simple product ${item.productName}. ` +
-                            `Only ${currentQuantity} available.`,
-            );
+            // ❌ INSUFFICIENT STOCK: COLLECT ERROR
+            stockErrors.push({
+              productName: item.productName,
+              variation: "N/A",
+              requested: quantitySold,
+              available: currentQuantity,
+            });
+            // Skip adding this update to prevent rollback issues,
+            // the explicit error throw below handles the rollback.
+            continue;
           }
 
           // Store the planned update
@@ -563,6 +575,11 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
         }
       }
 
+      // CRITICAL CHECK: If any stock error was collected, throw a custom
+      // error to rollback the entire transaction.
+      if (stockErrors.length > 0) {
+        throw new Error("STOCK_FAILURE_ROLLBACK");
+      }
 
       // --- PHASE 2: ALL WRITES NOW (Must follow all reads) ---
 
@@ -584,7 +601,7 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
       });
       console.log("Stock updated safely in transaction.");
     });
-    // End of Transaction
+    // End of Transaction (Success)
 
 
     // --- 2. Post-Transaction Steps (PDF, Storage, WhatsApp) ---
@@ -604,8 +621,8 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
     });
 
     const mediaUrl =
-            `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
-            `${encodeURIComponent(destination)}?alt=media`;
+        `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
+        `${encodeURIComponent(destination)}?alt=media`;
 
     console.log("PDF uploaded. Public URL:", mediaUrl);
 
@@ -664,11 +681,22 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
         err.message,
     );
     if (fs.existsSync(invoicePath)) fs.unlinkSync(invoicePath);
-    // Return a 400 error for business logic failures (like insufficient stock)
-    const statusCode = err.message.includes("Insufficient stock") ? 400 : 500;
 
-    const errorMessage = err.message.split(": ")[0] ||
-            "Failed to process order";
+    // --- ERROR HANDLING FIX ---
+    // Check for the custom error thrown during the transaction
+    if (err.message === "STOCK_FAILURE_ROLLBACK") {
+      console.warn("Stock failure detected.Returning detailed errorsclient.");
+
+      // Return 409 Conflict status code and the detailed error array
+      return res.status(409).json({
+        error: "Insufficient stock detected for some items.",
+        stockErrors: stockErrors, // Return the collected array of errors
+      });
+    }
+
+    // Handle generic errors (Product not found, etc.)
+    const statusCode = err.message.includes("Product not found") ? 400 : 500;
+    const errorMessage = err.message.split(": ")[0] || "Fail to process order";
 
     res.status(statusCode).json({
       error: errorMessage,
