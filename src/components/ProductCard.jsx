@@ -1,4 +1,4 @@
-// src/components/ProductCard.jsx - CORRECTED
+// src/components/ProductCard.jsx - FINAL VERSION WITH ADMIN HIGHLIGHT TOGGLES
 
 import React, { useState, useEffect } from 'react';
 import './ProductCard.css';
@@ -7,9 +7,10 @@ import 'react-medium-image-zoom/dist/styles.css';
 import { getCartItemId } from './CartContext';
 
 
-const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCart = false, cart, tieredPricing }) => {
+const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, onToggleHighlight, isCart = false, cart, tieredPricing }) => {
   // CRITICAL FIX: Ensure 'id' is destructured here for stable use in useEffect dependencies
-  const { productName, productCode, images, image, variations, quantity, tieredPricing: productTieredPricing, id } = product; 
+  // NEW: Destructure 'tags' for highlight status
+  const { productName, productCode, images, image, variations, quantity, tieredPricing: productTieredPricing, id, tags = [] } = product; 
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imagesToDisplay = images && images.length > 0 ? images : (image ? [{ url: image }] : []);
@@ -54,15 +55,43 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, isCa
   const quantityToDisplay = selectedVariation ? Number(selectedVariation.quantity) : totalQuantity;
   
   const isOutOfStock = totalQuantity === 0;
-  // Note: We use quantityToDisplay for the stock limit check inside renderActions
   
   const renderActions = () => {
     // Handle Admin Mode First and Return Early
+    // MODIFIED: Added New Arrival and Trending buttons using onToggleHighlight prop
     if (onEdit && onDelete) {
+        // Check current status for visual feedback
+        const isNewArrival = tags.includes('new_arrival');
+        const isTrending = tags.includes('trending');
+        
         return (
             <div className="admin-actions">
-                <button onClick={(e) => { e.stopPropagation(); onEdit(); }}>Edit</button> 
-                <button onClick={(e) => { e.stopPropagation(); onDelete(); }}>Delete</button>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                >
+                    Edit
+                </button> 
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                >
+                    Delete
+                </button>
+                {/* NEW: Toggle New Arrival */}
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onToggleHighlight(id, 'new_arrival'); }}
+                    className={`highlight-btn ${isNewArrival ? 'active' : ''}`}
+                    title={isNewArrival ? 'Remove from New Arrivals' : 'Set as New Arrival'}
+                >
+                    New Arrival {isNewArrival ? '✓' : ''}
+                </button>
+                {/* NEW: Toggle Trending */}
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onToggleHighlight(id, 'trending'); }}
+                    className={`highlight-btn ${isTrending ? 'active' : ''}`}
+                    title={isTrending ? 'Remove from Trending' : 'Set as Trending'}
+                >
+                    Trending {isTrending ? '✓' : ''}
+                </button>
             </div>
         );
     }

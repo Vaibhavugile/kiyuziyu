@@ -1,0 +1,249 @@
+/* NewArrivalsSection.css */
+
+/* 1. KEYFRAME (ENTRANCE ONLY) */
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 2. SECTION CONTAINER (jewel-grid-section) */
+.jewel-grid-section { 
+    padding: 6rem 0; 
+    background-color: #f7f7f7; 
+    text-align: center;
+    /* Keeps the entire section centered and limits total width on large screens */
+    max-width: 1200px; 
+    margin: 0 auto;
+}
+
+.jewel-grid-section h3 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 4rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 0 2rem; 
+}
+
+/* 3. GRID/CONTAINER (jewel-grid-container) */
+/* --- DESKTOP: Neutral Base Styles. Masonry is applied via inline JSX styles. --- */
+.jewel-grid-container { 
+    /* Set padding and width for desktop masonry */
+    padding: 0 2rem; 
+    width: calc(100% - 4rem);
+    margin: 0 auto;
+}
+
+/* Hide scrollbar for aesthetics (Only relevant for mobile/tablet scroll) */
+.jewel-grid-container::-webkit-scrollbar {
+    height: 6px;
+}
+.jewel-grid-container::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 10px;
+}
+.jewel-grid-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+
+/* 4. BASE TILE STYLING (jewel-grid-tile) */
+/* --- DESKTOP: Only includes non-layout styles. Layout (width/height/display) is via inline JSX styles. --- */
+.jewel-grid-tile { 
+    position: relative;
+    overflow: hidden; 
+    border-radius: 12px; 
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1); 
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+    text-decoration: none;
+    color: inherit;
+
+    /* Entrance Animation */
+    opacity: 0;
+    animation: fadeInSlideUp 0.6s ease-out forwards;
+    animation-delay: calc(var(--item-index) * 0.05s); 
+}
+
+.jewel-grid-tile:hover {
+    transform: scale(1.02); 
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+}
+
+/* 5. IMAGE WRAPPER (jewel-tile-img-wrapper) */
+.jewel-tile-img-wrapper { 
+    overflow: hidden;
+    width: 100%;
+}
+
+/* 6. IMMERSIVE IMAGE STYLING (jewel-tile-img) */
+.jewel-tile-img { 
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    
+    transform: scale(1.0); 
+    filter: brightness(1.0);
+    transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s; 
+}
+
+.jewel-grid-tile:hover .jewel-tile-img {
+    transform: scale(1.08); 
+    filter: brightness(0.9); 
+}
+
+
+/* 7. INFO OVERLAY (jewel-tile-info-overlay) */
+.jewel-tile-info-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 20px;
+    
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.4) 70%, transparent);
+    color: white;
+    text-align: left;
+    
+    transform: translateY(30%); 
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), opacity 0.4s ease;
+    z-index: 10;
+}
+
+.jewel-grid-tile:hover .jewel-tile-info-overlay {
+    transform: translateY(0); 
+    opacity: 1;
+}
+
+/* Price and Name Labels */
+.jewel-info-name {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jewel-info-price {
+    display: block;
+    font-size: 1.3rem; 
+    font-weight: 800;
+    color: #ffd700; 
+    margin-top: 5px;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+
+/* --- MEDIA QUERIES (Flexbox/Horizontal Scroll takes over for mobile/tablet) --- */
+
+/* Tablet Screens (1024px and down) */
+@media (max-width: 1024px) {
+    .jewel-grid-section {
+        max-width: 100%; 
+        padding: 4rem 0; 
+    }
+    
+    .jewel-grid-container {
+        /* Re-enable Flexbox for Horizontal Scroll */
+        display: flex; /* */
+        flex-direction: column; /* */
+        flex-wrap: wrap; /* */
+        justify-content: flex-start; /* */
+        align-content: flex-start; /* */
+        
+        /* Set a fixed height for 2 rows (2*330px tile height + 1*15px gap) = 675px */
+        height: 675px; /* */
+        
+        /* Set scroll properties */
+        overflow-x: scroll; /* */
+        overflow-y: hidden; /* */
+        gap: 15px; /* */
+        padding: 0 2rem; /* */
+        scroll-snap-type: x mandatory; /* */
+        
+        /* Reset Masonry styles inherited from Desktop */
+        column-count: initial !important; 
+        column-gap: initial !important; 
+        width: 100%;
+        margin: 0;
+    }
+    
+    .jewel-grid-tile {
+        /* Re-enable Flex item properties */
+        flex: 0 0 auto; /* */
+        scroll-snap-align: start; /* */
+        
+        /* Adjusted tile size for tablet view */
+        width: 45vw; /* */
+        height: 330px; /* */
+        
+        /* Reset Masonry styles inherited from Desktop */
+        display: block !important;
+        margin-bottom: 0 !important;
+        break-inside: initial !important;
+    }
+}
+
+/* Mobile Screens (768px and down) */
+@media (max-width: 768px) {
+    /* 1. Tighter section padding */
+    .jewel-grid-section {
+        padding: 3rem 0; 
+    }
+    .jewel-grid-section h3 {
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        padding: 0 1rem;
+    }
+    
+    /* 2. Tighter container padding and tile size for more density */
+    .jewel-grid-container {
+        /* Set a fixed height for 2 rows (2*300px tile height + 1*10px gap) = 610px */
+        height: 610px; /* */
+        gap: 10px; /* */
+        padding: 0 1rem; /* Reduced padding on sides */
+    }
+    
+    .jewel-grid-tile {
+        /* Show 1.5 tiles on screen (65vw width) */
+        width: 65vw; /* */
+        height: 300px; /* */
+        border-radius: 8px; /* */
+    }
+    
+    /* 3. Optimize Overlay and Text Size for smaller tile */
+    .jewel-tile-info-overlay {
+        padding: 8px 10px; /* */
+    }
+    .jewel-info-name { 
+        font-size: 0.85rem; /* */
+    }
+    .jewel-info-price { 
+        font-size: 1.0rem; /* */
+        margin-top: 2px; /* */
+    }
+    
+    /* Disable hover effects and keep info visible for touch screens */
+    .jewel-grid-tile:hover {
+        transform: none !important; /* */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* */
+    }
+    .jewel-grid-tile:hover .jewel-tile-img {
+        transform: scale(1.0); /* */
+    }
+    .jewel-tile-info-overlay {
+        transform: translateY(0); /* */
+        opacity: 1; /* */
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent); /* */
+    }
+}

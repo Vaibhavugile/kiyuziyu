@@ -1160,6 +1160,60 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
     }
   };
 
+  // Corrected handleToggleHighlight function (located in AdminPage.jsx)
+// Assuming selectedMainCollectionId and selectedSubcollectionId are managed with useState
+
+const handleToggleHighlight = async (productId, tagToToggle) => {
+    // 🛑 CRITICAL FIX: Use the correct variable name: selectedMainCollectionId 🛑
+    if (!productId || !selectedMainCollectionId || !selectedSubcollectionId) {
+        console.error("Cannot update highlight: Missing Collection or Product IDs.");
+        return;
+    }
+
+    // 1. Find the product and determine the new tags array
+    const productToUpdate = products.find(p => p.id === productId);
+    if (!productToUpdate) return;
+
+    const currentTags = productToUpdate.tags || [];
+    let newTags;
+
+    if (currentTags.includes(tagToToggle)) {
+        // Tag exists: Remove it (Toggle OFF)
+        newTags = currentTags.filter(tag => tag !== tagToToggle);
+    } else {
+        // Tag doesn't exist: Add it (Toggle ON)
+        newTags = [...currentTags, tagToToggle];
+    }
+
+    try {
+        // 2. Update Firestore using the corrected variable names
+        const productRef = doc(
+            db, 
+            'collections', 
+            selectedMainCollectionId, // ⬅️ CORRECTED NAME
+            'subcollections', 
+            selectedSubcollectionId, 
+            'products', 
+            productId
+        );
+        
+        await updateDoc(productRef, {
+            tags: newTags
+        });
+
+        // 3. Update local state to immediately refresh the UI
+        setProducts(prevProducts => prevProducts.map(p => 
+            p.id === productId ? { ...p, tags: newTags } : p
+        ));
+
+        console.log(`Product ${productId} toggled highlight: ${tagToToggle}. New tags: ${newTags.join(', ')}`);
+
+    } catch (error) {
+        console.error("Error updating product highlight:", error);
+        alert("Failed to update product highlight status.");
+    }
+};
+
 
   // NEW: useEffect to fetch reports data
   useEffect(() => {
@@ -2254,41 +2308,43 @@ const handleFinalizeSale = async () => {
                   )}
                 </div>
                 <div className="admin-section">
-                  <h3>Current Products</h3>
-                  {selectedSubcollectionId ? (
-                    isProductLoading ? (
-                      <p>Loading products...</p>
-                    ) : (
-                      <>
-                        <div className="search-container">
-                          <input
-                            type="text"
-                            placeholder="Search by name or code..."
-                            value={productSearchTerm}
-                            onChange={(e) => setProductSearchTerm(e.target.value)}
-                            className="search-input"
-                          />
-                        </div>
-                        <div className="collections-grid">
-                          {filteredProducts.length > 0 ? (
-                            filteredProducts.map((product) => (
-                              <ProductCard
+    <h3>Current Products</h3>
+    {selectedSubcollectionId ? (
+        isProductLoading ? (
+            <p>Loading products...</p>
+        ) : (
+            <>
+                <div className="search-container">
+                    <input
+                        type="text"
+                        placeholder="Search by name or code..."
+                        value={productSearchTerm}
+                        onChange={(e) => setProductSearchTerm(e.target.value)}
+                        className="search-input"
+                    />
+                </div>
+                <div className="collections-grid">
+                    {filteredProducts.length > 0 ? (
+                        filteredProducts.map((product) => (
+                            <ProductCard
                                 key={product.id}
                                 product={product} // This passes the entire product object
                                 onEdit={() => startEditProduct(product)}
                                 onDelete={() => handleDeleteProduct(product.id, product.image)}
-                              />
-                            ))
-                          ) : (
-                            <p>No products found matching your search criteria.</p>
-                          )}
-                        </div>
-                      </>
-                    )
-                  ) : (
-                    <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
-                  )}
+                                // 🔥 NEW PROP ADDED 🔥
+                                onToggleHighlight={handleToggleHighlight} 
+                            />
+                        ))
+                    ) : (
+                        <p>No products found matching your search criteria.</p>
+                    )}
                 </div>
+            </>
+        )
+    ) : (
+        <p className="select-prompt">Please select a main collection and a subcollection to view its products.</p>
+    )}
+</div>
               </div>
             )}
           </div>

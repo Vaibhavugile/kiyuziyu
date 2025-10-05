@@ -1,18 +1,22 @@
-// src/pages/HomePage.jsx
+// src/pages/HomePage.jsx - SIMPLIFIED
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db, collection, getDocs } from '../firebase';
 import CollectionCard from '../components/CollectionCard';
 import BrowseCollectionSection from '../components/BrowseCollectionSection';
 import HeroSection from '../components/HeroSection';
-import BestSellersSection from '../components/BestSellersSection'; // <-- Import the new component
+import BestSellersSection from '../components/BestSellersSection'; 
+import NewArrivalsSection from '../components/NewArrivalsSection'; // <-- Import updated component
 import './HomePage.css';
 
 const HomePage = () => {
+  // ... (Collections state and useEffect remain for the Featured Collections section)
   const [collections, setCollections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // ... (logic to fetch collections for the 'Featured Collections' grid)
     const fetchCollections = async () => {
       setIsLoading(true);
       try {
@@ -31,9 +35,11 @@ const HomePage = () => {
     fetchCollections();
   }, []);
 
+
   return (
     <>
       <HeroSection />
+      {/* ... Featured Collections Section ... */}
       <div className="collections-section">
         <h3>Featured Collections</h3>
         {isLoading ? (
@@ -49,9 +55,10 @@ const HomePage = () => {
         )}
       </div>
 
-      {/* This is the new section */}
-      <BestSellersSection />
+      {/* New Arrivals Section: NO LONGER PASSING THE 'collections' PROP */}
+      <NewArrivalsSection /> 
 
+      <BestSellersSection />
       <BrowseCollectionSection />
     </>
   );

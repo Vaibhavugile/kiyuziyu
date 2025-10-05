@@ -16,7 +16,8 @@ import {
   orderBy, // This is the new import you need
    serverTimestamp,
    startAfter,
-   limit
+   limit,
+   collectionGroup ,
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -78,4 +79,5 @@ export {
    signInAnonymously,
    limit,
    startAfter,
+   collectionGroup,
 };

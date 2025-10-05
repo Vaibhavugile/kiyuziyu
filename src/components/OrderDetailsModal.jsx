@@ -106,6 +106,24 @@ const OrderDetailsModal = ({ order, onClose, onUpdateStatus, onCancelOrder }) =>
                   <div>
                     <p><strong>Product:</strong> {item.productName}</p>
                     <p><strong>Code:</strong> {item.productCode}</p>
+                     {/* 🛑 FIX: Display Variation Details 🛑 */}
+                    {item.variation && (
+                        <p className="item-variation-details">
+                            {/* Check and display Color if it exists */}
+                            {item.variation.color && (
+                                <>
+                                    <strong>Color:</strong> {item.variation.color}
+                                </>
+                            )}
+                            {/* Check and display Size if it exists, add separator if Color is present */}
+                            {item.variation.size && (
+                                <>
+                                    {item.variation.color ? ' | ' : ''}
+                                    <strong>Size:</strong> {item.variation.size}
+                                </>
+                            )}
+                        </p>
+                    )}
                     <p><strong>Quantity:</strong> {item.quantity}</p>
                     {/* Using the correct Rupee symbol entity */}
                     <p><strong>Price:</strong> ₹{item.price}</p>
