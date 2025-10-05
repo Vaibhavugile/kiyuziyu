@@ -1,10 +1,11 @@
-// NewArrivalsSection.jsx
+// TrendingSection.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, collectionGroup, getDocs, query, where } from '../firebase'; 
 import { Link } from 'react-router-dom';
-import './NewArrivalsSection.css'; // Keep the import for aesthetic styles like hover/shadows
+// Using the same CSS file as New Arrivals
+import './NewArrivalsSection.css'; 
 
-const NEW_ARRIVAL_TAG = 'new_arrival';
+const TRENDING_TAG = 'trending'; // <<< CHANGED TAG
 
 // Function to calculate a semi-random height multiplier for visual diversity
 const calculateRandomHeight = (index) => {
@@ -15,45 +16,47 @@ const calculateRandomHeight = (index) => {
     return `${baseHeight * multipliers[index % multipliers.length]}px`;
 };
 
-const NewArrivalsSection = () => { 
-    const [newArrivals, setNewArrivals] = useState([]);
+// <<< RENAMED COMPONENT
+const TrendingSection = () => { 
+    const [trendingProducts, setTrendingProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Memoize the fetched data and pre-calculate the random heights
     const productData = useMemo(() => {
-        return newArrivals.map((product, index) => ({
+        return trendingProducts.map((product, index) => ({
             ...product,
             imageUrl: product.image || (product.images && product.images[0]?.url),
             productPrice: product.price != null ? product.price.toFixed(2) : 'N/A',
             randomHeight: calculateRandomHeight(index), // Pre-calculate height
             itemIndex: index
         })).filter(p => p.imageUrl); // Filter out products without an image
-    }, [newArrivals]);
+    }, [trendingProducts]);
 
 
     useEffect(() => {
-        const fetchNewArrivals = async () => {
+        const fetchTrendingProducts = async () => {
             setIsLoading(true);
             try {
                 const productsRef = collectionGroup(db, 'products');
                 const q = query(
                     productsRef, 
-                    where('tags', 'array-contains', NEW_ARRIVAL_TAG)
+                    // <<< USE TRENDING_TAG
+                    where('tags', 'array-contains', TRENDING_TAG)
                 );
                 const querySnapshot = await getDocs(q);
                 
                 const fetchedProducts = querySnapshot.docs.map(doc => ({
                     ...doc.data(),
                     id: doc.id,
-                    collectionId: doc.ref.path.split('/')[2], 
+                    collectionId: doc.ref.parent.parent.id, 
                 }));
-                setNewArrivals(fetchedProducts);
+                setTrendingProducts(fetchedProducts);
             } catch (error) {
-                console.error("Error fetching New Arrivals:", error);
+                console.error("Error fetching Trending Products:", error);
             }
             setIsLoading(false);
         };
-        fetchNewArrivals();
+        fetchTrendingProducts();
     }, []); 
 
     if (isLoading || productData.length === 0) {
@@ -62,7 +65,8 @@ const NewArrivalsSection = () => {
 
     return (
         <div className="jewel-grid-section masonry-ui">
-            <h3>New Arrivals ✨</h3>
+            {/* <<< CHANGED HEADING */}
+            <h3>Trending Now 🔥</h3>
             
             {/* ⚠️ CRITICAL: INLINE MASONRY STYLES on the container to prevent conflicts ⚠️ */}
             <div 
@@ -111,7 +115,6 @@ const NewArrivalsSection = () => {
                         {/* New class: jewel-tile-info-overlay */}
                         <div className="jewel-tile-info-overlay">
                             <span className="jewel-info-name">{product.productName}</span>
-                            {/* 🔥 ADDED PRICE 🔥 */}
                         </div>
                     </Link>
                 ))}
@@ -120,4 +123,4 @@ const NewArrivalsSection = () => {
     );
 };
 
-export default NewArrivalsSection;
+export default TrendingSection;

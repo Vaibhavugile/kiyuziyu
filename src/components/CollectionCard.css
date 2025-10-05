@@ -132,3 +132,30 @@
 .admin-actions button:last-child:hover {
   background-color: #c0392b;
 }
+
+/* --- MOBILE FIX: Force 2-column layout on smaller screens --- */
+@media (max-width: 600px) {
+    .collections-grid {
+        /* Force two equal columns (2, 1fr) instead of relying on minmax(280px) */
+        grid-template-columns: repeat(2, 1fr);
+        
+        /* Reduce gap for a better fit on small screens */
+        gap: 1rem; 
+        
+        /* Add some horizontal padding to prevent cards from touching the edges */
+        padding: 1rem;
+    }
+
+    .collection-card {
+        /* Remove max-width constraint to let the 1fr column work fully */
+        max-width: none; 
+        
+        /* Optionally reduce the minimum height for denser mobile view */
+        min-height: 250px;
+    }
+    
+    /* Reduce title size for better readability on smaller cards */
+    .collection-info .title {
+        font-size: 1.1rem;
+    }
+}

@@ -252,3 +252,101 @@
         width: 100%;
     }
 }
+
+/* src/pages/ReportPage.css */
+
+/* ... (Existing styles remain unchanged) ... */
+
+/* --- Filter Controls (Updated to handle Search Bar) --- */
+.filter-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    /* Ensure the search bar takes precedence/space */
+}
+
+/* 🔥 NEW SEARCH BAR STYLES 🔥 */
+.search-bar-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 2; /* Give the search bar more space */
+    min-width: 250px;
+}
+
+.search-input {
+    padding: 10px 10px 10px 40px !important; /* Adjust padding for icon */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: #6c757d;
+    font-size: 1.1em;
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 5px;
+    padding: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+.clear-search-btn:hover {
+    color: #dc3545;
+}
+
+/* Date Input styles - now they share space more evenly with the search bar */
+.filter-controls input[type="date"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1em;
+    flex: 1; /* Date inputs take less space than search */
+    min-width: 150px;
+}
+
+
+.filter-btn, .clear-filter-btn {
+/* ... (Existing styles remain unchanged) ... */
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+
+/* ... (Rest of the styles remain unchanged) ... */
+
+/* --- Media Queries for responsiveness (Update to include search bar) --- */
+@media (max-width: 768px) {
+    /* ... (Existing styles remain unchanged) ... */
+    .filter-controls {
+        flex-direction: column;
+    }
+    .filter-controls input[type="date"] {
+        flex: none;
+        width: 100%;
+    }
+    /* Ensure search bar also spans full width */
+    .search-bar-container {
+        flex: none;
+        width: 100%;
+    }
+}

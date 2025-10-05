@@ -42,7 +42,7 @@ const OrderTrackingCard = ({ order }) => {
                   <img
                   src={item.images && item.images.length > 0 ? item.images[0] : item.image}
                   alt={item.productName}
-                  className="cart-item-image"
+                  className="item-image"
                 />
               <h5 className="item-name">{item.productName}</h5>
               <p className="item-code">{item.productCode}</p>

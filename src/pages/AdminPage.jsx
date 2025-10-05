@@ -2386,6 +2386,7 @@ const handleFinalizeSale = async () => {
                 <option value="Processing">Processing</option>
                 <option value="Shipped">Shipped</option>
                 <option value="Delivered">Delivered</option>
+                
               </select>
 
             </div>
@@ -2400,15 +2401,24 @@ const handleFinalizeSale = async () => {
                 sortedDateKeys.map(dateKey => (
                   <div key={dateKey} className="order-date-group">
                     <h3>{dateKey}</h3>
-                    <ul className="orders-list">
-                      {groupedOrdersFromFiltered[dateKey].map((order) => (
-                        <li key={order.id} onClick={() => setSelectedOrder(order)} className="order-list-item">
-                          <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
-                          <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
-                          <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
-                        </li>
-                      ))}
-                    </ul>
+                      <ul className="orders-list">
+                      {
+                        // 👇 FIX: Use optional chaining and nullish coalescing
+                        groupedOrdersFromFiltered[dateKey]?.map((order) => (
+                        <li 
+                            key={order.id} 
+                            onClick={() => setSelectedOrder(order)} 
+                            className="order-list-item"
+                        >
+                          <p>Order ID: <strong>{order.id.substring(0, 8)}...</strong></p>
+                          <p>Contact: <strong>{order.billingInfo?.phoneNumber || ''}</strong></p>
+                          <p>Name: <strong>{order.billingInfo?.fullName || ''}</strong></p>
+
+                          <p>Total: <strong>₹{order.totalAmount.toFixed(2)}</strong></p>
+                          <p>Status: <span className={`order-status status-${order.status ? order.status.toLowerCase() : 'pending'}`}>{order.status}</span></p>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ))
               ) : (

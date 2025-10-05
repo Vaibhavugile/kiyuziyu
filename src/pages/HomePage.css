@@ -102,6 +102,20 @@
     transform: scale(1.2);
 }
 
+/* --- MOBILE VIEW FIX --- */
+@media (max-width: 768px) {
+    .hero-slider {
+        /* Reduce the height dramatically for mobile to prevent severe cropping */
+        height: 65vh; /* This brings the bottom of the image up */
+    }
+
+    .hero-slide {
+        /* Shift the background image's focus point up to show faces/products */
+        /* 'center top' works well for portrait images where the main subject is high */
+        background-position: center top; 
+    }
+}
+
 /* --- Featured Collections Section (Retained) --- */
 .collections-section h3 {
     font-size: 2.5rem;

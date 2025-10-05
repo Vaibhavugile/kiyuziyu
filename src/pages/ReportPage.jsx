@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import { useAuth } from '../components/AuthContext';
 import { 
     db, 
@@ -18,6 +18,7 @@ const ORDERS_PER_BATCH = 50;
 
 // --- UTILITY FUNCTION: Calculates profit for a single item ---
 const calculateProfitForItem = (item, subcollectionsMap) => {
+// ... (Function body remains unchanged)
     const subcollectionData = subcollectionsMap[item.subcollectionId];
     const purchaseRate = subcollectionData?.purchaseRate;
 
@@ -50,6 +51,9 @@ const ReportPage = () => {
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     
+    // 🔥 NEW STATE FOR SEARCH 🔥
+    const [searchTerm, setSearchTerm] = useState('');
+    
     // lastVisible stores the last DocumentSnapshot
     const [lastVisible, setLastVisible] = useState(null);
     const [hasMore, setHasMore] = useState(true);
@@ -65,6 +69,7 @@ const ReportPage = () => {
 
 
     // 1. Fetch Subcollection Purchase Rates (Cost Data)
+    // ... (useEffect remains unchanged)
     useEffect(() => {
         const fetchSubcollectionData = async () => {
             if (!currentUser) return; 
@@ -108,6 +113,8 @@ const ReportPage = () => {
         } 
 
         const isFilterActive = filterStartDate && filterEndDate;
+        // The search term will be applied on the client-side for simplicity, 
+        // so it doesn't affect the Firebase query here.
 
         // --- State Resets for new Query ---
         if (!isLoadMore) {
@@ -245,6 +252,7 @@ const ReportPage = () => {
 
     
     // 4. 🔥 INFINITE SCROLL LOGIC 🔥
+    // ... (useEffect remains unchanged)
     useEffect(() => {
         // Only attach listener if we are not in filtered mode and have more to load
         if (isFilterApplied || !hasMore || isLoading || isFetchingMore) {
@@ -274,6 +282,31 @@ const ReportPage = () => {
     // Dependencies must include state that affects the scroll logic
     }, [isFilterApplied, hasMore, isLoading, isFetchingMore, fetchOrders]);
     
+    // 🔥 NEW: Filter orders by search term (Client-Side) 🔥
+    const filteredOrders = useMemo(() => {
+        if (!searchTerm) {
+            return orders;
+        }
+
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+        return orders.filter(order => {
+            // Check customer name
+            const customerName = order.billingInfo?.fullName?.toLowerCase() || '';
+            if (customerName.includes(lowerCaseSearchTerm)) {
+                return true;
+            }
+
+            // Check order ID (partial match)
+            if (order.id?.toLowerCase().includes(lowerCaseSearchTerm)) {
+                return true;
+            }
+            
+            // Add other fields to search here if needed (e.g., product names)
+            return false;
+        });
+    }, [orders, searchTerm]);
+
     // --- Handlers (unchanged) ---
     const handleFilterClick = () => {
         if (filterStartDate && filterEndDate) {
@@ -290,9 +323,14 @@ const ReportPage = () => {
         fetchOrders(false); 
     };
 
+    // 🔥 NEW: Clear Search Handler 🔥
+    const handleClearSearch = () => {
+        setSearchTerm('');
+    };
+
     const isFilterDisplayActive = isFilterApplied && (filteredRangeProfit !== null);
     
-    // --- RENDERING LOGIC (unchanged) ---
+    // --- RENDERING LOGIC (Updated to include search bar and use filteredOrders) ---
     if (!currentUser) {
         return <div className="report-page-container"><p className="error-message">Please log in to view this report.</p></div>;
     }
@@ -312,7 +350,27 @@ const ReportPage = () => {
         <div className="report-page-container">
             <h2 className="report-title"><FaChartLine /> Business Sales and Profit Report</h2>
             
+            {/* --- Search and Date Filter Controls --- */}
             <div className="filter-controls">
+                
+                {/* 🔥 NEW SEARCH INPUT 🔥 */}
+                <div className="search-bar-container">
+                    <FaSearch className="search-icon" />
+                    <input 
+                        type="text" 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search by Customer Name or Order ID"
+                        className="search-input"
+                    />
+                    {searchTerm && (
+                        <button onClick={handleClearSearch} className="clear-search-btn">
+                            <FaTimes />
+                        </button>
+                    )}
+                </div>
+                
+                {/* Date Filters */}
                 <input 
                     type="date" 
                     value={filterStartDate}
@@ -336,6 +394,7 @@ const ReportPage = () => {
             </div>
 
             <div className="summary-cards-container">
+            {/* ... (Summary Cards logic remains unchanged) */}
                 {isFilterDisplayActive ? (
                     <div className="summary-card filtered-profit-card full-width">
                         <h3>Gross Profit for Date Range</h3>
@@ -362,10 +421,13 @@ const ReportPage = () => {
             </div>
 
             <div className="orders-report-list">
-                <h3>{isFilterDisplayActive ? 'Orders in Selected Range' : 'Recent Order History'}</h3>
+                <h3>
+                    {isFilterDisplayActive ? 'Orders in Selected Range' : 'Recent Order History'}
+                    {searchTerm && ` (Showing ${filteredOrders.length} search results)`}
+                </h3>
                 
-                {orders.length === 0 && !isLoading ? (
-                    <p className="no-orders-message">No orders found.</p>
+                {filteredOrders.length === 0 && !isLoading ? (
+                    <p className="no-orders-message">No orders found matching your criteria.</p>
                 ) : (
                     <div className="report-table-wrapper">
                         <table className="report-table">
@@ -379,7 +441,8 @@ const ReportPage = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {orders.map((order) => (
+                                {/* 🔥 Use filteredOrders instead of orders here 🔥 */}
+                                {filteredOrders.map((order) => (
                                     <tr key={order.id} className="order-row">
                                         <td>{order.createdAt?.toDate().toLocaleDateString() || 'N/A'}</td>
                                         <td>{order.id.substring(0, 8)}...</td>
@@ -397,17 +460,18 @@ const ReportPage = () => {
             </div>
 
             {/* 🔥 LOADING INDICATOR FOR INFINITE SCROLL 🔥 */}
-            {isFetchingMore && !isFilterApplied && (
+            {/* Only show Load More if NOT searching and not filtering by date range */}
+            {isFetchingMore && !isFilterApplied && !searchTerm && (
               <div className="load-more-container">
                 <FaSpinner className="loading-spinner-small" /> Loading more orders...
               </div>
             )}
             
             {/* End of List Message */}
-            {!hasMore && orders.length > 0 && !isFilterApplied && (
+            {!hasMore && orders.length > 0 && !isFilterApplied && !searchTerm && (
                 <p className="end-of-list-message">End of the all-time report.</p>
             )}
-            {isFilterApplied && orders.length > 0 && (
+            {(isFilterApplied || searchTerm) && filteredOrders.length > 0 && (
                 <p className="end-of-list-message">End of the filtered report results.</p>
             )}
 

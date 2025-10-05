@@ -1,4 +1,4 @@
-// src/pages/HomePage.jsx - SIMPLIFIED
+// src/pages/HomePage.jsx - UPDATED
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,8 @@ import CollectionCard from '../components/CollectionCard';
 import BrowseCollectionSection from '../components/BrowseCollectionSection';
 import HeroSection from '../components/HeroSection';
 import BestSellersSection from '../components/BestSellersSection'; 
-import NewArrivalsSection from '../components/NewArrivalsSection'; // <-- Import updated component
+import NewArrivalsSection from '../components/NewArrivalsSection'; 
+import TrendingSection from '../components/TrendingSection'; // <<< NEW IMPORT
 import './HomePage.css';
 
 const HomePage = () => {
@@ -55,7 +56,10 @@ const HomePage = () => {
         )}
       </div>
 
-      {/* New Arrivals Section: NO LONGER PASSING THE 'collections' PROP */}
+      {/* <<< ADDED TRENDING SECTION */}
+      <TrendingSection /> 
+
+      {/* New Arrivals Section */}
       <NewArrivalsSection /> 
 
       <BestSellersSection />
