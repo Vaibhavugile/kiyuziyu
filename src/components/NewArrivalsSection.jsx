@@ -45,7 +45,7 @@ const NewArrivalsSection = () => {
                 const fetchedProducts = querySnapshot.docs.map(doc => ({
                     ...doc.data(),
                     id: doc.id,
-                    collectionId: doc.ref.path.split('/')[2], 
+                    collectionId: doc.ref.path.split('/')[1], 
                 }));
                 setNewArrivals(fetchedProducts);
             } catch (error) {

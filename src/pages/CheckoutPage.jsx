@@ -256,7 +256,7 @@ const CheckoutPage = () => {
             )}
             
             <div className="cart-total-section">
-              <p>Shipping:</p>
+              <p>Packing:</p>
               <p>₹{SHIPPING_FEE.toFixed(2)}</p>
             </div>
             <div className="cart-total-section total-final">

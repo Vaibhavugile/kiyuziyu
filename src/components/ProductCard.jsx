@@ -261,7 +261,7 @@ const ProductCard = ({ product, onIncrement, onDecrement, onEdit, onDelete, onTo
         <p className="product-quantity">In Stock: {quantityToDisplay}</p>
         
         {/* Variations Selector with inline cart quantity badge */}
-        {variations && variations.length > 1 && (
+        {variations && variations.length > 0 && (
           <div className="variations-selector">
             {variations.map((v, index) => {
               // --- Check if 'cart' is defined before accessing it ---

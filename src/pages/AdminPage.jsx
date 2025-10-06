@@ -133,6 +133,17 @@ const [offlineSelections, setOfflineSelections] = useState({});
   const [completedCrop, setCompletedCrop] = useState(null);
   const imgRef = useRef(null);
   const [sortedDateKeys, setSortedDateKeys] = useState([]);
+   const [modalImage, setModalImage] = useState(null);
+ const openImageModal = (imageUrl) => {
+    if (imageUrl) {
+      setModalImage(imageUrl);
+    }
+  };
+
+  // 3. Handler to close the modal
+  const closeImageModal = () => {
+    setModalImage(null);
+  };
 
   const formatOrderDate = (timestamp) => {
     const today = new Date();
@@ -2736,11 +2747,14 @@ const handleFinalizeSale = async () => {
                   className={`billing-product-item ${isMaxStockReached ? 'stock-limit' : ''}`}
                 >
                   {/* Product Details */}
-                  <img
-                    alt={product.productName}
-                    src={currentImage}
-                    className="product-image"
-                  />
+                   <img
+      alt={product.productName}
+      src={currentImage}
+      className="product-image"
+      // 🛑 ADDED: onClick handler to open the full image modal 🛑
+      onClick={() => openImageModal(currentImage)}
+      style={{ cursor: 'pointer' }} // Visual hint that it's clickable
+    />
                   <div className="product-details">
                     <span className="product-name">{product.productName}</span>
                     <span className="product-code">{product.productCode}</span>
@@ -2872,6 +2886,18 @@ const handleFinalizeSale = async () => {
 </div>
     </div>
   </div>
+)}
+{modalImage && (
+    <div className="image-modal-backdrop" onClick={closeImageModal}>
+        <div 
+            className="image-modal-content" 
+            // Stop propagation so clicking the image itself doesn't close the modal
+            onClick={(e) => e.stopPropagation()} 
+        >
+            <button className="close-modal-btn" onClick={closeImageModal}>&times;</button>
+            <img src={modalImage} alt="Full Product View" className="full-image-display" />
+        </div>
+    </div>
 )}
       </div>
     </div>

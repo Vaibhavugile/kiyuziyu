@@ -48,7 +48,7 @@ const TrendingSection = () => {
                 const fetchedProducts = querySnapshot.docs.map(doc => ({
                     ...doc.data(),
                     id: doc.id,
-                    collectionId: doc.ref.parent.parent.id, 
+                    collectionId: doc.ref.path.split('/')[1], 
                 }));
                 setTrendingProducts(fetchedProducts);
             } catch (error) {
