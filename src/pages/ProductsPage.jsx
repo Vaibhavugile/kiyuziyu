@@ -139,7 +139,7 @@ const ProductsPage = () => {
 // ---------------------------------------------------------------------
 
     // 🌟 DEPENDENCY ADJUSTMENT: lastVisible and hasMore MUST be here for "Load More" to function correctly.
-    const fetchProducts = useCallback(async (isLoadMore = false) => {
+    const fetchProducts = useCallback(async (isLoadMore = false,isSearchOnly = false) => {
         if (!collectionId) return;
 
         if (!isMetadataReady || selectedSubcollectionId === 'all') {
@@ -150,18 +150,32 @@ const ProductsPage = () => {
         console.log(`FETCH: Starting product fetch (Load More: ${isLoadMore}) for Subcollection ID: ${selectedSubcollectionId}. Search: ${debouncedSearchTerm}, Sort: ${sortBy}`);
 
         if (!isLoadMore) {
-            setIsLoadingProducts(true);
-            setProducts([]);
+            
+            // 1. Reset Pagination for any new query (search or filter)
             setLastVisible(null);
             setHasMore(true);
+
+            if (isSearchOnly) {
+                // Scenario: User is actively searching (typing stopped after debounce).
+                // We show no main spinner. Client-side filter handles visible products.
+                setIsFetchingMore(true); // Small loading indicator if needed (optional)
+                
+                // CRITICAL: DO NOT call setProducts([]) here.
+                // The new data from the DB will overwrite the old data later.
+            } else {
+                // Scenario: Full page load, category change, or initial page load.
+                // We MUST show the main spinner and clear the screen.
+                setIsLoadingProducts(true);
+                setProducts([]); 
+            }
         } else {
+            // Scenario: User clicked "Load More".
             setIsFetchingMore(true);
             if (!hasMore) { 
                 setIsFetchingMore(false);
                 return;
             }
         }
-        
         try {
             const productsCollectionPath = collection(
                 db, 
@@ -245,6 +259,8 @@ const ProductsPage = () => {
         if (!collectionId || !isMetadataReady || selectedSubcollectionId === 'all') {
             return;
         }
+          const isSearchOnly = Boolean(debouncedSearchTerm);
+        
 
         // 2. Loop Guard (Optional but good practice for Strict Mode)
         if (isInitialRender.current) {
@@ -253,7 +269,7 @@ const ProductsPage = () => {
 
         // 3. Main Logic: Trigger fetch on all relevant changes
         console.log("EFFECT 2: Triggering fetchProducts (Initial Load/Filter Change)");
-        fetchProducts(false); 
+        fetchProducts(false, isSearchOnly);
         
         // Mark initial render complete after the first *intended* fetch runs.
         isInitialRender.current = false;
@@ -265,9 +281,22 @@ const ProductsPage = () => {
 // ---------------------------------------------------------------------
 // ---------------------------------------------------------------------
 
-    const sortedProducts = useMemo(() => {
+     const sortedProducts = useMemo(() => {
         let currentProducts = [...products];
-        // Client-side price sorting
+        const searchUpper = debouncedSearchTerm.toUpperCase();
+        
+        // 1. **CLIENT-SIDE FILTERING (THE FIX)**
+        if (searchUpper) {
+            currentProducts = currentProducts.filter(product => {
+                // Check product code (preferred match)
+                const codeMatch = product.productCode && product.productCode.toUpperCase().includes(searchUpper);
+                // Check product name
+                const nameMatch = product.productName && product.productName.toUpperCase().includes(searchUpper);
+                return codeMatch || nameMatch;
+            });
+        }
+        
+        // 2. Client-side price sorting (Existing Logic)
         if (sortBy === 'price-asc') {
             currentProducts.sort((a, b) => {
                 const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
@@ -282,7 +311,9 @@ const ProductsPage = () => {
             });
         }
         return currentProducts;
-    }, [products, sortBy, subcollectionsMap, userRole, cart]);
+    // 3. IMPORTANT: Add debouncedSearchTerm as a dependency
+    }, [products, sortBy, subcollectionsMap, userRole, cart, debouncedSearchTerm]); 
+    
 
     const handleAddToCart = (product, variation) => {
         if (!currentUser) {
@@ -327,9 +358,9 @@ const ProductsPage = () => {
             <p>Loading collection categories...</p>
         </div>;
     }
-    
+     const isActivelySearching = debouncedSearchTerm.length > 0;
     // Only show spinner if we are actively loading AND we have no products yet
-    if (isLoadingProducts && products.length === 0) {
+   if (isLoadingProducts && products.length === 0 && !isActivelySearching) {
         return <div className="products-page-container loading-state">
             <FaSpinner className="loading-spinner" />
         </div>;
