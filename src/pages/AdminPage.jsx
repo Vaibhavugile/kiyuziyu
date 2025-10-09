@@ -99,6 +99,7 @@ const AdminPage = () => {
   // New states for User Management
   const [users, setUsers] = useState([]);
   const [isUserLoading, setIsUserLoading] = useState(false);
+const [searchTerm, setSearchTerm] = useState('');
 
   // NEW: State for search and filter
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -1170,6 +1171,18 @@ const getPriceForOfflineBilling = (item, offlinePricingType) => {
       }
     }
   };
+
+   const filteredUsers = users.filter(user => {
+        const term = searchTerm.toLowerCase();
+        // Check name, mobile, email, and role for the search term
+        return (
+            user.name?.toLowerCase().includes(term) ||
+            user.mobile?.includes(term) ||
+            user.email?.toLowerCase().includes(term) ||
+            user.role?.toLowerCase().includes(term)
+        );
+    });
+
 
   // Corrected handleToggleHighlight function (located in AdminPage.jsx)
 // Assuming selectedMainCollectionId and selectedSubcollectionId are managed with useState
@@ -2584,20 +2597,28 @@ const handleFinalizeSale = async () => {
     <div className="admin-section">
         <h2>User Management</h2>
         
-        {/* Helper function to format the timestamp */}
-        {/* NOTE: You need to define this function outside of the render method */}
-        {/* For example: const formatDate = (timestamp) => timestamp?.toDate().toLocaleDateString() || 'N/A'; */}
+        {/* --- NEW SEARCH BAR --- */}
+        <div className="user-search-bar">
+            <input
+                type="text"
+                placeholder="Search by Name, Email, Mobile, or Role..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+            />
+        </div>
         
+        {/* --- DYNAMIC CONTENT BASED ON FILTERED RESULTS --- */}
         {isUserLoading ? (
             <p>Loading users...</p>
-        ) : users.length === 0 ? (
-            <p>No users found.</p>
+        ) : filteredUsers.length === 0 ? ( // Check filteredUsers length
+            <p>No users found matching your search term.</p>
         ) : (
             <div className="user-table-container">
                 {/* 1. Table Header - 6 Columns */}
                 <div className="user-table-header">
                     <div className="table-column header-name">Name</div>
-                    <div className="table-column header-email">last login</div>
+                    <div className="table-column header-email">Last Login</div>
                     <div className="table-column header-mobile">Mobile</div>
                     <div className="table-column header-address">Address</div>
                     <div className="table-column header-created">Created At</div>
@@ -2607,13 +2628,16 @@ const handleFinalizeSale = async () => {
 
                 {/* 2. User Rows (List) */}
                 <ul className="user-table-list">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => ( // Iterate over filteredUsers
                         <li key={user.id} className="user-table-row">
-                            {/* Column 1: Name */}
-                            <div className="table-column user-name">{user.name || 'N/A'}</div>
+                            {/* Column 1: Name (or Email, for better identification) */}
+                            <div className="table-column user-name">
+                                <strong>{user.name || 'N/A'}</strong>
+                                {/* <span className="user-email-secondary">{user.email || 'N/A'}</span> */}
+                            </div>
                             
-                            {/* Column 2: Email */}
-                            <div className="table-column user-email">{ formatDate(user.lastLogin || 'N/A')}</div>
+                            {/* Column 2: Last Login */}
+                            <div className="table-column user-email">{ formatDate(user.lastLogin)}</div>
                             
                             {/* Column 3: Mobile Number */}
                             <div className="table-column user-mobile">{user.mobile || 'N/A'}</div>

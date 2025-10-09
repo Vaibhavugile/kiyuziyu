@@ -929,6 +929,41 @@ input[type=number] {
     z-index: 1001;
 }
 
+/* User Search Bar Styles */
+.user-search-bar {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--color-neutral-50); /* Light background for contrast */
+    border-radius: 8px;
+    border: 1px solid var(--color-gray-300);
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid var(--color-gray-400);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+    border-color: var(--color-pink-500);
+    box-shadow: 0 0 0 3px var(--color-pink-100);
+    outline: none;
+}
+
+/* Optional: Better layout for Name column */
+.user-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.user-email-secondary {
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
 .billing-product-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
