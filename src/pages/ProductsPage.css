@@ -344,3 +344,29 @@ select, input[type="text"] {
     padding: 5px;
   }
 }
+
+/* In ProductsPage.css */
+
+.download-btn {
+    background-color: #007bff; /* Use your brand color */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.download-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.download-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}

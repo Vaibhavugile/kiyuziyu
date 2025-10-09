@@ -80,4 +80,5 @@ export {
    limit,
    startAfter,
    collectionGroup,
+   getStorage,
 };

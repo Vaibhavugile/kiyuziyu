@@ -13,14 +13,18 @@ import {
     orderBy, 
     limit, 
     startAfter, 
-    getDoc as getDocument
+    getDoc as getDocument,
+     getStorage, 
+    ref as storageRef, 
+    getDownloadURL 
 } from '../firebase';
 import ProductCard from '../components/ProductCard';
 import { useCart, getPriceForQuantity, createStablePricingId, getCartItemId } from '../components/CartContext';
 import { useAuth } from '../components/AuthContext';
 import './ProductsPage.css';
-import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner } from 'react-icons/fa';
-
+import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload  } from 'react-icons/fa';
+import { jsPDF } from 'jspdf';
+import * as autoTable from 'jspdf-autotable';
 // Product fetch limit per batch
 const PRODUCTS_PER_PAGE = 20; 
 
@@ -35,6 +39,7 @@ const getProductPrice = (product, subcollectionsMap, userRole, cart) => {
         : subcollection.tieredPricing.retail;
     return getPriceForQuantity(pricingTiers, 0); 
 };
+
 
 const ProductsPage = () => {
     const { collectionId } = useParams();
@@ -317,7 +322,8 @@ const ProductsPage = () => {
 
     const handleAddToCart = (product, variation) => {
         if (!currentUser) {
-            alert("The website is under maintenance for order please contact +91 7897897441");
+            alert("To Add Products To Cart Please Log in");
+             navigate('/login');
             return;
         }
         const subcollection = subcollectionsMap[product.subcollectionId];
@@ -345,6 +351,154 @@ const ProductsPage = () => {
         
         addToCart(productData);
     };
+// // src/pages/ProductsPage.jsx (Inside ProductsPage component)
+
+    // // src/pages/ProductsPage.jsx (Inside ProductsPage component)
+
+    // // src/pages/ProductsPage.jsx (Inside ProductsPage component)
+
+    // // src/pages/ProductsPage.jsx (Inside ProductsPage component)
+
+    const handleGeneratePDF = async () => {
+        if (selectedSubcollectionId === 'all') {
+            alert('Please select a specific category to generate the PDF.');
+            return;
+        }
+
+        setIsFetchingMore(true);
+        const subcollectionName = subcollectionsMap[selectedSubcollectionId]?.name || 'Category';
+
+        try {
+            // 1. Fetch ALL products (no limit)
+            const productsCollectionPath = collection(
+                db, 
+                "collections", 
+                collectionId, 
+                "subcollections", 
+                selectedSubcollectionId, 
+                "products"
+            );
+            
+            const allProductsQuery = query(productsCollectionPath, orderBy('productCode'));
+            const snapshot = await getDocs(allProductsQuery);
+            
+            if (snapshot.empty) {
+                 alert('No products found in this category.');
+                 return;
+            }
+
+            const doc = new jsPDF();
+            let productCount = 0;
+            const docWidth = doc.internal.pageSize.getWidth();
+            const docHeight = doc.internal.pageSize.getHeight();
+            const margin = 10; // A small margin for padding
+
+            // 2. Fetch all image data URLs concurrently
+            const imagePromises = snapshot.docs.map(async (productDoc, index) => {
+                const product = productDoc.data();
+                if (product.image) {
+                    try {
+                        const storageInstance = getStorage();
+                        const imageRef = storageRef(storageInstance, product.image);
+                        const url = await getDownloadURL(imageRef);
+                        
+                        // Fetch the image and convert it to a Data URL (Base64)
+                        const response = await fetch(url);
+                        const blob = await response.blob();
+                        
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                resolve({
+                                    dataUrl: reader.result,
+                                    productCode: product.productCode || `Product ${index + 1}`,
+                                    quantity: product.quantity ?? 'N/A' // Use ?? to handle missing/null quantity
+
+                                });
+                            };
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (urlError) {
+                        console.error(`Error processing image for product ${product.productCode}:`, urlError);
+                        return null; // Skip problematic images
+                    }
+                }
+                return null;
+            });
+
+            // Resolve all promises, filtering out any nulls
+            const images = (await Promise.all(imagePromises)).filter(img => img !== null);
+            
+            if (images.length === 0) {
+                 alert('No images found to include in the PDF.');
+                 return;
+            }
+            
+            // 3. Embed images into the PDF (one per page)
+            images.forEach((img, index) => {
+                if (index > 0) {
+                    doc.addPage();
+                }
+
+                // Get image type (jsPDF supports JPEG, PNG, WEBP)
+                const imgType = img.dataUrl.match(/^data:image\/(.+?);/)[1].toUpperCase();
+
+                // Add header text
+                doc.setFontSize(12);
+                doc.text(
+                    `${img.productCode} (${subcollectionName}) | Qty: ${img.quantity}`, 
+                    margin, 
+                    margin
+                );
+                
+                // Add the image. We assume a full-width image for simplicity.
+                // Start position Y is 15 (below the header text)
+                const startY = 15;
+                const availableHeight = docHeight - startY - margin;
+                const availableWidth = docWidth - (2 * margin);
+                
+                // For demonstration, let's use a fixed size that fits well (e.g., 180mm width)
+                const imgWidth = 180;
+                const imgHeight = 180; // Placeholder, in a real app you'd calculate aspect ratio
+
+                doc.addImage(
+                    img.dataUrl, 
+                    imgType, 
+                    (docWidth - imgWidth) / 2, // Center the image horizontally
+                    startY, 
+                    imgWidth, 
+                    availableHeight > imgHeight ? imgHeight : availableHeight
+                );
+
+                productCount++;
+            });
+
+            // 4. Save and download the PDF
+            doc.save(`${subcollectionName}_Images.pdf`);
+            alert(`Successfully generated a PDF with ${productCount} images for ${subcollectionName}.`);
+
+        } catch (err) {
+            console.error("PDF Generation Error:", err);
+            // Show a generic error to the user
+            alert("Failed to generate the image PDF. Check console for details.");
+        } finally {
+            setIsFetchingMore(false);
+        }
+    };
+    
+    // Helper function to get the image URL (must be defined or imported)
+    // Ensure this helper is available in your component scope or is defined globally
+    const getImageUrl = async (imagePath) => {
+        try {
+            const storageInstance = getStorage();
+            const imageRef = storageRef(storageInstance, imagePath);
+            return await getDownloadURL(imageRef);
+        } catch (error) {
+            console.warn(`Could not get download URL for ${imagePath}:`, error);
+            return 'URL Not Available';
+        }
+    };
+
 
     
 // --- Loading and Error States (Final Check) ---
@@ -365,6 +519,7 @@ const ProductsPage = () => {
             <FaSpinner className="loading-spinner" />
         </div>;
     }
+
     
 // --- JSX RENDER (UNCHANGED) ---
     return (
@@ -420,6 +575,22 @@ const ProductsPage = () => {
                             ))}
                         </select>
                     </div>
+                         {selectedSubcollectionId !== 'all' && (
+    <div className="filter-group">
+        <button 
+            // 🌟 CHANGE THE HANDLER 🌟
+            onClick={handleGeneratePDF}
+            disabled={isFetchingMore || isLoadingProducts}
+            className="download-btn"
+            title={`Generate PDF catalog for ${subcollectionsMap[selectedSubcollectionId]?.name || 'category'}`}
+        >
+            {/* You can still use the FaDownload icon */}
+            <FaDownload /> 
+            {/* 🌟 CHANGE THE TEXT 🌟 */}
+            {isFetchingMore ? 'Preparing PDF...' : 'Generate PDF'}
+        </button>
+    </div>
+)}
                     
                     {/* Sort by */}
                     <div className="filter-group">

@@ -48,7 +48,7 @@ const Navbar = () => {
                 <li><MiniCart /></li>
                 
                 {/* Profile Icon and Dropdown */}
-                {/* {currentUser ? (
+                 {currentUser ? (
                     <li className="profile-dropdown-container">
                         <button
                             className="profile-icon-btn"
@@ -69,7 +69,7 @@ const Navbar = () => {
                     <li className="nav-link-item">
                         <Link to="/login">Login</Link>
                     </li>
-                )} */}
+                )} 
             </ul>
         </nav>
     );

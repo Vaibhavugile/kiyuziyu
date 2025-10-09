@@ -22,6 +22,7 @@ const countryCodes = [
   { code: "+1", name: "United States" },
   { code: "+44", name: "United Kingdom" },
   { code: "+61", name: "Australia" },
+  {code:"+97", name:"Dubai"},
 ];
 
 const FIREBASE_FUNCTION_URL = "https://us-central1-jewellerywholesale-2e57c.cloudfunctions.net/sendWhatsappOtp";
