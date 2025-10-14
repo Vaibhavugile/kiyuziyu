@@ -1848,6 +1848,11 @@ const handleFinalizeSale = async () => {
 
     return 'N/A';
 };
+
+// Count users by role
+const wholesalerCount = filteredUsers.filter(user => user.role === 'wholesaler').length;
+const retailerCount = filteredUsers.filter(user => user.role === 'retailer').length;
+
   return (
     <div className="admin-page">
       <h1>Admin Dashboard</h1>
@@ -2593,10 +2598,18 @@ const handleFinalizeSale = async () => {
           </div>
         )}
         {/* --- User Management Tab --- */}
+        
       {activeTab === 'users' && (
     <div className="admin-section">
         <h2>User Management</h2>
-        
+        <div className="user-role-counts">
+  <span className="count-tag wholesaler-count">
+    🏷️ Wholesalers: {wholesalerCount}
+  </span>
+  <span className="count-tag retailer-count">
+    🛍️ Retailers: {retailerCount}
+  </span>
+</div>
         {/* --- NEW SEARCH BAR --- */}
         <div className="user-search-bar">
             <input

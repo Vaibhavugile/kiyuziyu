@@ -963,6 +963,29 @@ input[type=number] {
     font-size: 0.85rem;
     color: var(--color-gray-600);
 }
+.user-role-counts {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.count-tag {
+  background-color: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.wholesaler-count {
+  color: #2c7a7b; /* teal tone */
+}
+
+.retailer-count {
+  color: #e84a7a; /* pink tone */
+}
+
 
 .billing-product-list {
   display: grid;

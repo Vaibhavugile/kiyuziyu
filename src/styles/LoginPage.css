@@ -179,3 +179,90 @@ h2 {
         padding: 1.5rem;
     }
 }
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  color: #666;
+  font-size: 12px;
+}
+/* =========================================================
+   Dropbox-like Styles for Form Elements
+   (Applied to your existing class names)
+   ========================================================= */
+
+/* --- Form Group Container --- */
+.form-group {
+    /* Use your existing styles for margin, but ensure a clear block */
+    margin-bottom: 20px; 
+    position: relative; /* Essential for positioning hint/error messages */
+}
+
+/* --- Label Style --- */
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: #6a6a6a; /* Soft gray for the label */
+    margin-bottom: 8px; /* Space between label and input */
+    font-weight: 500; /* Slightly bold label */
+}
+
+/* --- The Main Input Element (.input) --- */
+.input {
+    /* Box Model & Layout */
+    width: 100%;
+    padding: 12px 14px; /* Generous padding */
+    box-sizing: border-box; /* Include padding/border in the element's total width */
+
+    /* Typography & Color */
+    font-size: 16px; /* Important for mobile readability and avoiding iOS zoom */
+    color: #333333; /* Dark text */
+    
+    /* Border & Aesthetics (The Dropbox Look) */
+    border: 1px solid #dddddd; /* Light, subtle border */
+    border-radius: 8px; /* Gently rounded corners */
+    transition: 
+        border-color 0.2s ease, 
+        box-shadow 0.2s ease, 
+        background-color 0.2s ease;
+}
+
+/* --- Focus State (The subtle blue glow) --- */
+.input:focus {
+    outline: none; /* Remove default browser focus ring */
+    border-color: #0070e0; /* Dropbox-blue border on focus */
+    box-shadow: 0 0 0 3px rgba(0, 112, 224, 0.15); /* Light blue glow/shadow */
+    background-color: #ffffff; /* Ensure white background */
+}
+
+/* --- Placeholder Text Color --- */
+.input::placeholder {
+    color: #aaaaaa;
+    opacity: 1; /* Ensures color applies correctly in Firefox */
+}
+
+/* --- Disabled State --- */
+.input:disabled {
+    background-color: #f7f7f7;
+    cursor: not-allowed;
+    border-color: #eeeeee;
+}
+
+/* --- Hint/Small Text (Selected Code) --- */
+.form-group .hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #999999;
+}
+.form-group .hint strong {
+    color: #333333; /* Make the actual code stand out */
+    font-weight: 600;
+}

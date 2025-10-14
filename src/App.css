@@ -661,3 +661,7 @@ body {
         flex: 0 0 auto;
     }
 }
+@media (max-width: 768px) {
+  .nav-link-item { display: none; }   /* keep hiding general links */
+  .nav-login { display: block; }      /* BUT show Login on mobile */
+}

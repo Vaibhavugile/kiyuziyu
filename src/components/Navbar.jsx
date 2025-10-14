@@ -40,7 +40,7 @@ const Navbar = () => {
             <ul className="navbar-right">
                 {/* Desktop Links (Hidden on Mobile) */}
                 <li className="nav-link-item"><Link to="/">Home</Link></li>
-                <li className="nav-link-item"><Link to="/collections">Collections</Link></li>
+                {/* <li className="nav-link-item"><Link to="/collections">Collections</Link></li> */}
                 {currentUser && <li className="nav-link-item"><Link to="/order-history">Order History</Link></li>}
                 {userRole === 'admin' && <li className="nav-link-item"><Link to="/admin">Admin</Link></li>}
                 
@@ -66,7 +66,7 @@ const Navbar = () => {
                         )}
                     </li>
                 ) : (
-                    <li className="nav-link-item">
+                    <li className="nav-link-item nav-login">
                         <Link to="/login">Login</Link>
                     </li>
                 )} 
