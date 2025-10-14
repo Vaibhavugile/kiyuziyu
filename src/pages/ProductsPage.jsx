@@ -25,6 +25,9 @@ import './ProductsPage.css';
 import { FaShoppingCart, FaArrowLeft, FaFilter, FaTimes, FaSpinner, FaDownload } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import * as autoTable from 'jspdf-autotable';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+
 // Product fetch limit per batch
 const PRODUCTS_PER_PAGE = 20;
 
@@ -61,6 +64,9 @@ const ProductsPage = () => {
 
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [error, setError] = useState(null);
+    const [isZipping, setIsZipping] = useState(false);
+const [zipProgress, setZipProgress] = useState(0); // 0..100
+
 
     const { cart, addToCart, removeFromCart } = useCart();
     const { currentUser, userRole } = useAuth();
@@ -645,6 +651,96 @@ useEffect(() => {
         </div>;
     }
 
+const getAllImagePathsForProduct = (product) => {
+  const paths = [];
+  if (product?.image) paths.push(product.image);
+  if (Array.isArray(product?.images)) {
+    for (const p of product.images) if (p) paths.push(p);
+  }
+  // de-dupe just in case
+  return Array.from(new Set(paths));
+};
+const handleDownloadAllImagesZip = async () => {
+  try {
+    if (selectedSubcollectionId !== 'all') {
+      alert('Switch filter to "All Products" to download every image.');
+      return;
+    }
+    // We rely on your existing allProductsCache which is filled when "all" is selected.
+    const allProducts = allProductsCache.current || [];
+    if (!allProducts.length) {
+      alert('No products loaded yet. Scroll or use "Load More" once, then try again.');
+      return;
+    }
+
+    setIsZipping(true);
+    setZipProgress(0);
+
+    const storageInstance = getStorage();
+    const zip = new JSZip();
+
+    // Collect every (product, imagePath) pair
+    const imageJobs = [];
+    for (const product of allProducts) {
+      const imagePaths = getAllImagePathsForProduct(product);
+      for (let i = 0; i < imagePaths.length; i++) {
+        imageJobs.push({ product, imagePath: imagePaths[i], index: i });
+      }
+    }
+
+    if (!imageJobs.length) {
+      setIsZipping(false);
+      alert('No image paths found across products.');
+      return;
+    }
+
+    let completed = 0;
+
+    // Fetch each image blob and add to zip
+    for (const job of imageJobs) {
+      try {
+        const imageRef = storageRef(storageInstance, job.imagePath);
+        const url = await getDownloadURL(imageRef);
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+
+        // build a friendly filename: CODE_[n].ext (fallbacks if missing)
+        const codeSafe = (job.product?.productCode || job.product?.id || 'product').toString().replace(/[^\w\-]+/g, '_');
+        const ext = (blob.type && blob.type.split('/')[1]) ? blob.type.split('/')[1] : 'jpg';
+        const idx = job.index > 0 ? `_${job.index + 1}` : '';
+        const subfolder = job.product?.subcollectionId || 'uncategorized';
+
+        zip.folder(subfolder)?.file(`${codeSafe}${idx}.${ext}`, blob);
+
+      } catch (imgErr) {
+        // Skip failed images but continue
+        console.warn('Skipping image due to error:', job.imagePath, imgErr);
+      } finally {
+        completed += 1;
+        setZipProgress(Math.round((completed / imageJobs.length) * 100));
+      }
+    }
+
+    // Generate ZIP (with progress callback for large sets)
+    const zipBlob = await zip.generateAsync(
+      { type: 'blob' },
+      (meta) => {
+        // meta.percent is 0..100, overwrite with more granular progress for the compression stage
+        setZipProgress(Math.max(zipProgress, Math.round(meta.percent)));
+      }
+    );
+
+    const zipName = `${(mainCollection?.title || collectionId || 'Collection').toString().replace(/[^\w\-]+/g, '_')}_All_Images.zip`;
+    saveAs(zipBlob, zipName);
+
+  } catch (err) {
+    console.error('ZIP creation failed:', err);
+    alert('Failed to create ZIP. Check console for details.');
+  } finally {
+    setIsZipping(false);
+    setZipProgress(0);
+  }
+};
 
     // --- JSX RENDER (UNCHANGED) ---
     return (
@@ -715,6 +811,19 @@ useEffect(() => {
                             </button>
                         </div>
                     )}
+                    {selectedSubcollectionId === 'all' && (
+  <div className="filter-group">
+    <button
+      onClick={handleDownloadAllImagesZip}
+      disabled={isZipping || isFetchingMore || isLoadingProducts}
+      className="download-btn"
+      title="Download ZIP of all product images"
+    >
+      <FaDownload />
+      {isZipping ? `Zipping... ${zipProgress}%` : 'Download ZIP (All Images)'}
+    </button>
+  </div>
+)}
 
                     {/* Sort by */}
                     <div className="filter-group">
