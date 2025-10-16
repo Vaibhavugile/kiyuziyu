@@ -1,69 +1,88 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from "react";
+import "./HeroSection.css";
 
-// Import your five images here (adjust paths/names as needed)
-import heroImage1 from '../assets/h10.png'; 
-import heroImage2 from '../assets/h11.png';
-import heroImage3 from '../assets/h12.png';
-import heroImage4 from '../assets/h16.png';
-import heroImage5 from '../assets/h15.png';
+/* Local image imports */
+import hero1 from "../assets/hero/hero1.jpg";
+import hero2 from "../assets/hero/hero2.jpg";
+import hero3 from "../assets/hero/hero3.jpg";
+import hero4 from "../assets/hero/hero7.jpg";
+import hero5 from "../assets/hero/hero5.jpg";
 
-const heroImages = [
-  { url: heroImage1 },
-  { url: heroImage2 },
-  { url: heroImage3 },
-  { url: heroImage4 },
-  { url: heroImage5 },
-];
+export default function HeroSection() {
+  const imgs = [
+    { src: hero1, alt: "Timeless Elegance" },
+    { src: hero2, alt: "Luxury in Motion" },
+    { src: hero3, alt: "Bespoke Beauty" },
+    { src: hero4, alt: "Gilded Serenity" },
+    { src: hero5, alt: "Eternal Shine" },
+  ];
 
-const HeroSection = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const slideInterval = 5000; // Slide every 5 seconds
+  const [index, setIndex] = useState(0);
 
-  const nextSlide = useCallback(() => {
-    setCurrentIndex((prevIndex) => 
-      (prevIndex === heroImages.length - 1 ? 0 : prevIndex + 1)
-    );
-  }, []);
-
+  // Auto-change slide
   useEffect(() => {
-    const timer = setInterval(nextSlide, slideInterval);
-    // Clear the interval when the component unmounts
-    return () => clearInterval(timer);
-  }, [nextSlide]);
-
-  // Function to jump to a specific slide
-  const goToSlide = (index) => {
-    setCurrentIndex(index);
-  };
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % imgs.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [imgs.length]);
 
   return (
-    <div className="hero-slider">
-      
-      {/* Background Image Container with Crossfade Effect */}
-      {heroImages.map((image, index) => (
-        <div 
-          key={index}
-          className={`hero-slide ${index === currentIndex ? 'active' : ''}`}
-          style={{ backgroundImage: `url(${image.url})` }}
-        >
-          {/* Subtle Overlay for Mood/Depth */}
-          <div className="hero-overlay-minimal"></div> 
+    <div className="split-hero-wrap">
+      <section className="split-hero" aria-label="Luxury Jewelry Hero">
+        {/* LEFT SIDE (image slideshow) */}
+        <div className="split-left">
+          {imgs.map((it, i) => (
+            <figure
+              key={i}
+              className={`slide ${i === index ? "active" : ""}`}
+              aria-hidden={i === index ? "false" : "true"}
+            >
+              <img src={it.src} alt={it.alt} loading={i === index ? "eager" : "lazy"} />
+            </figure>
+          ))}
         </div>
-      ))}
 
-      {/* Navigation Dots (REINTRODUCED) */}
-      <div className="slider-dots">
-        {heroImages.map((_, index) => (
-          <span
-            key={index}
-            className={`dot ${index === currentIndex ? 'active' : ''}`}
-            onClick={() => goToSlide(index)}
-          ></span>
-        ))}
-      </div>
-      
+        {/* RIGHT SIDE (content) */}
+        <aside className="split-right">
+          <div className="right-inner">
+            <h2 className="right-title">Heirloom Pieces with a Modern Twist</h2>
+            <p className="right-sub">
+              Limited collections • Bespoke finishes • Responsibly sourced
+            </p>
+
+            <div className="feature-cards">
+              <div className="card">
+                <div className="card-dot" />
+                <div>
+                  <strong>Custom Consult</strong>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-dot" />
+                <div>
+                  <strong>Signature Packaging</strong>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-dot" />
+                <div>
+                  <strong>Certified Materials</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="right-actions">
+              <a className="btn-primary" href="#shop">
+                Shop New
+              </a>
+              <a className="btn-ghost" href="#studio">
+                Our Studio
+              </a>
+            </div>
+          </div>
+        </aside>
+      </section>
     </div>
   );
-};
-
-export default HeroSection;
+}

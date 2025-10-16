@@ -1,324 +1,319 @@
-/* NewArrivalsSection.css */
-
-/* 1. KEYFRAME (ENTRANCE ONLY) */
-@keyframes fadeInSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+:root {
+  --gold: #c8a165;
+  --light-gold: #f5e1b8;
+  --cream-bg1: #fffaf2;
+  --cream-bg2: #fff3e4;
+  --dark: #1a1a1a;
+  --shadow: rgba(0, 0, 0, 0.08);
 }
 
-/* 2. SECTION CONTAINER (jewel-grid-section) */
-.jewel-grid-section { 
-    padding: 6rem 0; 
-    background-color: #f7f7f7; 
-    text-align: center;
-    /* Keeps the entire section centered and limits total width on large screens */
-    max-width: 1200px; 
-    margin: 0 auto;
+/* ========== SECTION ========== */
+.new-arrivals-premium {
+  position: relative;
+  padding: 6rem 1.5rem;
+  background: linear-gradient(135deg, var(--cream-bg1) 0%, var(--cream-bg2) 100%);
+  background-attachment: fixed;
+  background-size: 200% 200%;
+  background-position: center 0;
+  text-align: center;
+  overflow: hidden;
+  perspective: 1000px;
+  animation: ambientShimmer 18s ease-in-out infinite alternate;
+  will-change: background-position, opacity;
 }
 
-.jewel-grid-section h3 {
-    font-size: 2.8rem;
-    font-weight: 800;
-    color: #1a1a1a;
-    margin-bottom: 4rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    padding: 0 2rem; 
+/* 🌤️ Ambient shimmer wave (light motion across background) */
+@keyframes ambientShimmer {
+  0% { background-position: 0% 50%; filter: brightness(1); }
+  50% { background-position: 100% 50%; filter: brightness(1.05); }
+  100% { background-position: 0% 50%; filter: brightness(1); }
 }
 
-/* 3. GRID/CONTAINER (jewel-grid-container) */
-/* --- DESKTOP: Neutral Base Styles. Masonry is applied via inline JSX styles. --- */
-.jewel-grid-container { 
-    /* Set padding and width for desktop masonry */
-    padding: 0 2rem; 
-    width: calc(100% - 4rem);
-    margin: 0 auto;
+/* 🪞 LUXURY GOLD PARTICLE WAVE BACKGROUND */
+.new-arrivals-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 227, 175, 0.35), transparent 70%),
+    radial-gradient(circle at 70% 80%, rgba(255, 215, 150, 0.25), transparent 75%),
+    radial-gradient(circle at 50% 50%, rgba(255, 240, 200, 0.15), transparent 80%);
+  background-size: 200% 200%;
+  opacity: 0.6;
+  z-index: 0;
+  animation: goldenWave 25s ease-in-out infinite alternate;
+  pointer-events: none;
 }
 
-/* Hide scrollbar for aesthetics (Only relevant for mobile/tablet scroll) */
-.jewel-grid-container::-webkit-scrollbar {
-    height: 6px;
-}
-.jewel-grid-container::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 10px;
-}
-.jewel-grid-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+@keyframes goldenWave {
+  0% { transform: translateY(0) scale(1); opacity: 0.55; background-position: 0% 50%; }
+  50% { transform: translateY(-2%) scale(1.05); opacity: 0.75; background-position: 100% 50%; }
+  100% { transform: translateY(0) scale(1); opacity: 0.55; background-position: 0% 50%; }
 }
 
-
-/* 4. BASE TILE STYLING (jewel-grid-tile) */
-.jewel-grid-tile { 
-    position: relative;
-    overflow: hidden; 
-    border-radius: 12px; 
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1); 
-    /* Increased transition time for a smoother, more 'premium' feel */
-    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease;
-    text-decoration: none;
-    color: inherit;
-
-    /* Entrance Animation */
-    opacity: 0;
-    animation: fadeInSlideUp 0.6s ease-out forwards;
-    animation-delay: calc(var(--item-index) * 0.05s); 
+/* ✨ Sparkle particle layer */
+.sparkle-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+  transform-style: preserve-3d;
 }
 
-.jewel-grid-tile:hover {
-    transform: scale(1.02); 
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25); /* More pronounced shadow */
+.sparkle {
+  position: absolute;
+  width: 3.5px;
+  height: 3.5px;
+  background: radial-gradient(circle, #fffbe0 0%, #ffe2a8 60%, transparent 100%);
+  border-radius: 50%;
+  opacity: 0.8;
+  filter: blur(0.4px);
+  transform-origin: center;
+  animation:
+    sparkleFloat 16s linear infinite,
+    sparkleTwinkle 3.5s ease-in-out infinite,
+    sparkleRotate 20s linear infinite;
 }
 
-/* 5. IMAGE WRAPPER (jewel-tile-img-wrapper) */
-.jewel-tile-img-wrapper { 
-    overflow: hidden;
-    width: 100%;
+.sparkle {
+  top: calc(var(--i) * 4%);
+  left: calc(var(--i) * 3%);
+  animation-delay: calc(var(--i) * -1.3s);
+  transform: translateZ(calc(var(--i) * 0.5px));
 }
 
-/* 6. IMMERSIVE IMAGE STYLING (jewel-tile-img) */
-.jewel-tile-img { 
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    
-    transform: scale(1.0); 
-    filter: brightness(1.0) grayscale(0); /* Add grayscale for a subtle effect */
-    transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), 
-                filter 0.8s ease-out; /* Longer filter transition */
+/* Sparkle motion and rotation */
+@keyframes sparkleFloat {
+  0% { transform: translateY(120%) scale(0.5) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  40% { transform: translateY(0) scale(1) rotate(90deg); opacity: 0.9; }
+  90% { transform: translateY(-100%) scale(1.3) rotate(180deg); opacity: 0.6; }
+  100% { transform: translateY(-150%) scale(0.8) rotate(270deg); opacity: 0; }
+}
+@keyframes sparkleTwinkle {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.3); }
+  60% { opacity: 0.9; transform: scale(0.95); }
+}
+@keyframes sparkleRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.jewel-grid-tile:hover .jewel-tile-img {
-    transform: scale(1.08); 
-    filter: brightness(0.9) grayscale(0.05); /* Slight color saturation change on hover */
+/* ========== HEADER ========== */
+.arrivals-header {
+  position: relative;
+  z-index: 2;
+  margin-bottom: 3rem;
+  text-align: center;
 }
 
-
-/* 7. INFO OVERLAY (jewel-tile-info-overlay) */
-.jewel-tile-info-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 15px 20px;
-    
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.4) 70%, transparent);
-    color: white;
-    text-align: left;
-    
-    /* ENHANCEMENT: Initial state is more retracted and transformed */
-    transform: translateY(30%) scale(0.98); 
-    opacity: 0;
-    filter: blur(5px); /* Add blur for dramatic entrance */
-
-    /* Custom, slightly longer transition for a 'smoother' feel */
-    transition: 
-        transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), 
-        opacity 0.4s ease-out,
-        filter 0.5s ease-out;
-    z-index: 10;
+.arrivals-header h2 {
+  font-size: clamp(1.8rem, 3.4vw, 2.8rem);
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--gold), var(--light-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 10px rgba(200, 161, 101, 0.2);
 }
 
-.jewel-grid-tile:hover .jewel-tile-info-overlay {
-    /* ENHANCEMENT: Returns to normal state */
-    transform: translateY(0) scale(1); 
-    opacity: 1;
-    filter: blur(0);
+.arrivals-header p {
+  color: rgba(107, 107, 107, 0.9);
+  margin-top: 0.6rem;
+  font-weight: 500;
+  font-size: 1.1rem;
 }
 
-/* Price and Name Labels */
-.jewel-info-name {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* ========== GRID ========== */
+.arrivals-grid {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.6rem;
+  max-width: 1300px;
+  margin: 0 auto;
 }
 
-.jewel-info-price {
-    display: block;
-    font-size: 1.3rem; 
-    font-weight: 800;
-    color: #ffd700; 
-    margin-top: 5px;
-    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    
-    /* ENHANCEMENT: Initial state for price is hidden, only appears after overlay slides */
-    opacity: 0;
-    transform: translateY(5px);
-    transition: opacity 0.3s ease-out 0.2s, transform 0.3s ease-out 0.2s; /* Delayed appearance */
+/* ========== CARD ========== */
+.arrival-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08); 
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 10px 28px var(--shadow);
+  opacity: 0;
+  transform: translateY(20px) rotateX(4deg);
+  animation: fadeUpCard 0.8s ease forwards;
+  animation-delay: var(--delay);
+  transition: transform 0.5s ease, box-shadow 0.4s ease;
+  will-change: transform;
 }
 
-.jewel-grid-tile:hover .jewel-info-price {
-    opacity: 1;
-    transform: translateY(0);
+@keyframes fadeUpCard {
+  to { opacity: 1; transform: translateY(0) rotateX(0); }
 }
 
+/* ========== IMAGE ========== */
+.arrival-image-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.arrival-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.02);
+  transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-/* --- MEDIA QUERIES (Flexbox/Horizontal Scroll takes over for mobile/tablet) --- */
+/* ✨ Reflection Sheen Effect */
+.arrival-image-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-20deg);
+  opacity: 0;
+  pointer-events: none;
+}
+.arrival-card:hover .arrival-image-wrapper::before {
+  opacity: 1;
+  animation: sheenSweep 1.8s ease-in-out forwards;
+}
+@keyframes sheenSweep {
+  0% { left: -120%; opacity: 0; }
+  20% { opacity: 0.6; }
+  60% { left: 130%; opacity: 0.4; }
+  100% { left: 150%; opacity: 0; }
+}
 
-/* Tablet Screens (1024px and down) */
+/* Hover zoom */
+.arrival-card:hover img { transform: scale(1.1); }
+
+/* Glow overlay */
+.arrival-hover-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 240, 210, 0.35), rgba(255, 255, 255, 0.05));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* Hover tilt & glow */
+.arrival-card:hover {
+  transform: rotateX(6deg) rotateY(-6deg) translateY(-10px);
+  box-shadow: 0 20px 40px rgba(184, 145, 90, 0.18);
+}
+.arrival-card:hover .arrival-hover-glow { opacity: 1; }
+
+/* ========== INFO (GLASS-GOLD) ========== */
+.arrival-info {
+  padding: 1rem 1.2rem 1.4rem;
+  background: rgba(255, 250, 240, 0.25); /* remove white */
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0 0 18px 18px;
+  box-shadow:
+    inset 0 2px 6px rgba(255, 255, 255, 0.12),
+    0 -1px 8px rgba(200, 161, 101, 0.08);
+  transition: background 0.4s ease;
+}
+
+.arrival-card:hover .arrival-info {
+  background: rgba(255, 247, 230, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.arrival-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #3a2a14;
+  margin: 0.2rem 0 0.3rem;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.3);
+}
+.arrival-price {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--gold);
+  text-shadow: 0 1px 4px rgba(200, 161, 101, 0.3);
+}
+
+/* Optional hover glow */
+.arrival-card:hover .arrival-info::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 240, 210, 0.35), transparent 70%);
+  border-radius: inherit;
+  opacity: 0.5;
+  animation: infoGlow 1.6s ease-in-out infinite alternate;
+}
+@keyframes infoGlow {
+  from { opacity: 0.4; transform: scale(1); }
+  to { opacity: 0.7; transform: scale(1.03); }
+}
+
+/* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
-    .jewel-grid-section {
-        max-width: 100%; 
-        padding: 4rem 0; 
-    }
-    
-    .jewel-grid-container {
-        /* Re-enable Flexbox for Horizontal Scroll */
-        display: flex; /* */
-        flex-direction: column; /* */
-        flex-wrap: wrap; /* */
-        justify-content: flex-start; /* */
-        align-content: flex-start; /* */
-        
-        /* Set a fixed height for 2 rows (2*330px tile height + 1*15px gap) = 675px */
-        height: 675px; /* */
-        
-        /* Set scroll properties */
-        overflow-x: scroll; /* */
-        overflow-y: hidden; /* */
-        gap: 15px; /* */
-        padding: 0 2rem; /* */
-        scroll-snap-type: x mandatory; /* */
-        
-        /* Reset Masonry styles inherited from Desktop */
-        column-count: initial !important; 
-        column-gap: initial !important; 
-        width: 100%;
-        margin: 0;
-    }
-    
-    .jewel-grid-tile {
-        /* Re-enable Flex item properties */
-        flex: 0 0 auto; /* */
-        scroll-snap-align: start; /* */
-        
-        /* Adjusted tile size for tablet view */
-        width: 45vw; /* */
-        height: 330px; /* */
-        
-        /* Reset Masonry styles inherited from Desktop */
-        display: block !important;
-        margin-bottom: 0 !important;
-        break-inside: initial !important;
-    }
-    
-    /* ENHANCEMENT for Tablet: Overlay is slightly visible by default */
-    .jewel-tile-info-overlay {
-        transform: translateY(50%) scale(1); /* Move up slightly but keep scale 1 */
-        opacity: 0.7; /* Partially opaque */
-        filter: blur(0);
-    }
-    .jewel-info-price {
-        opacity: 0; /* Price is still hidden by default on tablet */
-        transform: translateY(5px);
-    }
-    
-    /* FULL visibility on tablet tap/hover */
-    .jewel-grid-tile:hover .jewel-tile-info-overlay {
-        transform: translateY(0); 
-        opacity: 1;
-    }
-    .jewel-grid-tile:hover .jewel-info-price {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  .new-arrivals-premium { padding: 4rem 1rem; }
 }
-/* --- DESKTOP (1025px and up): HORIZONTAL SCROLL FIX (X-Direction) --- */
-/* --- DESKTOP (1025px and up): VERTICAL SCROLL FIX --- */
-@media (min-width: 1025px) {
-    .jewel-grid-container {
-        /*
-        * 💥 CRITICAL FIX 💥
-        * Set a fixed height for the container and enable vertical scrolling.
-        */
-        height: 600px;
-        overflow-y: scroll;
-        overflow-x: scroll; /* Ensure horizontal scroll is off */
-        
-        /* Ensure columns still work by keeping necessary properties */
-        column-count: 4 !important; 
-        column-gap: 15px !important; 
-        width: calc(100% - 4rem) !important;
-    }
-    
-    /* Make the vertical scrollbar styled for desktop */
-    .jewel-grid-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    .jewel-grid-container::-webkit-scrollbar-thumb {
-        background-color: #c2c2c2;
-        border-radius: 10px;
-    }
-    .jewel-grid-container::-webkit-scrollbar-track {
-        background: #e6e6e6;
-    }
+@media (max-width: 640px) {
+  .arrivals-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding: 0 1rem;
+    scroll-snap-type: x mandatory;
+  }
+  .arrival-card {
+    flex: 0 0 80%;
+    scroll-snap-align: center;
+    min-width: 260px;
+  }
 }
-/* Mobile Screens (768px and down) */
-@media (max-width: 768px) {
-    /* 1. Tighter section padding */
-    .jewel-grid-section {
-        padding: 3rem 0; 
-    }
-    .jewel-grid-section h3 {
-        font-size: 2rem;
-        margin-bottom: 2rem;
-        padding: 0 1rem;
-    }
-    
-    /* 2. Tighter container padding and tile size for more density */
-    .jewel-grid-container {
-        /* Set a fixed height for 2 rows (2*300px tile height + 1*10px gap) = 610px */
-        height: 610px; /* */
-        gap: 10px; /* */
-        padding: 0 1rem; /* Reduced padding on sides */
-    }
-    
-    .jewel-grid-tile {
-        /* Show 1.5 tiles on screen (65vw width) */
-        width: 65vw; /* */
-        height: 300px; /* */
-        border-radius: 8px; /* */
-    }
-    
-    /* 3. Optimize Overlay and Text Size for smaller tile */
-    .jewel-tile-info-overlay {
-        padding: 8px 10px; /* */
-        
-        /* REVERTING to fully visible by default on small screen (768px) for maximum clarity */
-        transform: translateY(0); 
-        opacity: 1; 
-        filter: blur(0);
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent); /* */
-        transition: none; /* Disable complex transition for touch simplicity */
-    }
-    .jewel-info-name { 
-        font-size: 0.85rem; /* */
-    }
-    .jewel-info-price { 
-        font-size: 1.0rem; /* */
-        margin-top: 2px; /* */
-        opacity: 1; /* Price is fully visible by default on mobile */
-        transform: translateY(0);
-        transition: none;
-    }
-    
-    /* Disable hover effects and keep info visible for touch screens */
-    .jewel-grid-tile:hover {
-        transform: none !important; /* */
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* */
-    }
-    .jewel-grid-tile:hover .jewel-tile-img {
-        transform: scale(1.0); /* */
-    }
+
+/* ============================= */
+/* 🔱 GLOBAL SECTION ALIGNMENT FIX */
+/* ============================= */
+.arrivals-header { text-align: center; margin: 0 auto 3rem; max-width: 800px; }
+.arrivals-header h2, .arrivals-header p {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+.trending-premium .arrivals-header {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  margin-bottom: 3rem;
+  text-align: center;
+}
+.arrivals-header h2 {
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin-bottom: 0.4rem;
+}
+.arrivals-header p {
+  font-size: 1.05rem;
+  color: #6b6b6b;
+  font-weight: 500;
+  opacity: 0.9;
 }

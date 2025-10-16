@@ -1,0 +1,277 @@
+/* Navbar.css - kj-* namespace with sticky glass blur + gold text updates */
+
+:root{
+  --kj-gold: #c8a165;
+  --kj-gold-2: #f5e1b8;
+  --kj-bg: rgba(255,255,255,0.88);
+  --kj-sticky-bg: rgba(255,255,255,0.62);
+  --kj-dark: #151515;
+  --kj-muted: #6b6b6b;
+  --kj-shadow: rgba(0,0,0,0.08);
+
+  /* handy gradient for text */
+  --kj-gold-grad: linear-gradient(90deg, var(--kj-gold), var(--kj-gold-2));
+}
+
+/* Header base */
+.kj-header {
+  position: relative;
+  width: 100%;
+  z-index: 60;
+  transition: all 300ms ease;
+}
+
+/* Sticky state - glass blur */
+.kj-header.kj-sticky {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--kj-sticky-bg);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  border-bottom: 1px solid rgba(30,20,10,0.06);
+  box-shadow: 0 8px 30px rgba(20,12,8,0.08);
+}
+
+/* Nav row */
+.kj-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 12px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Left logo */
+.kj-nav-left { flex: 0 0 auto; display:flex; align-items:center; gap:12px; }
+.kj-logo-link { display:inline-flex; align-items:center; }
+.kj-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: transform .36s cubic-bezier(.2,.9,.2,1), width 300ms ease, height 300ms ease;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+/* small logo when sticky */
+.kj-logo.small {
+  width: 36px;
+  height: 36px;
+  transform: translateY(-1px) scale(0.98);
+}
+
+/* Center logo text */
+.kj-nav-center { flex: 1 1 auto; display:flex; justify-content:center; align-items:center; pointer-events:none; }
+.kj-text-logo { height:36px; object-fit:contain; opacity:0.98; transition: height 220ms ease; }
+.kj-header.kj-sticky .kj-text-logo { opacity: 0.95; transform: translateY(-1px); }
+
+/* Right area */
+.kj-nav-right { flex: 0 0 auto; display:flex; align-items:center; gap:8px; }
+
+/* Links (desktop) */
+.kj-links { list-style:none; margin:0; padding:0; display:flex; gap:16px; align-items:center; }
+
+/* ===== GOLD TEXT LINKS ===== */
+/* Use background-clip for gradient text on links */
+.kj-link {
+  background: var(--kj-gold-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* fallback */
+  text-decoration: none;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: transform .22s ease, text-shadow .22s ease;
+}
+.kj-link:hover,
+.kj-link:focus {
+  transform: translateY(-3px);
+  text-shadow: 0 6px 18px rgba(200,161,101,0.14);
+  outline: none;
+}
+
+/* If you prefer a subtle filled pill on hover */
+.kj-link:hover::selection,
+.kj-link:focus::selection { background: transparent; }
+
+/* Icons area */
+.kj-icons { display:flex; align-items:center; gap:8px; }
+
+/* Mini cart wrapper */
+.kj-minicart-wrapper { display:flex; align-items:center; }
+
+/* ===== PROFILE BUTTON & DROPDOWN ===== */
+.kj-profile-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  background:transparent;
+  border:none;
+  padding:6px;
+  cursor:pointer;
+  color:var(--kj-dark);
+  transition: transform .18s ease, box-shadow .18s ease, color .18s ease;
+}
+
+/* make profile icon golden on hover/active */
+.kj-profile-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.06); color: var(--kj-gold); }
+
+/* Profile dropdown style — menu items in gold text */
+.kj-profile-menu {
+  position: absolute;
+  right: 20px;
+  margin-top:8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,250,245,0.98));
+  border-radius:12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+  padding:8px;
+  min-width:140px;
+  backdrop-filter: blur(6px);
+}
+.kj-menu-item {
+  display:block;
+  width:100%;
+  background:transparent;
+  border:none;
+  padding:10px 12px;
+  text-align:left;
+  cursor:pointer;
+  font-weight:700;
+  /* gold gradient text */
+  background: var(--kj-gold-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.kj-menu-item:hover { background: rgba(0,0,0,0.03); }
+
+/* Login link (desktop) - gold text with subtle glass pill */
+.kj-login-link {
+  background: var(--kj-gold-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight:700;
+  padding:6px 10px;
+  border-radius:10px;
+  text-decoration:none;
+  background-origin: border-box;
+}
+
+/* Hamburger (mobile) */
+.kj-hamburger {
+  display:none;
+  background:transparent;
+  border:none;
+  padding:8px;
+  border-radius:8px;
+  cursor:pointer;
+  color: var(--kj-dark);
+}
+.kj-hamburger.open { transform: rotate(180deg); }
+
+/* make the hamburger icon/glyph golden when hovered */
+.kj-hamburger:hover { color: var(--kj-gold); }
+
+/* ===== MOBILE BACKDROP & MENU ===== */
+.kj-mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,6,6,0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .28s ease, visibility .28s;
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+.kj-mobile-backdrop.visible { opacity: 1; visibility: visible; }
+
+.kj-mobile-menu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: min(420px, 92vw);
+  height: 100vh;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,245,0.95));
+  box-shadow: -20px 0 60px rgba(0,0,0,0.12);
+  transition: right .28s cubic-bezier(.2,.9,.2,1);
+  z-index: 60;
+  display:flex;
+  flex-direction:column;
+}
+.kj-mobile-menu.open { right: 0; }
+
+/* Inner content */
+.kj-mobile-inner { padding: 18px; display:flex; flex-direction:column; gap:18px; height:100%; }
+.kj-mobile-top { display:flex; align-items:center; justify-content:space-between; }
+.kj-mobile-logo img { width:48px; height:48px; border-radius:50%; object-fit:cover; }
+.kj-mobile-close { background:transparent; border:none; padding:8px; cursor:pointer; }
+
+/* ===== MOBILE NAV LINKS — golden text ===== */
+.kj-mobile-nav ul { list-style:none; padding:0; margin: 6px 0 0 0; display:flex; flex-direction:column; gap:6px; }
+.kj-mobile-nav a {
+  text-decoration:none;
+  padding:12px 10px;
+  border-radius:8px;
+  display:block;
+  font-weight:800;
+  background: var(--kj-gold-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.kj-mobile-nav a:hover { background: rgba(0,0,0,0.03); }
+
+/* Mobile actions */
+.kj-mobile-actions { margin-top:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:20px; }
+.kj-mobile-cart { display:flex; }
+
+/* Solid action buttons keep gold background but text stays readable */
+.kj-btn-solid {
+  display:inline-block;
+  background: linear-gradient(90deg,var(--kj-gold),var(--kj-gold-2));
+  color:#201403;
+  padding:10px 14px;
+  border-radius:999px;
+  text-decoration:none;
+  font-weight:800;
+  text-align:center;
+}
+.kj-btn-plain {
+  display:inline-block;
+  padding:10px 14px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.06);
+  background:transparent;
+  font-weight:800;
+  color: transparent;
+  background: var(--kj-gold-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* hide desktop links on small screens */
+@media (max-width: 880px) {
+  .kj-text-logo { opacity: 0.98; pointer-events:none; }
+  .kj-links { display:none; }
+  .kj-hamburger { display:inline-flex; }
+  .mobile-hidden { display:none; }
+}
+
+/* desktop tweaks */
+@media (min-width: 881px) {
+  .kj-nav { padding: 14px 28px; }
+  .kj-text-logo { height:42px; }
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .kj-mobile-menu, .kj-mobile-backdrop, .kj-logo, .kj-profile-btn { transition:none !important; animation:none !important; }
+}

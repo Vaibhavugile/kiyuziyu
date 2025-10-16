@@ -1,161 +1,203 @@
-/* Container for the entire card to enable 3D effects */
-.collections-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 2rem;
-  justify-items: center;
-  padding: 2rem 0;
-  perspective: 1000px; /* Establishes a 3D space for the cards */
+:root{
+  --gold: #b8915f;
+  --muted: #888;
+  --card-shadow: 0 12px 34px rgba(12,12,12,0.16);
 }
 
-/* Card Container */
+/* --- base grid (unchanged) --- */
+.collections-grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 1.2rem; padding: 1rem 0; }
+@media (max-width:1024px){ .collections-grid{ grid-template-columns: repeat(2,1fr); } }
+@media (max-width:640px){ .collections-grid{ grid-template-columns: 1fr; gap:0.9rem; } }
+
+/* --- card base --- */
 .collection-card {
-  display: flex;
-  flex-direction: column;
   position: relative;
-  width: 100%;
-  max-width: 300px;
-  min-height: 350px;
-  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-  transition: transform 0.4s ease-out, box-shadow 0.4s ease-out;
-  cursor: pointer;
+  border-radius: 16px;
+  min-height: 320px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
+  box-shadow: var(--card-shadow);
+  transition: transform 360ms cubic-bezier(.2,.9,.2,1), box-shadow 360ms ease;
+  isolation: isolate;
+}
+/* Soft shadow to make each card pop more against gradient bg */
+.collection-card {
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(185, 145, 95, 0.1), 0 0 0 1px rgba(185, 145, 95, 0.05);
+  border-radius: 16px;
 }
 
-/* Hover Effect: Adds 3D tilt and a stronger shadow */
-.collection-card:hover {
-  transform: rotateX(5deg) rotateY(-5deg) translateY(-10px);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+
+/* hover lift (keeps shadow but does NOT darken image) */
+.collection-card:hover,
+.collection-card:focus-within {
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: 0 30px 60px rgba(7,7,7,0.22);
 }
 
-/* Image Section */
-.collection-image-container {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+/* --- image layer --- */
+.collection-card-media{
   position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #efebe7;
 }
 
-.collection-image {
+.collection-image,
+.collection-image--placeholder {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease-out;
+  display: block;
+  transition: transform 1.2s cubic-bezier(.2,.9,.2,1), filter 600ms ease;
+  transform-origin: center;
 }
 
-/* Image Zoom on Hover */
-.collection-card:hover .collection-image {
-  transform: scale(1.1);
+/* keep a gentle zoom but NO heavy dim/brightness change on hover */
+.collection-card:hover .collection-image,
+.collection-card:focus-within .collection-image {
+  transform: scale(1.04);
+  filter: none; /* <- removed brightness() so image stays vivid */
 }
 
-/* * UPDATED INFO SECTION: 
- * - Stronger gradient for better text contrast.
- * - Added `padding-top` to prevent content clipping on slide up.
- * - Added `pointer-events: none` to ensure the click handler on the card itself works.
- */
-.collection-info {
+/* gentle shimmer (optional) */
+.image-shimmer {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  padding: 1.5rem;
-  /* Strengthened gradient: Darker black (0, 0, 0) and extends further up */
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
-  color: #fff;
-  transform: translateY(100%);
-  transition: transform 0.4s ease-out;
-  padding-top: 50%; /* Ensures the top content isn't clipped */
-  pointer-events: none; /* Allows clicks to pass through to the underlying card */
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0) 100%);
+  mix-blend-mode: overlay;
+  opacity: 0.28;
+  transform: translateX(-110%);
+  transition: transform 1.6s ease;
+}
+.collection-card:hover .image-shimmer,
+.collection-card:focus-within .image-shimmer {
+  transform: translateX(110%);
 }
 
-/* Info Section slides up on hover */
-.collection-card:hover .collection-info {
-  transform: translateY(0);
-}
-
-/* * UPDATED TEXT STYLES: 
- * - Explicitly set color to white to ensure contrast against the dark overlay.
- */
-.title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #fff; /* Explicitly set text color */
-}
-
-.description {
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-  color: #fff; /* Explicitly set text color */
-}
-
-.price {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #fff; /* Explicitly set text color */
-}
-
-/* Styles for the new admin actions container */
-.admin-actions {
+/* --- Explore button (always visible) --- */
+.collection-hover-button {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
   display: flex;
-  gap: 5px;
+  justify-content: center;
+  align-items: center;
 }
 
-.admin-actions button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  font-weight: bold;
+.btn-explore{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+  font-weight: 800;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: transform 260ms cubic-bezier(.2,.9,.2,1), box-shadow 260ms ease, background 260ms ease;
+  backdrop-filter: blur(6px);
+  z-index: 8;
 }
 
-.admin-actions button:first-child {
-  background-color: #3498db; /* Blue for Edit */
+/* arrow micromove */
+.arrow{ font-size: 1.2rem; transition: transform 260ms ease; }
+.btn-explore:hover .arrow,
+.btn-explore:focus .arrow { transform: translateX(6px); }
+
+/* glow under button */
+.btn-glow{
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -10px;
+  width: 60%;
+  height: 8px;
+  border-radius: 999px;
+  filter: blur(8px);
+  background: linear-gradient(90deg, rgba(184,145,90,0.18), rgba(255,215,140,0.12));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms ease;
+  z-index: 3;
+}
+.collection-card:hover .btn-glow,
+.collection-card:focus-within .btn-glow{
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1.12);
+  animation: btnPulse 1800ms infinite;
+}
+@keyframes btnPulse {
+  0% { transform: translateX(-50%) scaleX(1); opacity: 0.96; }
+  50% { transform: translateX(-50%) scaleX(1.22); opacity: 0.6; }
+  100% { transform: translateX(-50%) scaleX(1); opacity: 0.96; }
+}
+
+/* --- HOVER TITLE: minimal, transparent, readable --- */
+/* We remove the dark box. Only the text is shown with text-shadow for contrast. */
+.hover-info{
+  position: absolute;
+  bottom: 78px;                 /* just above the button */
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  width: auto;
+  max-width: 88%;
+  padding: 0;                   /* no panel padding so image shows fully */
+  border-radius: 8px;
+  background: transparent;      /* no blocking background */
   color: #fff;
+  text-align: center;
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms cubic-bezier(.2,.9,.2,1), transform 260ms cubic-bezier(.2,.9,.2,1);
 }
 
-.admin-actions button:first-child:hover {
-  background-color: #2980b9;
+/* On hover or keyboard focus show only the title (fade+slide) */
+.collection-card:hover .hover-info,
+.collection-card:focus-within .hover-info {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: none; /* make sure explore button remains primary interactive element */
 }
 
-.admin-actions button:last-child {
-  background-color: #e74c3c; /* Red for Delete */
+/* Title styling: big, bold, with strong text-shadow to sit on image */
+.hover-title{
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 900;
+  letter-spacing: 0.2px;
   color: #fff;
+  text-shadow:
+    0 6px 22px rgba(0,0,0,0.55),
+    0 2px 6px rgba(0,0,0,0.35);
+  line-height: 1;
+  padding: 2px 6px; /* small padding so it doesn't clip on small titles */
+  display: inline-block;
+  background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.0)); /* keep transparent */
 }
 
-.admin-actions button:last-child:hover {
-  background-color: #c0392b;
+/* Hide description and price to keep hover minimal */
+.hover-desc, .hover-price { display: none; }
+
+/* small screens - adjust sizes */
+@media (max-width:768px){
+  .collection-card { min-height: 220px; border-radius: 12px; }
+  .hover-title { font-size: 1.05rem; }
+  .btn-glow { width: 48%; height: 6px; bottom: -8px; }
+  .hover-info { bottom: 66px; }
 }
 
-/* --- MOBILE FIX: Force 2-column layout on smaller screens --- */
-@media (max-width: 600px) {
-    .collections-grid {
-        /* Force two equal columns (2, 1fr) instead of relying on minmax(280px) */
-        grid-template-columns: repeat(2, 1fr);
-        
-        /* Reduce gap for a better fit on small screens */
-        gap: 1rem; 
-        
-        /* Add some horizontal padding to prevent cards from touching the edges */
-        padding: 1rem;
-    }
-
-    .collection-card {
-        /* Remove max-width constraint to let the 1fr column work fully */
-        max-width: none; 
-        
-        /* Optionally reduce the minimum height for denser mobile view */
-        min-height: 250px;
-    }
-    
-    /* Reduce title size for better readability on smaller cards */
-    .collection-info .title {
-        font-size: 1.1rem;
-    }
+/* reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .collection-card, .collection-image, .image-shimmer, .hover-info, .btn-glow, .btn-explore {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
 }
