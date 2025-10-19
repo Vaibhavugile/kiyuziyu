@@ -3,11 +3,10 @@ import "./CollectionCard.css";
 
 /**
  * CollectionCard
- * - image visible by default
- * - Explore button always visible
- * - hover/focus triggers slide-up info panel and glow animations
+ * - Image always visible
+ * - Bottom overlay shows “Explore” + Product Name (both styled pills)
  */
-const CollectionCard = ({ id, title, description, image, alt, startingPrice, onClick }) => {
+const CollectionCard = ({ id, title, image, alt, onClick }) => {
   return (
     <article
       className="collection-card"
@@ -19,7 +18,7 @@ const CollectionCard = ({ id, title, description, image, alt, startingPrice, onC
         if ((e.key === "Enter" || e.key === " ") && onClick) onClick(e);
       }}
     >
-      <div className="collection-card-media" aria-hidden="false">
+      <div className="collection-card-media">
         {image ? (
           <img
             src={image}
@@ -32,33 +31,23 @@ const CollectionCard = ({ id, title, description, image, alt, startingPrice, onC
           <div className="collection-image--placeholder" />
         )}
 
-        {/* subtle shimmer layer */}
-        <div className="image-shimmer" aria-hidden="true" />
-      </div>
+        {/* Bottom overlay with Explore + Title */}
+        <div className="bottom-overlay">
+          <div className="overlay-content">
+            <button
+              type="button"
+              className="btn-pill"
+              aria-label={`Explore ${title}`}
+            >
+              <span className="pill-text">Explore</span>
+              <span className="arrow" aria-hidden="true">›</span>
+            </button>
 
-      {/* Explore button (always visible). Keep native button for accessibility */}
-      <div className="collection-hover-button">
-        <button
-          type="button"
-          className="btn-explore"
-          aria-haspopup="true"
-          aria-label={`Explore ${title}`}
-        >
-          <span className="explore-text">Explore</span>
-          <span className="arrow" aria-hidden="true">›</span>
-
-          {/* glow element under the button */}
-          <span className="btn-glow" aria-hidden="true" />
-        </button>
-      </div>
-
-      {/* Hover / focus info panel (appears on hover or keyboard focus) */}
-      <div className="hover-info" aria-hidden="true">
-        <h3 id={id ? `collection-title-${id}` : undefined} className="hover-title">
-          {title}
-        </h3>
-        {description && <p className="hover-desc">{description}</p>}
-        {startingPrice && <div className="hover-price">From ₹{startingPrice}</div>}
+            <div className="btn-pill product-pill">
+              <span className="pill-text">{title}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </article>
   );

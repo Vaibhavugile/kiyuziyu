@@ -118,7 +118,7 @@ const CheckoutPage = () => {
               
               // 1. Format the detailed error message
               const stockErrorDetails = errorBody.stockErrors.map(err => 
-                  ` - ${err.productName}${err.variation !== "N/A" ? ' (' + err.variation + ')' : ''} (Requested: ${err.requested}, Available: ${err.available})`
+                  ` - ${err.productName} ${err.productCode})${err.variation !== "N/A" ? ' (' + err.variation + ')' : ''} (Requested: ${err.requested}, Available: ${err.available})`
               ).join('\n'); // Use newline for clean multi-line display
               
               const fullErrorMessage = `⚠️ **Insufficient Stock Alert!**\nThe following item(s) are short on stock. Please adjust your cart quantities:\n\n${stockErrorDetails}\n\n**Action Required:** Please return to your cart and reduce the quantity of these items.`;

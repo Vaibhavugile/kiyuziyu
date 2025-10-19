@@ -1,203 +1,169 @@
-:root{
-  --gold: #b8915f;
-  --muted: #888;
-  --card-shadow: 0 12px 34px rgba(12,12,12,0.16);
+:root {
+  --accent: #c8a165;
+  --accent-2: #e9d6a6;
+  --text: #1b1b1d;
+  --ease: cubic-bezier(.2, .9, .2, 1);
+  --card-radius: 16px;
+  --card-gap: 16px;
 }
 
-/* --- base grid (unchanged) --- */
-.collections-grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 1.2rem; padding: 1rem 0; }
-@media (max-width:1024px){ .collections-grid{ grid-template-columns: repeat(2,1fr); } }
-@media (max-width:640px){ .collections-grid{ grid-template-columns: 1fr; gap:0.9rem; } }
+/* ---------- GALLERY GRID ---------- */
+.collection-grid {
+  display: grid;
+  gap: var(--card-gap);
+  grid-template-columns: repeat(4, 1fr);
+  align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-/* --- card base --- */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .collection-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .collection-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .collection-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+/* ---------- CARD BASE ---------- */
 .collection-card {
   position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--card-radius);
   overflow: hidden;
-  border-radius: 16px;
-  min-height: 320px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
-  box-shadow: var(--card-shadow);
-  transition: transform 360ms cubic-bezier(.2,.9,.2,1), box-shadow 360ms ease;
-  isolation: isolate;
-}
-/* Soft shadow to make each card pop more against gradient bg */
-.collection-card {
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(185, 145, 95, 0.1), 0 0 0 1px rgba(185, 145, 95, 0.05);
-  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
 }
 
-
-/* hover lift (keeps shadow but does NOT darken image) */
-.collection-card:hover,
-.collection-card:focus-within {
-  transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 30px 60px rgba(7,7,7,0.22);
+.collection-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 
-/* --- image layer --- */
-.collection-card-media{
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: #efebe7;
+/* ---------- IMAGE ---------- */
+.collection-card-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.collection-image,
-.collection-image--placeholder {
+.collection-image {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
-  transition: transform 1.2s cubic-bezier(.2,.9,.2,1), filter 600ms ease;
-  transform-origin: center;
+  object-position: center;
+  transition: transform 1.2s var(--ease);
 }
 
-/* keep a gentle zoom but NO heavy dim/brightness change on hover */
-.collection-card:hover .collection-image,
-.collection-card:focus-within .collection-image {
-  transform: scale(1.04);
-  filter: none; /* <- removed brightness() so image stays vivid */
+.collection-card:hover .collection-image {
+  transform: scale(1.05);
 }
 
-/* gentle shimmer (optional) */
-.image-shimmer {
+/* ---------- BOTTOM OVERLAY ---------- */
+.bottom-overlay {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0) 100%);
-  mix-blend-mode: overlay;
-  opacity: 0.28;
-  transform: translateX(-110%);
-  transition: transform 1.6s ease;
-}
-.collection-card:hover .image-shimmer,
-.collection-card:focus-within .image-shimmer {
-  transform: translateX(110%);
-}
-
-/* --- Explore button (always visible) --- */
-.collection-hover-button {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.6) 100%);
+  padding: 16px 18px;
+  box-sizing: border-box;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-end;
 }
 
-.btn-explore{
-  position: relative;
+.overlay-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- GLOSSY PILL BUTTONS ---------- */
+.btn-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.18);
-  font-weight: 800;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 8px 18px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: transform 260ms cubic-bezier(.2,.9,.2,1), box-shadow 260ms ease, background 260ms ease;
-  backdrop-filter: blur(6px);
-  z-index: 8;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  border: none;
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  box-shadow: 0 4px 14px rgba(200, 161, 101, 0.35);
+  white-space: nowrap;
 }
 
-/* arrow micromove */
-.arrow{ font-size: 1.2rem; transition: transform 260ms ease; }
-.btn-explore:hover .arrow,
-.btn-explore:focus .arrow { transform: translateX(6px); }
-
-/* glow under button */
-.btn-glow{
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: -10px;
-  width: 60%;
-  height: 8px;
-  border-radius: 999px;
-  filter: blur(8px);
-  background: linear-gradient(90deg, rgba(184,145,90,0.18), rgba(255,215,140,0.12));
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 260ms ease, transform 260ms ease;
-  z-index: 3;
-}
-.collection-card:hover .btn-glow,
-.collection-card:focus-within .btn-glow{
-  opacity: 1;
-  transform: translateX(-50%) scaleX(1.12);
-  animation: btnPulse 1800ms infinite;
-}
-@keyframes btnPulse {
-  0% { transform: translateX(-50%) scaleX(1); opacity: 0.96; }
-  50% { transform: translateX(-50%) scaleX(1.22); opacity: 0.6; }
-  100% { transform: translateX(-50%) scaleX(1); opacity: 0.96; }
+.btn-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(200, 161, 101, 0.45);
 }
 
-/* --- HOVER TITLE: minimal, transparent, readable --- */
-/* We remove the dark box. Only the text is shown with text-shadow for contrast. */
-.hover-info{
-  position: absolute;
-  bottom: 78px;                 /* just above the button */
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
-  width: auto;
-  max-width: 88%;
-  padding: 0;                   /* no panel padding so image shows fully */
-  border-radius: 8px;
-  background: transparent;      /* no blocking background */
-  color: #fff;
-  text-align: center;
-  z-index: 7;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 260ms cubic-bezier(.2,.9,.2,1), transform 260ms cubic-bezier(.2,.9,.2,1);
-}
-
-/* On hover or keyboard focus show only the title (fade+slide) */
-.collection-card:hover .hover-info,
-.collection-card:focus-within .hover-info {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  pointer-events: none; /* make sure explore button remains primary interactive element */
-}
-
-/* Title styling: big, bold, with strong text-shadow to sit on image */
-.hover-title{
-  margin: 0;
-  font-size: 1.28rem;
-  font-weight: 900;
-  letter-spacing: 0.2px;
-  color: #fff;
-  text-shadow:
-    0 6px 22px rgba(0,0,0,0.55),
-    0 2px 6px rgba(0,0,0,0.35);
+.btn-pill .arrow {
+  font-size: 1.1rem;
   line-height: 1;
-  padding: 2px 6px; /* small padding so it doesn't clip on small titles */
-  display: inline-block;
-  background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.0)); /* keep transparent */
+  transition: transform 0.3s var(--ease);
 }
 
-/* Hide description and price to keep hover minimal */
-.hover-desc, .hover-price { display: none; }
-
-/* small screens - adjust sizes */
-@media (max-width:768px){
-  .collection-card { min-height: 220px; border-radius: 12px; }
-  .hover-title { font-size: 1.05rem; }
-  .btn-glow { width: 48%; height: 6px; bottom: -8px; }
-  .hover-info { bottom: 66px; }
+.btn-pill:hover .arrow {
+  transform: translateX(4px);
 }
 
-/* reduced-motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .collection-card, .collection-image, .image-shimmer, .hover-info, .btn-glow, .btn-explore {
-    transition: none !important;
-    animation: none !important;
-    transform: none !important;
+/* ---------- PRODUCT NAME PILL ---------- */
+.product-pill {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 768px) {
+  .bottom-overlay {
+    padding: 14px 12px;
+  }
+
+  .btn-pill,
+  .product-pill {
+    padding: 6px 12px;
+    font-size: 0.82rem;
+  }
+
+  .overlay-content {
+    gap: 8px;
   }
 }

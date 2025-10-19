@@ -180,6 +180,18 @@ const generateInvoice = async (orderData, filePath) => {
         .text(`Code: ${item.productCode || "-"}`, textX, nextY);
     nextY += 10; // Move down for the next line (Variation)
 
+    // 2.5 Subcollection Description (if available) - NEW
+    if (item.subcollectionDescription) {
+      // subtle but readable
+      doc.fontSize(8).fillColor("#333333")
+          .text(item.subcollectionDescription, textX, nextY, {
+            width: 260,
+            align: "left",
+          });
+      nextY += 12;
+      doc.fillColor("#000000");
+    }
+
     // 3. Variation Details
     if (item.variation) {
       let variationText = "Var: ";
@@ -235,7 +247,7 @@ const generateInvoice = async (orderData, filePath) => {
   // Labels
   doc.fontSize(10).fillColor("#000000")
       .text("Subtotal:", 350, totalsY + 10, {align: "left"})
-      .text("Shipping:", 350, totalsY + 25, {align: "left"})
+      .text("Packing:", 350, totalsY + 25, {align: "left"})
       .text("GRAND TOTAL:", 350, totalsY + 50, {align: "left"});
 
 
@@ -668,6 +680,56 @@ exports.placeOrder = functions.https.onRequest(async (req, res) => {
 
 
     // --- 2. Post-Transaction Steps (PDF, Storage, WhatsApp) ---
+
+    // --- Attach subcollection descriptions to items (if available) ---
+    // This fetches each unique subcollection doc referenced by the items
+    // and adds a `subcollectionDescription` field to each item so the PDF
+    // generator can print it.
+    try {
+      console.log("Fetching subcollection descriptions for invoice...");
+      const subKeysSet = new Set();
+      orderData.items.forEach((it) => {
+        const key = `${it.collectionId}__${it.subcollectionId}`;
+        subKeysSet.add(key);
+      });
+
+      const subKeys = Array.from(subKeysSet);
+      const subFetchPromises = subKeys.map(async (key) => {
+        const [collectionId, subcollectionId] = key.split("__");
+        const subDocRef = db
+            .collection("collections")
+            .doc(collectionId)
+            .collection("subcollections")
+            .doc(subcollectionId);
+        const subDoc = await subDocRef.get();
+        return {key, data: subDoc.exists ? subDoc.data() : null};
+      });
+
+      const subResults = await Promise.all(subFetchPromises);
+      const subMap = new Map();
+      subResults.forEach((r) => {
+        if (r.data) subMap.set(r.key, r.data);
+      });
+
+      // Attach description (if present) to each item
+      orderData.items = orderData.items.map((it) => {
+        const key = `${it.collectionId}__${it.subcollectionId}`;
+        const subDoc = subMap.get(key);
+        return {
+          ...it,
+          subcollectionDescription: subDoc && subDoc.description ?
+          String(subDoc.description) : "",
+        };
+      });
+
+      console.log("Attached subcollection descriptions to order items.");
+    } catch (subErr) {
+      // Non-fatal: log and continue without descriptions
+      console.error("Failed fetching subcollection descriptions:",
+          subErr.message);
+      orderData.items = orderData.items.map((it) => ({...it,
+        subcollectionDescription: ""}));
+    }
 
     // 7. Generate PDF
     console.log("Generating PDF...");
