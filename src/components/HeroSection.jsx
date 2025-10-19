@@ -76,7 +76,7 @@ export default function HeroSection() {
               <a className="btn-primary" href="#collections">
                 Shop New
               </a>
-              <a className="btn-ghost" href="#studio">
+              <a className="btn-ghost" href="#collections">
                 Our Studio
               </a>
             </div>

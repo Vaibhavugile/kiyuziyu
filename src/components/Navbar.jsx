@@ -99,9 +99,9 @@ const Navbar = () => {
                   <Link to="/admin" role="menuitem" className="kj-link">Admin</Link>
                 </li>
               )}
-              <li role="none" className="kj-link-item mobile-hidden">
+              {/* <li role="none" className="kj-link-item mobile-hidden">
                 <Link to="/#collections" role="menuitem" className="kj-link">Collections</Link>
-              </li>
+              </li> */}
             </ul>
 
             <div className="kj-icons">
@@ -171,7 +171,7 @@ const Navbar = () => {
           <nav className="kj-mobile-nav" role="navigation">
             <ul>
               <li><Link to="/" onClick={() => setMobileOpen(false)}>Home</Link></li>
-              <li><Link to="/#collections" onClick={() => setMobileOpen(false)}>Collections</Link></li>
+              {/* <li><Link to="/#collections" onClick={() => setMobileOpen(false)}>Collections</Link></li> */}
               {currentUser && <li><Link to="/order-history" onClick={() => setMobileOpen(false)}>Order History</Link></li>}
               {userRole === "admin" && <li><Link to="/admin" onClick={() => setMobileOpen(false)}>Admin</Link></li>}
               <li><Link to="/contact" onClick={() => setMobileOpen(false)}>Contact</Link></li>

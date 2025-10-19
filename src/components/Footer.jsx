@@ -101,7 +101,9 @@ const Footer = () => {
             <address className="fj-contact-list">
               <div>📍 <span>Streets Of Europe, Hinjewadi, Pune</span></div>
               <div>📞 <a href="tel:+917897897441">+91 78978 97441</a></div>
-              <div>✉️ <a href="mailto:tanishkaenterprisesxion@gmail.com">tanishkaenterprisesxion@gmail.com</a></div>
+              <div>✉️ <a href="mailto:kiyuziyujewellery@gmail.com">kiyuziyujewellery@gmail.com</a></div>
+              <div>📍 <span>For Wholsale Contact On +91 78978 97441</span></div>
+
             </address>
           </div>
 
