@@ -43,9 +43,10 @@ const CollectionCard = ({ id, title, image, alt, onClick }) => {
               <span className="arrow" aria-hidden="true">›</span>
             </button>
 
-            <div className="btn-pill product-pill">
+           <span className="product-pill">
+
               <span className="pill-text">{title}</span>
-            </div>
+            </span>
           </div>
         </div>
       </div>

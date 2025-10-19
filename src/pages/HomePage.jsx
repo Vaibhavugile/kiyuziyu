@@ -58,7 +58,8 @@ const HomePage = () => {
       <HeroSection />
 
       {/* Featured Collections */}
-      <section
+      <section 
+       section id="collections" 
         className="collections-section"
         aria-labelledby="featured-collections-heading"
       >

@@ -46,34 +46,34 @@ export default function HeroSection() {
         {/* RIGHT SIDE (content) */}
         <aside className="split-right">
           <div className="right-inner">
-            <h2 className="right-title">Heirloom Pieces with a Modern Twist</h2>
+            <h2 className="right-title">India's Leading Anti-Tarnish Imitation Jewellery Brand</h2>
             <p className="right-sub">
-              Limited collections • Bespoke finishes • Responsibly sourced
+              Limited collections • Anti-Tarnish • Responsibly sourced
             </p>
 
             <div className="feature-cards">
               <div className="card">
                 <div className="card-dot" />
                 <div>
-                  <strong>Custom Consult</strong>
+                  <strong>Guaranteed Plating</strong>
                 </div>
               </div>
               <div className="card">
                 <div className="card-dot" />
                 <div>
-                  <strong>Signature Packaging</strong>
+                  <strong>New Designs Every Week</strong>
                 </div>
               </div>
               <div className="card">
                 <div className="card-dot" />
                 <div>
-                  <strong>Certified Materials</strong>
+                  <strong>Superior Quality Packaging</strong>
                 </div>
               </div>
             </div>
 
             <div className="right-actions">
-              <a className="btn-primary" href="#shop">
+              <a className="btn-primary" href="#collections">
                 Shop New
               </a>
               <a className="btn-ghost" href="#studio">

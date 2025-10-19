@@ -1,8 +1,8 @@
 /* Navbar.css - kj-* namespace with sticky glass blur + gold text updates */
 
 :root{
-  --kj-gold: #c8a165;
-  --kj-gold-2: #f5e1b8;
+  --kj-gold: #151515;
+  --kj-gold-2: #151515;
   --kj-bg: rgba(255,255,255,0.88);
   --kj-sticky-bg: rgba(255,255,255,0.62);
   --kj-dark: #151515;
@@ -233,11 +233,15 @@
 .kj-mobile-actions { margin-top:auto; display:flex; flex-direction:column; gap:12px; padding-bottom:20px; }
 .kj-mobile-cart { display:flex; }
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Solid action buttons keep gold background but text stays readable */
 .kj-btn-solid {
   display:inline-block;
   background: linear-gradient(90deg,var(--kj-gold),var(--kj-gold-2));
-  color:#201403;
+  color:#ffffff;
   padding:10px 14px;
   border-radius:999px;
   text-decoration:none;

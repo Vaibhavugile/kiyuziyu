@@ -191,26 +191,32 @@ const NewArrivalsSection = () => {
 
       {/* Show more / Show less for desktop */}
       {isDesktop && productData.length > DESKTOP_INITIAL_COUNT && (
-        <div style={{ marginTop: 24, textAlign: "center", zIndex: 4 }}>
-          <button
-            className="show-more-btn"
-            onClick={handleShowMore}
-            aria-expanded={isExpanded}
-            aria-controls="new-arrivals-list"
-            style={{
-              background: isExpanded ? "transparent" : `linear-gradient(90deg, ${getComputedStyle(document.documentElement).getPropertyValue('--gold') || '#c8a165'}, ${getComputedStyle(document.documentElement).getPropertyValue('--light-gold') || '#f5e1b8'})`,
-              color: isExpanded ? "#1a1a1a" : "#2b1606",
-              border: isExpanded ? "1px solid rgba(0,0,0,0.06)" : "none",
-              padding: "10px 18px",
-              borderRadius: 999,
-              fontWeight: 800,
-              cursor: "pointer",
-              boxShadow: isExpanded ? "0 6px 20px rgba(0,0,0,0.06)" : "0 10px 30px rgba(184,145,90,0.12)",
-            }}
-          >
-            {isExpanded ? "Show less" : `Show more (${remainingCount})`}
-          </button>
-        </div>
+      <div style={{ marginTop: 24, textAlign: "center", zIndex: 4 }}>
+  <button
+    className="show-more-btn"
+    onClick={handleShowMore}
+    aria-expanded={isExpanded}
+    aria-controls="new-arrivals-list"
+    style={{
+      background: isExpanded
+        ? "transparent"
+        : `linear-gradient(90deg, var(--gold, #e73e35), var(--light-gold, #ff8c82))`,
+      color: isExpanded ? "#1a1a1a" : "#fff",
+      border: isExpanded ? "1px solid rgba(0,0,0,0.06)" : "none",
+      padding: "10px 18px",
+      borderRadius: 999,
+      fontWeight: 800,
+      cursor: "pointer",
+      transition: "all 0.3s cubic-bezier(.2,.9,.2,1)",
+      boxShadow: isExpanded
+        ? "0 6px 20px rgba(0,0,0,0.06)"
+        : "0 10px 30px rgba(231,62,53,0.15)",
+    }}
+  >
+    {isExpanded ? "Show less" : `Show more (${remainingCount})`}
+  </button>
+</div>
+
       )}
     </section>
   );
