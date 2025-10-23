@@ -16,11 +16,13 @@ import OrderSuccessPage from './pages/OrderSuccessPage';
 import OrderHistoryPage from './pages/OrderHistoryPage'; // Import the new page
 import ReportPage from './pages/ReportPage';
 import TermsAndPolicies from './pages/TermsAndPolicies';
+import ScrollToTop from './components/ScrollToTop'; // <-- NEW
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <Router>
+          <ScrollToTop />
           <Navbar />
           <Routes>
             <Route path="/" element={<HomePage />} />

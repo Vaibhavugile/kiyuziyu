@@ -417,38 +417,52 @@ useEffect(() => {
     // ---------------------------------------------------------------------
     // ---------------------------------------------------------------------
 
-    const sortedProducts = useMemo(() => {
-        let currentProducts = [...products];
-        const searchUpper = debouncedSearchTerm.toUpperCase();
+   const sortedProducts = useMemo(() => {
+let currentProducts = [...products];
+const searchUpper = debouncedSearchTerm.toUpperCase();
 
-        // 1. **CLIENT-SIDE FILTERING (THE FIX)**
-        if (searchUpper) {
-            currentProducts = currentProducts.filter(product => {
-                // Check product code (preferred match)
-                const codeMatch = product.productCode && product.productCode.toUpperCase().includes(searchUpper);
-                // Check product name
-                const nameMatch = product.productName && product.productName.toUpperCase().includes(searchUpper);
-                return codeMatch || nameMatch;
-            });
-        }
 
-        // 2. Client-side price sorting (Existing Logic)
-        if (sortBy === 'price-asc') {
-            currentProducts.sort((a, b) => {
-                const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
-                const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
-                return (priceA || Infinity) - (priceB || Infinity);
-            });
-        } else if (sortBy === 'price-desc') {
-            currentProducts.sort((a, b) => {
-                const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
-                const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
-                return (priceB || -Infinity) - (priceA || -Infinity);
-            });
-        }
-        return currentProducts;
-        // 3. IMPORTANT: Add debouncedSearchTerm as a dependency
-    }, [products, sortBy, subcollectionsMap, userRole, cart, debouncedSearchTerm]);
+// ====== NEW: Hide out-of-stock ONLY for non-admins ======
+if (userRole !== 'admin') {
+currentProducts = currentProducts.filter((p) => {
+if (p.variations && p.variations.length > 0) {
+const totalQty = p.variations.reduce((sum, v) => sum + Number(v.quantity || 0), 0);
+return totalQty > 0;
+}
+return Number(p.quantity || 0) > 0;
+});
+}
+// =======================================================
+
+
+// Existing search filtering
+if (searchUpper) {
+currentProducts = currentProducts.filter(product => {
+const codeMatch = product.productCode && product.productCode.toUpperCase().includes(searchUpper);
+const nameMatch = product.productName && product.productName.toUpperCase().includes(searchUpper);
+return codeMatch || nameMatch;
+});
+}
+
+
+// Existing price sorting
+if (sortBy === 'price-asc') {
+currentProducts.sort((a, b) => {
+const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
+const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
+return (priceA || Infinity) - (priceB || Infinity);
+});
+} else if (sortBy === 'price-desc') {
+currentProducts.sort((a, b) => {
+const priceA = getProductPrice(a, subcollectionsMap, userRole, cart);
+const priceB = getProductPrice(b, subcollectionsMap, userRole, cart);
+return (priceB || -Infinity) - (priceA || -Infinity);
+});
+}
+
+
+return currentProducts;
+}, [products, sortBy, subcollectionsMap, userRole, cart, debouncedSearchTerm]);
 
 
     const handleAddToCart = (product, variation) => {
